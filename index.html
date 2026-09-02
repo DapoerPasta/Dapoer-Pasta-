@@ -13,7 +13,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         body { 
             font-family: 'Poppins', sans-serif; 
-            background-color: #f3f4f6; 
+            background-color: #fcf8f2; /* Warna latar belakang krem sesuai poster */
         }
     </style>
 </head>
@@ -22,19 +22,22 @@
     <!-- Sidebar Kiri (Desktop) -->
     <aside class="w-64 bg-white shadow-xl hidden md:flex flex-col z-10">
         <div class="p-6 text-center border-b border-gray-100">
-            <h1 class="text-2xl font-bold text-orange-600">
+            <h1 class="text-2xl font-bold text-red-900">
                 <i class="fas fa-utensils mr-2"></i>Dapoer Pasta
             </h1>
         </div>
         <nav class="flex-1 p-4 space-y-3">
-            <a href="#" class="flex items-center p-3 bg-orange-50 text-orange-600 rounded-xl font-medium transition-colors">
+            <a href="#" class="flex items-center p-3 bg-red-50 text-red-900 rounded-xl font-medium transition-colors">
                 <i class="fas fa-tachometer-alt w-6"></i> Dashboard
             </a>
             <a href="#menu" class="flex items-center p-3 text-gray-600 hover:bg-gray-50 rounded-xl font-medium transition-colors">
                 <i class="fas fa-box-open w-6"></i> Menu Produk
             </a>
-            <a href="https://wa.me/6285175391181" target="_blank" class="flex items-center p-3 text-gray-600 hover:bg-green-50 hover:text-green-600 rounded-xl font-medium transition-colors">
+            <a href="https://api.whatsapp.com/send/?phone=6285175391181" target="_blank" class="flex items-center p-3 text-gray-600 hover:bg-green-50 hover:text-green-600 rounded-xl font-medium transition-colors">
                 <i class="fab fa-whatsapp w-6 text-lg"></i> Hubungi Admin
+            </a>
+            <a href="https://instagram.com/Dapoer.Pasta" target="_blank" class="flex items-center p-3 text-gray-600 hover:bg-pink-50 hover:text-pink-600 rounded-xl font-medium transition-colors">
+                <i class="fab fa-instagram w-6 text-lg"></i> @Dapoer.Pasta
             </a>
         </nav>
         <div class="p-4 border-t border-gray-100 text-center text-sm text-gray-400">
@@ -61,64 +64,109 @@
         <!-- Area Dashboard -->
         <div class="p-6 md:p-8 space-y-8">
             <!-- Banner Utama -->
-            <div class="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
+            <div class="bg-gradient-to-br from-red-900 to-red-700 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
                 <div class="relative z-10">
                     <h3 class="text-3xl font-bold mb-3">Halo, Selamat Datang! 👋</h3>
-                    <p class="text-orange-100 max-w-lg text-lg">
-                        Sistem pemesanan Dapoer Pasta siap melayani Anda. Pilih menu favorit frozen food Anda dan langsung terhubung ke WhatsApp Admin kami.
+                    <p class="text-red-100 max-w-lg text-lg mb-4">
+                        Sistem pemesanan Dapoer Pasta siap melayani Anda. Pilih menu favorit Anda dan langsung terhubung ke WhatsApp Admin.
                     </p>
+                    <div class="flex gap-2">
+                        <span class="bg-white text-red-900 text-xs font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle text-green-500 mr-1"></i>Halal Indonesia</span>
+                        <span class="bg-white text-red-900 text-xs font-bold px-3 py-1 rounded-full">No Pengawet</span>
+                        <span class="bg-white text-red-900 text-xs font-bold px-3 py-1 rounded-full">No Pewarna</span>
+                    </div>
                 </div>
-                <!-- Hiasan background banner -->
-                <i class="fas fa-hamburger absolute -right-10 -bottom-10 text-9xl text-white opacity-10"></i>
+                <i class="fas fa-certificate absolute -right-10 -bottom-10 text-9xl text-white opacity-10"></i>
             </div>
 
             <!-- Bagian Menu -->
             <div>
                 <div class="flex justify-between items-end mb-6 border-b border-gray-200 pb-3">
-                    <h3 id="menu" class="text-2xl font-bold text-gray-800">Katalog Menu</h3>
-                    <span class="text-sm text-gray-500 font-medium">Kategori: Frozen Food</span>
+                    <h3 id="menu" class="text-2xl font-bold text-red-900">Katalog Menu</h3>
+                    <span class="text-sm text-gray-500 font-medium">Spesial Dapoer Pasta</span>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     
-                    <!-- Kartu Produk 1: Pasta Brulee -->
-                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100 flex flex-col">
-                        <div class="h-52 bg-gray-200 relative" style="background-image: url('https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;">
-                            <span class="absolute top-4 right-4 bg-white text-orange-600 text-xs font-bold px-3 py-1 rounded-full shadow-md">Best Seller</span>
+                    <!-- Kartu Produk 1: Chickend pop corn -->
+                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
+                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
+                        <div class="h-56 bg-gray-200 relative" style="background-image: url('https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;">
+                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 37.000</span>
                         </div>
-                        <div class="p-6 flex-1 flex flex-col">
-                            <h4 class="font-bold text-xl text-gray-800 mb-2">Pasta Brulee</h4>
-                            <p class="text-gray-500 text-sm mb-6 flex-1">Spaghetti creamy dengan saus daging bolognese kaya rasa, ditutup dengan lelehan keju panggang yang gurih.</p>
+                        <div class="p-6 flex-1 flex flex-col text-white text-center">
+                            <h4 class="font-bold text-xl mb-2">Chickend pop corn 250gr</h4>
+                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chicken with crispy taste</p>
                             <div class="flex justify-between items-center mt-auto">
-                                <a href="https://wa.me/6285175391181?text=Halo%20Admin%20Dapoer%20Pasta,%20saya%20tertarik%20untuk%20memesan%20*Pasta%20Brulee*." target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
+                                <a href="https://api.whatsapp.com/send/?phone=6285175391181&text=Halo+Admin+Dapoer+Pasta%2C+saya+tertarik+untuk+memesan+%2AChickend+pop+corn+250gr%2A" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
                                     <i class="fab fa-whatsapp text-xl"></i> Pesan via WA
                                 </a>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Kartu Produk 2: Mini Wonton -->
-                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100 flex flex-col">
-                        <div class="h-52 bg-gray-200" style="background-image: url('https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;"></div>
-                        <div class="p-6 flex-1 flex flex-col">
-                            <h4 class="font-bold text-xl text-gray-800 mb-2">Mini Wonton</h4>
-                            <p class="text-gray-500 text-sm mb-6 flex-1">Pangsit mini dengan isian yang juicy dan gurih. Sangat cocok dijadikan camilan atau tambahan lauk sehari-hari.</p>
+                    <!-- Kartu Produk 2: Chickend Cordon Blue -->
+                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
+                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
+                        <div class="h-56 bg-gray-200 relative" style="background-image: url('https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;">
+                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 37.000</span>
+                        </div>
+                        <div class="p-6 flex-1 flex flex-col text-white text-center">
+                            <h4 class="font-bold text-xl mb-2">Chickend Cordon Blue 7 pcs</h4>
+                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chicken with smoke beef and Mozzarella</p>
                             <div class="flex justify-between items-center mt-auto">
-                                <a href="https://wa.me/6285175391181?text=Halo%20Admin%20Dapoer%20Pasta,%20saya%20tertarik%20untuk%20memesan%20*Mini%20Wonton*." target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
+                                <a href="https://api.whatsapp.com/send/?phone=6285175391181&text=Halo+Admin+Dapoer+Pasta%2C+saya+tertarik+untuk+memesan+%2AChickend+Cordon+Blue+7+pcs%2A" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
                                     <i class="fab fa-whatsapp text-xl"></i> Pesan via WA
                                 </a>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Kartu Produk 3: Chicken Cordon Bleu -->
-                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100 flex flex-col">
-                        <div class="h-52 bg-gray-200" style="background-image: url('https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;"></div>
-                        <div class="p-6 flex-1 flex flex-col">
-                            <h4 class="font-bold text-xl text-gray-800 mb-2">Chicken Cordon Bleu</h4>
-                            <p class="text-gray-500 text-sm mb-6 flex-1">Dada ayam fillet krispi premium yang berisi paduan smoked beef dan keju mozarella lumer di dalamnya.</p>
+                    <!-- Kartu Produk 3: Mini wonton -->
+                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
+                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
+                        <div class="h-56 bg-gray-200 relative" style="background-image: url('https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;">
+                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 37.000</span>
+                        </div>
+                        <div class="p-6 flex-1 flex flex-col text-white text-center">
+                            <h4 class="font-bold text-xl mb-2">Mini wonton 250gr</h4>
+                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chiken with Prawn and cripy taste</p>
                             <div class="flex justify-between items-center mt-auto">
-                                <a href="https://wa.me/6285175391181?text=Halo%20Admin%20Dapoer%20Pasta,%20saya%20tertarik%20untuk%20memesan%20*Chicken%20Cordon%20Bleu*." target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
+                                <a href="https://api.whatsapp.com/send/?phone=6285175391181&text=Halo+Admin+Dapoer+Pasta%2C+saya+tertarik+untuk+memesan+%2AMini+wonton+250gr%2A" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
+                                    <i class="fab fa-whatsapp text-xl"></i> Pesan via WA
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kartu Produk 4: Pasta brulee oval -->
+                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
+                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
+                        <div class="h-56 bg-gray-200 relative" style="background-image: url('https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;">
+                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 27.000</span>
+                        </div>
+                        <div class="p-6 flex-1 flex flex-col text-white text-center">
+                            <h4 class="font-bold text-xl mb-2">Pasta brulee oval 2 pcs</h4>
+                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chicken with cheese melted</p>
+                            <div class="flex justify-between items-center mt-auto">
+                                <a href="https://api.whatsapp.com/send/?phone=6285175391181&text=Halo+Admin+Dapoer+Pasta%2C+saya+tertarik+untuk+memesan+%2APasta+brulee+oval+2+pcs%2A" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
+                                    <i class="fab fa-whatsapp text-xl"></i> Pesan via WA
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kartu Produk 5: Pasta brulee persegi -->
+                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
+                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
+                        <div class="h-56 bg-gray-200 relative" style="background-image: url('https://images.unsplash.com/photo-1516100882582-96c3a05fe590?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;">
+                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 32.000</span>
+                        </div>
+                        <div class="p-6 flex-1 flex flex-col text-white text-center">
+                            <h4 class="font-bold text-xl mb-2">Pasta brulee persegi 2 pcs</h4>
+                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chicken with cheese melted</p>
+                            <div class="flex justify-between items-center mt-auto">
+                                <a href="https://api.whatsapp.com/send/?phone=6285175391181&text=Halo+Admin+Dapoer+Pasta%2C+saya+tertarik+untuk+memesan+%2APasta+brulee+persegi+2+pcs%2A" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
                                     <i class="fab fa-whatsapp text-xl"></i> Pesan via WA
                                 </a>
                             </div>
