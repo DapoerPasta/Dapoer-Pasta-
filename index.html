@@ -1,142 +1,133 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dapoer Pasta - Spesialis Pasta Brulee</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    body {
-      background-color: #fff8f0;
-      color: #333;
-      line-height: 1.6;
-      padding: 20px;
-    }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 30px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-      text-align: center;
-    }
-    h1 {
-      color: #c84b31;
-      margin-bottom: 8px;
-    }
-    .tagline {
-      color: #666;
-      font-size: 15px;
-      margin-bottom: 25px;
-    }
-    .card {
-      border: 1px solid #ffe3d1;
-      border-radius: 12px;
-      padding: 20px;
-      background: #fffdfa;
-      margin-bottom: 25px;
-    }
-    .badge {
-      display: inline-block;
-      background: #e07a5f;
-      color: white;
-      padding: 4px 12px;
-      font-size: 12px;
-      border-radius: 20px;
-      font-weight: bold;
-      margin-bottom: 12px;
-    }
-    .menu-title {
-      font-size: 20px;
-      color: #2d3142;
-      margin-bottom: 10px;
-    }
-    .description {
-      font-size: 14px;
-      color: #555;
-      margin-bottom: 15px;
-    }
-    .price-list {
-      display: flex;
-      justify-content: space-around;
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 1px dashed #e2d4c9;
-    }
-    .price-item span {
-      display: block;
-      font-size: 13px;
-      color: #888;
-    }
-    .price-item strong {
-      font-size: 16px;
-      color: #c84b31;
-    }
-    .btn-order {
-      display: inline-block;
-      background-color: #25d366;
-      color: white;
-      text-decoration: none;
-      padding: 14px 28px;
-      border-radius: 30px;
-      font-weight: bold;
-      font-size: 16px;
-      transition: background 0.3 alt;
-    }
-    .btn-order:hover {
-      background-color: #1ebe57;
-    }
-    footer {
-      margin-top: 25px;
-      font-size: 12px;
-      color: #999;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dapoer Pasta - Order Dashboard</title>
+    <!-- Tailwind CSS untuk Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome untuk Ikon -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background-color: #f3f4f6; 
+        }
+    </style>
 </head>
-<body>
-
-  <div class="container">
-    <h1>🍝 Dapoer Pasta</h1>
-    <p class="tagline">Lezatnya pasta panggang gurih dengan lapisan bechamel & keju lumer</p>
-
-    <div class="card">
-      <span class="badge">Menu Favorit</span>
-      <h2 class="menu-title">Spaghetti Brulee Panggang</h2>
-      <p class="description">
-        Perpaduan pasta bolognese daging sapi cincang pilihan, ditutup saus bechamel lembut dan keju mozarella panggang yang kecokelatan.
-      </p>
-
-      <div class="price-list">
-        <div class="price-item">
-          <span>Personal Size</span>
-          <strong>Rp35.000</strong>
+<body class="flex h-screen overflow-hidden text-gray-800">
+    
+    <!-- Sidebar Kiri (Desktop) -->
+    <aside class="w-64 bg-white shadow-xl hidden md:flex flex-col z-10">
+        <div class="p-6 text-center border-b border-gray-100">
+            <h1 class="text-2xl font-bold text-orange-600">
+                <i class="fas fa-utensils mr-2"></i>Dapoer Pasta
+            </h1>
         </div>
-        <div class="price-item">
-          <span>Medium Size</span>
-          <strong>Rp65.000</strong>
+        <nav class="flex-1 p-4 space-y-3">
+            <a href="#" class="flex items-center p-3 bg-orange-50 text-orange-600 rounded-xl font-medium transition-colors">
+                <i class="fas fa-tachometer-alt w-6"></i> Dashboard
+            </a>
+            <a href="#menu" class="flex items-center p-3 text-gray-600 hover:bg-gray-50 rounded-xl font-medium transition-colors">
+                <i class="fas fa-box-open w-6"></i> Menu Produk
+            </a>
+            <a href="https://wa.me/6285175391181" target="_blank" class="flex items-center p-3 text-gray-600 hover:bg-green-50 hover:text-green-600 rounded-xl font-medium transition-colors">
+                <i class="fab fa-whatsapp w-6 text-lg"></i> Hubungi Admin
+            </a>
+        </nav>
+        <div class="p-4 border-t border-gray-100 text-center text-sm text-gray-400">
+            &copy; 2026 Dapoer Pasta
         </div>
-        <div class="price-item">
-          <span>Family Size</span>
-          <strong>Rp120.000</strong>
+    </aside>
+
+    <!-- Konten Utama -->
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <!-- Header Atas -->
+        <header class="bg-white shadow-sm p-4 flex justify-between items-center md:px-8 sticky top-0 z-20">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-bars md:hidden text-gray-500 text-xl cursor-pointer"></i>
+                <h2 class="text-xl font-semibold text-gray-800 hidden md:block">Portal Pemesanan</h2>
+            </div>
+            <div class="flex items-center space-x-4 bg-gray-50 px-4 py-2 rounded-full border border-gray-100">
+                <span class="text-sm font-medium text-gray-600 flex items-center">
+                    <i class="fab fa-whatsapp text-green-500 text-xl mr-2"></i> 
+                    0851-7539-1181
+                </span>
+            </div>
+        </header>
+
+        <!-- Area Dashboard -->
+        <div class="p-6 md:p-8 space-y-8">
+            <!-- Banner Utama -->
+            <div class="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
+                <div class="relative z-10">
+                    <h3 class="text-3xl font-bold mb-3">Halo, Selamat Datang! 👋</h3>
+                    <p class="text-orange-100 max-w-lg text-lg">
+                        Sistem pemesanan Dapoer Pasta siap melayani Anda. Pilih menu favorit frozen food Anda dan langsung terhubung ke WhatsApp Admin kami.
+                    </p>
+                </div>
+                <!-- Hiasan background banner -->
+                <i class="fas fa-hamburger absolute -right-10 -bottom-10 text-9xl text-white opacity-10"></i>
+            </div>
+
+            <!-- Bagian Menu -->
+            <div>
+                <div class="flex justify-between items-end mb-6 border-b border-gray-200 pb-3">
+                    <h3 id="menu" class="text-2xl font-bold text-gray-800">Katalog Menu</h3>
+                    <span class="text-sm text-gray-500 font-medium">Kategori: Frozen Food</span>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    
+                    <!-- Kartu Produk 1: Pasta Brulee -->
+                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100 flex flex-col">
+                        <div class="h-52 bg-gray-200 relative" style="background-image: url('https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;">
+                            <span class="absolute top-4 right-4 bg-white text-orange-600 text-xs font-bold px-3 py-1 rounded-full shadow-md">Best Seller</span>
+                        </div>
+                        <div class="p-6 flex-1 flex flex-col">
+                            <h4 class="font-bold text-xl text-gray-800 mb-2">Pasta Brulee</h4>
+                            <p class="text-gray-500 text-sm mb-6 flex-1">Spaghetti creamy dengan saus daging bolognese kaya rasa, ditutup dengan lelehan keju panggang yang gurih.</p>
+                            <div class="flex justify-between items-center mt-auto">
+                                <a href="https://wa.me/6285175391181?text=Halo%20Admin%20Dapoer%20Pasta,%20saya%20tertarik%20untuk%20memesan%20*Pasta%20Brulee*." target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
+                                    <i class="fab fa-whatsapp text-xl"></i> Pesan via WA
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kartu Produk 2: Mini Wonton -->
+                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100 flex flex-col">
+                        <div class="h-52 bg-gray-200" style="background-image: url('https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;"></div>
+                        <div class="p-6 flex-1 flex flex-col">
+                            <h4 class="font-bold text-xl text-gray-800 mb-2">Mini Wonton</h4>
+                            <p class="text-gray-500 text-sm mb-6 flex-1">Pangsit mini dengan isian yang juicy dan gurih. Sangat cocok dijadikan camilan atau tambahan lauk sehari-hari.</p>
+                            <div class="flex justify-between items-center mt-auto">
+                                <a href="https://wa.me/6285175391181?text=Halo%20Admin%20Dapoer%20Pasta,%20saya%20tertarik%20untuk%20memesan%20*Mini%20Wonton*." target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
+                                    <i class="fab fa-whatsapp text-xl"></i> Pesan via WA
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kartu Produk 3: Chicken Cordon Bleu -->
+                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100 flex flex-col">
+                        <div class="h-52 bg-gray-200" style="background-image: url('https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80'); background-size: cover; background-position: center;"></div>
+                        <div class="p-6 flex-1 flex flex-col">
+                            <h4 class="font-bold text-xl text-gray-800 mb-2">Chicken Cordon Bleu</h4>
+                            <p class="text-gray-500 text-sm mb-6 flex-1">Dada ayam fillet krispi premium yang berisi paduan smoked beef dan keju mozarella lumer di dalamnya.</p>
+                            <div class="flex justify-between items-center mt-auto">
+                                <a href="https://wa.me/6285175391181?text=Halo%20Admin%20Dapoer%20Pasta,%20saya%20tertarik%20untuk%20memesan%20*Chicken%20Cordon%20Bleu*." target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2">
+                                    <i class="fab fa-whatsapp text-xl"></i> Pesan via WA
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Ganti nomor WhatsApp di bawah ini dengan nomormu -->
-    <a href="https://wa.me/6281234567890?text=Halo%20Dapoer%20Pasta,%20saya%20mau%20pesan%20Pasta%20Brulee" class="btn-order" target="_blank">
-      Pesan via WhatsApp
-    </a>
-
-    <footer>
-      &copy; 2026 Dapoer Pasta. All rights reserved.
-    </footer>
-  </div>
-
+    </main>
 </body>
 </html>
