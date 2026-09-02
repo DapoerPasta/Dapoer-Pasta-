@@ -1,1 +1,142 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dapoer Pasta - Spesialis Pasta Brulee</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #fff8f0;
+      color: #333;
+      line-height: 1.6;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    h1 {
+      color: #c84b31;
+      margin-bottom: 8px;
+    }
+    .tagline {
+      color: #666;
+      font-size: 15px;
+      margin-bottom: 25px;
+    }
+    .card {
+      border: 1px solid #ffe3d1;
+      border-radius: 12px;
+      padding: 20px;
+      background: #fffdfa;
+      margin-bottom: 25px;
+    }
+    .badge {
+      display: inline-block;
+      background: #e07a5f;
+      color: white;
+      padding: 4px 12px;
+      font-size: 12px;
+      border-radius: 20px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+    .menu-title {
+      font-size: 20px;
+      color: #2d3142;
+      margin-bottom: 10px;
+    }
+    .description {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 15px;
+    }
+    .price-list {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px dashed #e2d4c9;
+    }
+    .price-item span {
+      display: block;
+      font-size: 13px;
+      color: #888;
+    }
+    .price-item strong {
+      font-size: 16px;
+      color: #c84b31;
+    }
+    .btn-order {
+      display: inline-block;
+      background-color: #25d366;
+      color: white;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 30px;
+      font-weight: bold;
+      font-size: 16px;
+      transition: background 0.3 alt;
+    }
+    .btn-order:hover {
+      background-color: #1ebe57;
+    }
+    footer {
+      margin-top: 25px;
+      font-size: 12px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
 
+  <div class="container">
+    <h1>🍝 Dapoer Pasta</h1>
+    <p class="tagline">Lezatnya pasta panggang gurih dengan lapisan bechamel & keju lumer</p>
+
+    <div class="card">
+      <span class="badge">Menu Favorit</span>
+      <h2 class="menu-title">Spaghetti Brulee Panggang</h2>
+      <p class="description">
+        Perpaduan pasta bolognese daging sapi cincang pilihan, ditutup saus bechamel lembut dan keju mozarella panggang yang kecokelatan.
+      </p>
+
+      <div class="price-list">
+        <div class="price-item">
+          <span>Personal Size</span>
+          <strong>Rp35.000</strong>
+        </div>
+        <div class="price-item">
+          <span>Medium Size</span>
+          <strong>Rp65.000</strong>
+        </div>
+        <div class="price-item">
+          <span>Family Size</span>
+          <strong>Rp120.000</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ganti nomor WhatsApp di bawah ini dengan nomormu -->
+    <a href="https://wa.me/6281234567890?text=Halo%20Dapoer%20Pasta,%20saya%20mau%20pesan%20Pasta%20Brulee" class="btn-order" target="_blank">
+      Pesan via WhatsApp
+    </a>
+
+    <footer>
+      &copy; 2026 Dapoer Pasta. All rights reserved.
+    </footer>
+  </div>
+
+</body>
+</html>
