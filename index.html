@@ -217,7 +217,11 @@
         </div>
     </div>
 </div>
-
+<!-- ================= NOTIFIKASI TOAST ================= -->
+<div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-full shadow-2xl z-[100] transition-all duration-300 opacity-0 pointer-events-none -translate-y-5 flex items-center gap-2">
+    <i class="fas fa-check-circle text-lg"></i>
+    <span id="toast-message" class="font-semibold text-sm">Berhasil ditambah!</span>
+</div>
 <!-- ================= LOGIKA JAVASCRIPT ================= -->
 <script>
    function toggleSidebar() {
@@ -225,7 +229,21 @@
     }
     
     let keranjang = [];
-
+// Fungsi untuk memunculkan Toast
+    function showToast(pesan) {
+        let toast = document.getElementById('toast');
+        document.getElementById('toast-message').innerText = pesan;
+        
+        // Munculkan toast
+        toast.classList.remove('opacity-0', '-translate-y-5');
+        toast.classList.add('opacity-100', 'translate-y-0');
+        
+        // Sembunyikan otomatis setelah 2.5 detik
+        setTimeout(() => {
+            toast.classList.remove('opacity-100', 'translate-y-0');
+            toast.classList.add('opacity-0', '-translate-y-5');
+        }, 2500);
+    }
     function tambahKeKeranjang(nama, harga) {
         let item = keranjang.find(i => i.nama === nama);
         if (item) {
@@ -238,6 +256,7 @@
         let btnCart = document.getElementById('cart-button');
         btnCart.classList.add('scale-110');
         setTimeout(() => btnCart.classList.remove('scale-110'), 200);
+        showToast(nama + " masuk ke keranjang!");
     }
 
     function hapusItem(index) {
