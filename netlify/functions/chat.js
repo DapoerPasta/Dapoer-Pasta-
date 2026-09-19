@@ -5,21 +5,25 @@ exports.handler = async function(event, context) {
         const body = JSON.parse(event.body);
         const userMessage = body.message;
         
-        // KITA KEMBALI MENGAMBIL KUNCI DARI BRANKAS NETLIFY AGAR LOLOS SENSOR KEAMANAN
+        // AMBIL KUNCI & BERSIHKAN DARI SPASI ATAU TANDA KUTIP YANG TIDAK SENGAJA TERSALIN
         const rawApiKey = process.env.GEMINI_API_KEY || "";
-        const apiKey = rawApiKey.trim();
+        const apiKey = rawApiKey.replace(/['"]+/g, '').trim();
 
         if (!apiKey) {
-            return { statusCode: 200, body: JSON.stringify({ reply: "Sistem: Kunci API belum terbaca." }) };
+            return { statusCode: 200, body: JSON.stringify({ reply: "Sistem: Kunci API belum terbaca oleh Netlify." }) };
         }
 
         const gabunganPesan = "Kamu adalah asisten restoran online bernama Dapoer Pasta. Menu andalan: Chicken Pop Corn 250gr (37k), Chicken Cordon Blue (37k), Mini Wonton (37k), Pasta Brulee Oval (27k), Pasta Brulee Persegi (32k). Halal, tanpa pengawet. Pemesanan via pre-order WhatsApp. Jawab pelanggan dengan ramah, singkat, dan gunakan emoji.\n\nPesan dari pelanggan: " + userMessage;
         
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // MENGGUNAKAN JALUR API YANG BERSIH TANPA KUNCI DI DALAM LINK
+        const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
         
         const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey // KUNCI DIKIRIM LEWAT JALUR VIP
+            },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: gabunganPesan }] }]
             })
