@@ -5,25 +5,21 @@ exports.handler = async function(event, context) {
         const body = JSON.parse(event.body);
         const userMessage = body.message;
         
-        // AMBIL KUNCI & BERSIHKAN DARI SPASI ATAU TANDA KUTIP YANG TIDAK SENGAJA TERSALIN
-        const rawApiKey = process.env.GEMINI_API_KEY || "";
-        const apiKey = rawApiKey.replace(/['"]+/g, '').trim();
+        // Mengambil kunci rahasia baru Anda dari Netlify
+        const apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : "";
 
         if (!apiKey) {
-            return { statusCode: 200, body: JSON.stringify({ reply: "Sistem: Kunci API belum terbaca oleh Netlify." }) };
+            return { statusCode: 200, body: JSON.stringify({ reply: "Sistem: Kunci API belum terbaca." }) };
         }
 
-        const gabunganPesan = "Kamu adalah asisten restoran online bernama Dapoer Pasta. Menu andalan: Chicken Pop Corn 250gr (37k), Chicken Cordon Blue (37k), Mini Wonton (37k), Pasta Brulee Oval (27k), Pasta Brulee Persegi (32k). Halal, tanpa pengawet. Pemesanan via pre-order WhatsApp. Jawab pelanggan dengan ramah, singkat, dan gunakan emoji.\n\nPesan dari pelanggan: " + userMessage;
+        const gabunganPesan = "Kamu adalah asisten restoran online bernama Dapoer Pasta. Menu andalan: Chicken Pop Corn 250gr (37k), Chicken Cordon Blue (37k), Mini Wonton (37k), Pasta Brulee Oval (27k), Pasta Brulee Persegi (32k). Halal, tanpa pengawet. Pemesanan via pre-order WhatsApp. Jawab pelanggan dengan ramah, luwes, singkat, dan gunakan emoji.\n\nPesan dari pelanggan: " + userMessage;
         
-        // MENGGUNAKAN JALUR API YANG BERSIH TANPA KUNCI DI DALAM LINK
-        const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+        // Format link paling stabil untuk API Baru (AQ.)
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         
         const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey // KUNCI DIKIRIM LEWAT JALUR VIP
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: gabunganPesan }] }]
             })
@@ -32,7 +28,7 @@ exports.handler = async function(event, context) {
         const data = await response.json();
 
         if (!response.ok || data.error) {
-            let pesanError = data.error?.message || "Terjadi kesalahan pada server Google.";
+            let pesanError = data.error?.message || "Kesalahan server Google.";
             return { statusCode: 200, body: JSON.stringify({ reply: "Error Google API: " + pesanError }) };
         }
 
