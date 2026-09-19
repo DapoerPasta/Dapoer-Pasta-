@@ -4,7 +4,10 @@ exports.handler = async function(event, context) {
     try {
         const body = JSON.parse(event.body);
         const userMessage = body.message;
-        const apiKey = process.env.GEMINI_API_KEY;
+        
+        // FUNGSI .trim() INI AKAN MENGHAPUS SEMUA SPASI GAIB/ENTER YANG IKUT TERSALIN
+        const rawApiKey = process.env.GEMINI_API_KEY || "";
+        const apiKey = rawApiKey.trim();
 
         if (!apiKey) {
             return { statusCode: 200, body: JSON.stringify({ reply: "Sistem: Kunci API belum terbaca oleh Netlify." }) };
@@ -12,12 +15,14 @@ exports.handler = async function(event, context) {
 
         const gabunganPesan = "Kamu adalah asisten restoran online bernama Dapoer Pasta. Menu andalan: Chicken Pop Corn 250gr (37k), Chicken Cordon Blue (37k), Mini Wonton (37k), Pasta Brulee Oval (27k), Pasta Brulee Persegi (32k). Halal, tanpa pengawet. Pemesanan via pre-order WhatsApp. Jawab pelanggan dengan ramah, singkat, dan gunakan emoji.\n\nPesan dari pelanggan: " + userMessage;
         
-        // MENGGUNAKAN NAMA RESMI SERVER: gemini-pro
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+        // MENGGUNAKAN VERSI V1 (Paling Stabil) & GEMINI-1.5-FLASH
+        const apiUrl = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+        
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: gabunganPesan }] }]
+                contents: [{ role: "user", parts: [{ text: gabunganPesan }] }]
             })
         });
 
