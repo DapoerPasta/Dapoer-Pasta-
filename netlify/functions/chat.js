@@ -5,12 +5,16 @@ exports.handler = async function(event, context) {
         const body = JSON.parse(event.body);
         const userMessage = body.message;
         
-        // KITA TANAM KUNCINYA LANGSUNG DI SERVER BACKEND (100% AMAN & RAHASIA)
-        const apiKey = "AQ.Ab8RN6JIFBKjzuZYGBSKt4-0eEdj0Ehj2hp4ZEYMgpA1V-PoRw";
+        // KITA KEMBALI MENGAMBIL KUNCI DARI BRANKAS NETLIFY AGAR LOLOS SENSOR KEAMANAN
+        const rawApiKey = process.env.GEMINI_API_KEY || "";
+        const apiKey = rawApiKey.trim();
+
+        if (!apiKey) {
+            return { statusCode: 200, body: JSON.stringify({ reply: "Sistem: Kunci API belum terbaca." }) };
+        }
 
         const gabunganPesan = "Kamu adalah asisten restoran online bernama Dapoer Pasta. Menu andalan: Chicken Pop Corn 250gr (37k), Chicken Cordon Blue (37k), Mini Wonton (37k), Pasta Brulee Oval (27k), Pasta Brulee Persegi (32k). Halal, tanpa pengawet. Pemesanan via pre-order WhatsApp. Jawab pelanggan dengan ramah, singkat, dan gunakan emoji.\n\nPesan dari pelanggan: " + userMessage;
         
-        // MENGGUNAKAN LINK STANDAR GOOGLE
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         
         const response = await fetch(apiUrl, {
