@@ -222,8 +222,81 @@
     <i class="fas fa-check-circle text-lg"></i>
     <span id="toast-message" class="font-semibold text-sm">Berhasil ditambah!</span>
 </div>
+    <!-- ================= CHATBOT OTOMATIS ================= -->
+<!-- Tombol Floating Chat -->
+<div onclick="toggleChat()" class="fixed bottom-24 right-6 bg-green-600 text-white p-4 rounded-full shadow-lg cursor-pointer hover:bg-green-700 transition-all z-50 flex items-center justify-center">
+    <i class="fas fa-comment-dots text-2xl"></i>
+</div>
+
+<!-- Kotak Chat -->
+<div id="chat-box" class="fixed bottom-24 right-6 w-80 bg-white rounded-2xl shadow-2xl hidden flex-col overflow-hidden z-50 border border-gray-200">
+    <div class="bg-green-600 p-4 flex justify-between items-center text-white">
+        <h3 class="font-bold"><i class="fas fa-robot mr-2"></i> Asisten Dapoer Pasta</h3>
+        <button onclick="toggleChat()" class="text-white hover:text-red-300 font-bold text-xl">&times;</button>
+    </div>
+    <div id="chat-messages" class="p-4 h-64 overflow-y-auto bg-gray-50 flex flex-col gap-3 text-sm">
+        <div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm border border-gray-100 self-start max-w-[85%] text-gray-700">
+            Halo! Ada yang bisa dibantu? Ketik "menu", "lokasi", atau "promo".
+        </div>
+    </div>
+    <div class="p-3 bg-white border-t border-gray-200 flex gap-2">
+        <input type="text" id="chat-input" placeholder="Ketik pesan..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm" onkeypress="handleChatEnter(event)">
+        <button onclick="kirimPesan()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
 <!-- ================= LOGIKA JAVASCRIPT ================= -->
 <script>
+  // ================= LOGIKA CHATBOT =================
+function toggleChat() {
+    document.getElementById('chat-box').classList.toggle('hidden');
+    document.getElementById('chat-box').classList.toggle('flex');
+}
+
+function handleChatEnter(event) {
+    if (event.key === "Enter") kirimPesan();
+}
+
+function kirimPesan() {
+    let inputField = document.getElementById('chat-input');
+    let pesanUser = inputField.value.trim().toLowerCase();
+    if (pesanUser === "") return;
+
+    let chatMessages = document.getElementById('chat-messages');
+
+    // Tampilkan pesan pelanggan
+    chatMessages.innerHTML += `
+        <div class="bg-green-100 p-3 rounded-lg rounded-tr-none shadow-sm self-end max-w-[85%] text-green-900 border border-green-200">
+            ${inputField.value}
+        </div>
+    `;
+    inputField.value = ""; 
+    chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll ke bawah otomatis
+
+    // Proses balasan otomatis bot (tanpa API key)
+    setTimeout(() => {
+        let balasanBot = "Maaf, saya tidak mengerti. Silakan hubungi Admin via WhatsApp ya! 😊"; 
+
+        if (pesanUser.includes("menu") || pesanUser.includes("harga")) {
+            balasanBot = "Menu andalan kami ada Chicken Pop Corn (Rp37k), Cordon Blue (Rp37k), dan Pasta Brulee (Mulai Rp27k). Silakan lihat di bagian Katalog Menu!";
+        } else if (pesanUser.includes("lokasi") || pesanUser.includes("alamat")) {
+            balasanBot = "Dapoer Pasta berbasis online (Pre-order). Kami melayani pengiriman area sekitar. Pesan langsung via WhatsApp ya.";
+        } else if (pesanUser.includes("halo") || pesanUser.includes("hai") || pesanUser.includes("min")) {
+            balasanBot = "Halo kak! Mau pesan menu apa hari ini?";
+        } else if (pesanUser.includes("promo") || pesanUser.includes("diskon")) {
+            balasanBot = "Saat ini belum ada promo, tapi tunggu kejutan menarik dari kami di Instagram @Dapoer.Pasta!";
+        }
+
+        // Tampilkan pesan bot
+        chatMessages.innerHTML += `
+            <div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm border border-gray-100 self-start max-w-[85%] text-gray-700">
+                ${balasanBot}
+            </div>
+        `;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }, 600); 
+}  
    function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('-translate-x-full');
     }
