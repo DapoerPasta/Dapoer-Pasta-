@@ -20,8 +20,8 @@ exports.handler = async function(event, context) {
 
         const gabunganPesan = "Kamu adalah asisten restoran online bernama Dapoer Pasta. Menu andalan: Chicken Pop Corn 250gr (37k), Chicken Cordon Blue (37k), Mini Wonton (37k), Pasta Brulee Oval (27k), Pasta Brulee Persegi (32k). Halal, tanpa pengawet. Pemesanan via pre-order WhatsApp. Jawab pelanggan dengan ramah, luwes, singkat, dan gunakan emoji.\n\nPesan pelanggan: " + userMessage;
         
-        // KITA PINDAH KE MODEL 2.5-FLASH YANG SANGAT STABIL DAN ANTI-NGANTRI
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        // KITA GUNAKAN MODEL 3.6-FLASH SESUAI PERINTAH LANGSUNG DARI GOOGLE
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
         
         const response = await fetch(apiUrl, {
             method: 'POST',
