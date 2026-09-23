@@ -1,413 +1,4306 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dapoer Pasta - Order Dashboard</title>
-    <!-- Tailwind CSS untuk Styling -->
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Dapoer Pasta | Premium Homemade Food</title>
+
+    <meta
+        name="description"
+        content="Dapoer Pasta - Homemade food premium, fresh dan lezat. Pesan Chicken Pop Corn, Chicken Cordon Blue, Mini Wonton dan Pasta Brulee melalui WhatsApp."
+    >
+
+    <meta
+        name="theme-color"
+        content="#5b1717"
+    >
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome untuk Ikon -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        rel="stylesheet"
+    >
+
     <!-- Google Fonts -->
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            background-color: #fcf8f2; /* Warna latar belakang krem sesuai poster */
+        :root {
+            --wine: #681d1d;
+            --wine-dark: #3d0e0e;
+            --wine-deep: #260808;
+
+            --gold: #d7a84d;
+            --gold-light: #f2d48e;
+
+            --cream: #fbf7f0;
+            --cream-dark: #efe4d5;
+
+            --dark: #211b18;
+            --text: #71655c;
+
+            --green: #1eae5a;
+        }
+
+        * {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "DM Sans", sans-serif;
+            background:
+                radial-gradient(
+                    circle at top right,
+                    rgba(215, 168, 77, 0.09),
+                    transparent 22%
+                ),
+                #fbf7f0;
+        }
+
+        h1,
+        h2,
+        h3,
+        .serif {
+            font-family: "Playfair Display", serif;
+        }
+
+        ::selection {
+            background: #681d1d;
+            color: white;
+        }
+
+        /* ==============================
+           SCROLLBAR
+        ============================== */
+
+        ::-webkit-scrollbar {
+            width: 9px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f3eadf;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #681d1d;
+            border-radius: 999px;
+        }
+
+        /* ==============================
+           GLASS
+        ============================== */
+
+        .glass {
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        /* ==============================
+           SIDEBAR
+        ============================== */
+
+        .sidebar-luxury {
+            background:
+                radial-gradient(
+                    circle at top left,
+                    rgba(215, 168, 77, 0.16),
+                    transparent 30%
+                ),
+                linear-gradient(
+                    180deg,
+                    #621919 0%,
+                    #400c0c 60%,
+                    #260808 100%
+                );
+        }
+
+        .sidebar-link {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-link::before {
+            content: "";
+
+            position: absolute;
+            left: 0;
+            top: 50%;
+
+            width: 3px;
+            height: 0;
+
+            transform: translateY(-50%);
+
+            background: #d7a84d;
+
+            border-radius: 20px;
+
+            transition: height 0.3s ease;
+        }
+
+        .sidebar-link:hover::before,
+        .sidebar-link.active::before {
+            height: 55%;
+        }
+
+        /* ==============================
+           HERO
+        ============================== */
+
+        .hero-premium {
+            position: relative;
+            overflow: hidden;
+
+            background:
+                radial-gradient(
+                    circle at 85% 10%,
+                    rgba(247, 210, 133, 0.32),
+                    transparent 25%
+                ),
+                linear-gradient(
+                    135deg,
+                    #671a1a 0%,
+                    #4d1010 55%,
+                    #310909 100%
+                );
+
+            box-shadow:
+                0 25px 70px rgba(75, 15, 15, 0.22);
+        }
+
+        .hero-premium::after {
+            content: "";
+
+            position: absolute;
+
+            width: 400px;
+            height: 400px;
+
+            border-radius: 50%;
+
+            border:
+                1px solid rgba(255, 255, 255, 0.08);
+
+            right: -120px;
+            bottom: -230px;
+        }
+
+        .hero-premium::before {
+            content: "";
+
+            position: absolute;
+
+            width: 240px;
+            height: 240px;
+
+            border-radius: 50%;
+
+            border:
+                1px solid rgba(255, 255, 255, 0.05);
+
+            right: 70px;
+            top: -110px;
+        }
+
+        /* ==============================
+           PRODUCT CARD
+        ============================== */
+
+        .product-card {
+            position: relative;
+
+            background: white;
+
+            border:
+                1px solid rgba(105, 56, 32, 0.08);
+
+            transition:
+                transform 0.35s ease,
+                box-shadow 0.35s ease,
+                border-color 0.35s ease;
+        }
+
+        .product-card:hover {
+            transform: translateY(-10px);
+
+            box-shadow:
+                0 25px 60px rgba(80, 35, 20, 0.14);
+
+            border-color:
+                rgba(215, 168, 77, 0.35);
+        }
+
+        .product-image {
+            overflow: hidden;
+            position: relative;
+        }
+
+        .product-image::after {
+            content: "";
+
+            position: absolute;
+            inset: 0;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    transparent 50%,
+                    rgba(25, 8, 5, 0.35)
+                );
+
+            pointer-events: none;
+        }
+
+        .product-image-inner {
+            width: 100%;
+            height: 100%;
+
+            background-size: cover;
+            background-position: center;
+
+            transition:
+                transform 0.55s ease;
+        }
+
+        .product-card:hover .product-image-inner {
+            transform: scale(1.07);
+        }
+
+        /* ==============================
+           GOLD LINE
+        ============================== */
+
+        .gold-line {
+            width: 48px;
+            height: 3px;
+
+            border-radius: 99px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    #d7a84d,
+                    #f1d386
+                );
+        }
+
+        /* ==============================
+           BUTTON
+        ============================== */
+
+        .premium-button {
+            background:
+                linear-gradient(
+                    135deg,
+                    #d7a84d,
+                    #be8730
+                );
+
+            color: #3c210e;
+
+            box-shadow:
+                0 12px 30px rgba(215, 168, 77, 0.2);
+
+            transition:
+                all 0.3s ease;
+        }
+
+        .premium-button:hover {
+            transform: translateY(-2px);
+
+            box-shadow:
+                0 17px 35px rgba(215, 168, 77, 0.32);
+        }
+
+        /* ==============================
+           FLOATING BUTTON
+        ============================== */
+
+        .floating-button {
+            box-shadow:
+                0 18px 45px rgba(62, 15, 15, 0.25);
+
+            transition:
+                all 0.3s ease;
+        }
+
+        .floating-button:hover {
+            transform:
+                translateY(-4px)
+                scale(1.04);
+        }
+
+        /* ==============================
+           PAYMENT
+        ============================== */
+
+        .payment-card {
+            transition:
+                transform 0.3s ease,
+                box-shadow 0.3s ease;
+        }
+
+        .payment-card:hover {
+            transform: translateY(-4px);
+
+            box-shadow:
+                0 12px 30px rgba(50, 35, 20, 0.1);
+        }
+
+        /* ==============================
+           REVEAL ANIMATION
+        ============================== */
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+
+            transition:
+                opacity 0.7s ease,
+                transform 0.7s ease;
+        }
+
+        .reveal.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ==============================
+           CART
+        ============================== */
+
+        .cart-modal-box {
+            animation:
+                cartPop 0.3s ease;
+        }
+
+        @keyframes cartPop {
+            from {
+                opacity: 0;
+                transform:
+                    translateY(20px)
+                    scale(0.96);
+            }
+
+            to {
+                opacity: 1;
+                transform:
+                    translateY(0)
+                    scale(1);
+            }
+        }
+
+        /* ==============================
+           CHAT
+        ============================== */
+
+        #chat-box {
+            animation:
+                chatPop 0.3s ease;
+        }
+
+        @keyframes chatPop {
+            from {
+                opacity: 0;
+                transform:
+                    translateY(20px)
+                    scale(0.96);
+            }
+
+            to {
+                opacity: 1;
+                transform:
+                    translateY(0)
+                    scale(1);
+            }
+        }
+
+        /* ==============================
+           MOBILE
+        ============================== */
+
+        @media (max-width: 767px) {
+
+            .mobile-no-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+
         }
     </style>
+
 </head>
-<body class="flex h-screen overflow-hidden text-gray-800">
-    
-    <!-- Sidebar Kiri (Desktop) -->
-    <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white shadow-xl flex flex-col z-50 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300">
-      <div class="p-6 flex justify-between items-center border-b border-gray-100">
-    <h1 class="text-xl font-bold text-red-900">
-        <i class="fas fa-utensils mr-2"></i>Dapoer Pasta
-    </h1>
-    <i onclick="toggleSidebar()" class="fas fa-times text-gray-500 text-2xl cursor-pointer md:hidden"></i>
-</div>
-        <nav class="flex-1 p-4 space-y-3">
-            <a href="#" class="flex items-center p-3 bg-red-50 text-red-900 rounded-xl font-medium transition-colors">
-                <i class="fas fa-tachometer-alt w-6"></i> Dashboard
-            </a>
-            <a href="#menu" class="flex items-center p-3 text-gray-600 hover:bg-gray-50 rounded-xl font-medium transition-colors">
-                <i class="fas fa-box-open w-6"></i> Menu Produk
-            </a>
-            <a href="https://api.whatsapp.com/send/?phone=6285175391181" target="_blank" class="flex items-center p-3 text-gray-600 hover:bg-green-50 hover:text-green-600 rounded-xl font-medium transition-colors">
-                <i class="fab fa-whatsapp w-6 text-lg"></i> Hubungi Admin
-            </a>
-            <a href="https://instagram.com/Dapoer.Pasta" target="_blank" class="flex items-center p-3 text-gray-600 hover:bg-pink-50 hover:text-pink-600 rounded-xl font-medium transition-colors">
-                <i class="fab fa-instagram w-6 text-lg"></i> @Dapoer.Pasta
-            </a>
-        </nav>
-        <div class="p-4 border-t border-gray-100 text-center text-sm text-gray-400">
-            &copy; 2026 Dapoer Pasta
+
+
+<body class="text-[#211b18]">
+
+    <!-- ====================================================
+         SIDEBAR OVERLAY MOBILE
+    ===================================================== -->
+
+    <div
+        id="sidebar-overlay"
+        onclick="toggleSidebar()"
+        class="fixed inset-0 bg-black/60 z-40 hidden md:hidden"
+    ></div>
+
+
+    <!-- ====================================================
+         SIDEBAR
+    ===================================================== -->
+
+    <aside
+        id="sidebar"
+        class="
+            sidebar-luxury
+            fixed inset-y-0 left-0
+            w-[280px]
+            z-50
+            flex flex-col
+            text-white
+            transform -translate-x-full
+            md:translate-x-0
+            transition-transform duration-300
+            shadow-2xl
+        "
+    >
+
+        <!-- Brand -->
+
+        <div
+            class="
+                px-7 py-7
+                border-b
+                border-white/10
+            "
+        >
+
+            <div
+                class="
+                    flex
+                    justify-between
+                    items-center
+                "
+            >
+
+                <div
+                    class="
+                        flex
+                        items-center
+                        gap-3
+                    "
+                >
+
+                    <div
+                        class="
+                            w-12 h-12
+                            rounded-full
+                            bg-gradient-to-br
+                            from-yellow-300
+                            to-yellow-600
+                            text-red-950
+                            flex
+                            items-center
+                            justify-center
+                            shadow-lg
+                        "
+                    >
+                        <i class="fas fa-utensils"></i>
+                    </div>
+
+
+                    <div>
+
+                        <h1
+                            class="
+                                text-xl
+                                font-bold
+                                leading-tight
+                            "
+                        >
+                            Dapoer Pasta
+                        </h1>
+
+                        <p
+                            class="
+                                text-[10px]
+                                tracking-[0.22em]
+                                uppercase
+                                text-yellow-200/80
+                                mt-1
+                            "
+                        >
+                            Homemade Delicacy
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    onclick="toggleSidebar()"
+                    class="
+                        md:hidden
+                        text-white/70
+                        hover:text-white
+                        text-xl
+                    "
+                >
+                    <i class="fas fa-times"></i>
+                </button>
+
+            </div>
+
         </div>
+
+
+        <!-- Menu -->
+
+        <nav
+            class="
+                flex-1
+                px-5 py-8
+                space-y-2
+            "
+        >
+
+            <p
+                class="
+                    text-[10px]
+                    uppercase
+                    tracking-[0.25em]
+                    text-white/40
+                    px-4
+                    mb-4
+                "
+            >
+                Menu Utama
+            </p>
+
+
+            <a
+                href="#home"
+                class="
+                    sidebar-link active
+                    flex
+                    items-center
+                    gap-3
+                    px-4 py-3.5
+                    rounded-2xl
+                    bg-white/10
+                    text-white
+                    font-semibold
+                "
+            >
+
+                <div
+                    class="
+                        w-9 h-9
+                        rounded-xl
+                        bg-white/10
+                        flex
+                        items-center
+                        justify-center
+                    "
+                >
+                    <i class="fas fa-home"></i>
+                </div>
+
+                Beranda
+
+            </a>
+
+
+            <a
+                href="#menu"
+                class="
+                    sidebar-link
+                    flex
+                    items-center
+                    gap-3
+                    px-4 py-3.5
+                    rounded-2xl
+                    text-white/70
+                    hover:text-white
+                    hover:bg-white/10
+                "
+            >
+
+                <div
+                    class="
+                        w-9 h-9
+                        rounded-xl
+                        bg-white/5
+                        flex
+                        items-center
+                        justify-center
+                    "
+                >
+                    <i class="fas fa-utensils"></i>
+                </div>
+
+                Menu Produk
+
+            </a>
+
+
+            <a
+                href="#payment"
+                class="
+                    sidebar-link
+                    flex
+                    items-center
+                    gap-3
+                    px-4 py-3.5
+                    rounded-2xl
+                    text-white/70
+                    hover:text-white
+                    hover:bg-white/10
+                "
+            >
+
+                <div
+                    class="
+                        w-9 h-9
+                        rounded-xl
+                        bg-white/5
+                        flex
+                        items-center
+                        justify-center
+                    "
+                >
+                    <i class="fas fa-wallet"></i>
+                </div>
+
+                Pembayaran
+
+            </a>
+
+
+            <a
+                href="https://api.whatsapp.com/send/?phone=6285175391181"
+                target="_blank"
+                class="
+                    sidebar-link
+                    flex
+                    items-center
+                    gap-3
+                    px-4 py-3.5
+                    rounded-2xl
+                    text-white/70
+                    hover:text-white
+                    hover:bg-green-500/15
+                "
+            >
+
+                <div
+                    class="
+                        w-9 h-9
+                        rounded-xl
+                        bg-green-500/10
+                        text-green-300
+                        flex
+                        items-center
+                        justify-center
+                    "
+                >
+                    <i class="fab fa-whatsapp"></i>
+                </div>
+
+                Hubungi Admin
+
+            </a>
+
+
+            <a
+                href="https://instagram.com/Dapoer.Pasta"
+                target="_blank"
+                class="
+                    sidebar-link
+                    flex
+                    items-center
+                    gap-3
+                    px-4 py-3.5
+                    rounded-2xl
+                    text-white/70
+                    hover:text-white
+                    hover:bg-pink-500/10
+                "
+            >
+
+                <div
+                    class="
+                        w-9 h-9
+                        rounded-xl
+                        bg-pink-500/10
+                        text-pink-300
+                        flex
+                        items-center
+                        justify-center
+                    "
+                >
+                    <i class="fab fa-instagram"></i>
+                </div>
+
+                @Dapoer.Pasta
+
+            </a>
+
+        </nav>
+
+
+        <!-- Bottom sidebar -->
+
+        <div
+            class="
+                m-5
+                p-5
+                rounded-3xl
+                bg-white/5
+                border
+                border-white/10
+            "
+        >
+
+            <div
+                class="
+                    flex
+                    items-center
+                    gap-3
+                    mb-3
+                "
+            >
+
+                <div
+                    class="
+                        w-9 h-9
+                        rounded-full
+                        bg-green-500/20
+                        text-green-300
+                        flex
+                        items-center
+                        justify-center
+                    "
+                >
+                    <i class="fas fa-circle-check"></i>
+                </div>
+
+                <div>
+
+                    <p
+                        class="
+                            text-sm
+                            font-semibold
+                        "
+                    >
+                        Open Order
+                    </p>
+
+                    <p
+                        class="
+                            text-xs
+                            text-white/50
+                        "
+                    >
+                        Siap melayani Anda
+                    </p>
+
+                </div>
+
+            </div>
+
+            <p
+                class="
+                    text-[10px]
+                    text-white/35
+                    mt-5
+                "
+            >
+                © 2026 Dapoer Pasta
+            </p>
+
+        </div>
+
     </aside>
 
-    <!-- Konten Utama -->
-    <main class="flex-1 flex flex-col overflow-y-auto">
-        <!-- Header Atas -->
-        <header class="bg-white shadow-sm p-4 flex justify-between items-center md:px-8 sticky top-0 z-20">
-            <div class="flex items-center gap-3">
-                <i onclick="toggleSidebar()" class="fas fa-bars md:hidden text-gray-500 text-xl cursor-pointer"></i>
-                <h2 class="text-xl font-semibold text-gray-800 hidden md:block">Portal Pemesanan</h2>
+
+    <!-- ====================================================
+         MAIN
+    ===================================================== -->
+
+    <main
+        class="
+            min-h-screen
+            md:ml-[280px]
+        "
+    >
+
+        <!-- ====================================================
+             HEADER
+        ===================================================== -->
+
+        <header
+            class="
+                sticky
+                top-0
+                z-30
+                glass
+                border-b
+                border-[#6b3e2e]/10
+            "
+        >
+
+            <div
+                class="
+                    px-5
+                    md:px-9
+                    h-[76px]
+                    flex
+                    items-center
+                    justify-between
+                    gap-4
+                "
+            >
+
+                <div
+                    class="
+                        flex
+                        items-center
+                        gap-4
+                    "
+                >
+
+                    <button
+                        onclick="toggleSidebar()"
+                        class="
+                            md:hidden
+                            w-11 h-11
+                            rounded-xl
+                            border
+                            border-[#6b3e2e]/10
+                            bg-white
+                            text-[#681d1d]
+                            shadow-sm
+                        "
+                    >
+                        <i class="fas fa-bars"></i>
+                    </button>
+
+
+                    <div>
+
+                        <p
+                            class="
+                                hidden sm:block
+                                text-[10px]
+                                uppercase
+                                tracking-[0.25em]
+                                text-[#9a7867]
+                            "
+                        >
+                            Official Store
+                        </p>
+
+                        <h2
+                            class="
+                                font-bold
+                                text-lg
+                                md:text-xl
+                            "
+                        >
+                            Dapoer Pasta
+                        </h2>
+
+                    </div>
+
+                </div>
+
+
+                <a
+                    href="https://api.whatsapp.com/send/?phone=6285175391181"
+                    target="_blank"
+                    class="
+                        flex
+                        items-center
+                        gap-2
+                        px-4 py-2.5
+                        rounded-full
+                        bg-white
+                        border
+                        border-[#6b3e2e]/10
+                        shadow-sm
+                        hover:shadow-md
+                        transition
+                    "
+                >
+
+                    <span
+                        class="
+                            w-8 h-8
+                            rounded-full
+                            bg-green-100
+                            text-green-600
+                            flex
+                            items-center
+                            justify-center
+                        "
+                    >
+                        <i class="fab fa-whatsapp"></i>
+                    </span>
+
+                    <div
+                        class="
+                            hidden sm:block
+                        "
+                    >
+
+                        <p
+                            class="
+                                text-[9px]
+                                uppercase
+                                tracking-wider
+                                text-gray-400
+                            "
+                        >
+                            Order WhatsApp
+                        </p>
+
+                        <p
+                            class="
+                                text-xs
+                                font-bold
+                                text-gray-700
+                            "
+                        >
+                            0851-7539-1181
+                        </p>
+
+                    </div>
+
+                </a>
+
             </div>
-            <div class="flex items-center space-x-4 bg-gray-50 px-4 py-2 rounded-full border border-gray-100">
-                <span class="text-sm font-medium text-gray-600 flex items-center">
-                    <i class="fab fa-whatsapp text-green-500 text-xl mr-2"></i> 
-                    0851-7539-1181
-                </span>
-            </div>
+
         </header>
 
-        <!-- Area Dashboard -->
-        <div class="p-6 md:p-8 space-y-8">
-            <!-- Banner Utama -->
-            <div class="bg-gradient-to-br from-red-900 to-red-700 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
-                <div class="relative z-10">
-                    <h3 class="text-3xl font-bold mb-3">Halo, Selamat Datang! 👋</h3>
-                    <p class="text-red-100 max-w-lg text-lg mb-4">
-                        Sistem pemesanan Dapoer Pasta siap melayani Anda. Pilih menu favorit Anda dan langsung terhubung ke WhatsApp Admin.
-                    </p>
-                    <div class="flex gap-2">
-                        <span class="bg-white text-red-900 text-xs font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle text-green-500 mr-1"></i>Halal Indonesia</span>
-                        <span class="bg-white text-red-900 text-xs font-bold px-3 py-1 rounded-full">No Pengawet</span>
-                        <span class="bg-white text-red-900 text-xs font-bold px-3 py-1 rounded-full">No Pewarna</span>
-                    </div>
-                </div>
-                <i class="fas fa-certificate absolute -right-10 -bottom-10 text-9xl text-white opacity-10"></i>
-            </div>
 
-            <!-- Bagian Menu -->
-            <div>
-                <div class="flex justify-between items-end mb-6 border-b border-gray-200 pb-3">
-                    <h3 id="menu" class="text-2xl font-bold text-red-900">Katalog Menu</h3>
-                    <span class="text-sm text-gray-500 font-medium">Spesial Dapoer Pasta</span>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    
-                    <!-- Kartu Produk 1: Chicken pop corn -->
-                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
-                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
-                        <div class="h-56 bg-gray-200 relative" style="background-image: url('8.png'); background-size: cover; background-position: center 30%;">
-                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 37.000</span>
-                        </div>
-                        <div class="p-6 flex-1 flex flex-col text-white text-center">
-                            <h4 class="font-bold text-xl mb-2">Chicken pop corn 250gr</h4>
-                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chicken with crispy taste</p>
-                            <div class="flex justify-between items-center mt-auto">
-                          <button onclick="tambahKeKeranjang('Chicken pop corn 250gr', 37000)" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2 cursor-pointer">
-                             <i class="fas fa-cart-plus text-xl"></i> Tambah
-                        </button>        
-                            </div>
-                        </div>
-                    </div>
+        <!-- ====================================================
+             CONTENT
+        ===================================================== -->
 
-                    <!-- Kartu Produk 2: Chicken Cordon Blue -->
-                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
-                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
-                        <div class="h-56 bg-gray-200 relative" style="background-image: url('9.png'); background-size: cover; background-position: center 30%;">
-                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 37.000</span>
-                        </div>
-                        <div class="p-6 flex-1 flex flex-col text-white text-center">
-                            <h4 class="font-bold text-xl mb-2">Chicken Cordon Blue 7 pcs</h4>
-                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chicken with smoke beef and Mozzarella</p>
-                            <div class="flex justify-between items-center mt-auto">
-                         <button onclick="tambahKeKeranjang('Chicken Cordon Blue 7 pcs', 37000)" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2 cursor-pointer">
-                            <i class="fas fa-cart-plus text-xl"></i> Tambah
-                        </button>
-                            </div>
-                        </div>
-                    </div>
+        <div
+            class="
+                p-5
+                md:p-9
+                lg:p-10
+                space-y-12
+            "
+        >
 
-                    <!-- Kartu Produk 3: Mini wonton -->
-                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
-                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
-           <div class="h-56 bg-gray-200 relative" style="background-image: url('7 m.png'); background-size: cover; background-position: center 30%;">
-                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 37.000</span>
-                        </div>
-                        <div class="p-6 flex-1 flex flex-col text-white text-center">
-                            <h4 class="font-bold text-xl mb-2">Mini wonton 250gr</h4>
-                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chiken with Prawn and cripy taste</p>
-                            <div class="flex justify-between items-center mt-auto">
-                               <button onclick="tambahKeKeranjang('Mini wonton', 37000)" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2 cursor-pointer">
-                                    <i class="fas fa-cart-plus text-xl"></i> Tambah
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+            <!-- ====================================================
+                 HERO
+            ===================================================== -->
 
-                    <!-- Kartu Produk 4: Pasta brulee oval -->
-                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
-                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
-                <div class="h-56 bg-gray-200 relative" style="background-image: url('10.png'); background-size: cover; background-position: center 30%;">
-                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 27.000</span>
-                        </div>
-                        <div class="p-6 flex-1 flex flex-col text-white text-center">
-                            <h4 class="font-bold text-xl mb-2">Pasta brulee oval 2 pcs</h4>
-                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chicken with cheese melted</p>
-                            <div class="flex justify-between items-center mt-auto">
-                               <button onclick="tambahKeKeranjang('Pasta brulee oval 2 pcs', 27000)" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2 cursor-pointer">
-                                <i class="fas fa-cart-plus text-xl"></i> Tambah
-                            </button>
-                            </div>
-                        </div>
-                    </div>
+            <section
+                id="home"
+                class="
+                    hero-premium
+                    rounded-[32px]
+                    md:rounded-[42px]
+                    p-7
+                    sm:p-10
+                    lg:p-14
+                    text-white
+                    reveal
+                "
+            >
 
-                    <!-- Kartu Produk 5: Pasta brulee persegi -->
-                    <div class="bg-red-900 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-red-800 flex flex-col">
-                        <!-- Ganti URL background-image di bawah ini dengan foto asli jika ada -->
-                        <div class="h-56 bg-gray-200 relative" style="background-image: url('11.png'); background-size: cover; background-position: center 30%;">
-                            <span class="absolute top-4 right-4 bg-white text-red-900 text-sm font-bold px-4 py-1 rounded-full shadow-md">Rp 32.000</span>
-                        </div>
-                        <div class="p-6 flex-1 flex flex-col text-white text-center">
-                            <h4 class="font-bold text-xl mb-2">Pasta brulee persegi 2 pcs</h4>
-                            <p class="text-red-100 text-sm font-medium mb-6 flex-1">Fresh chicken with cheese melted</p>
-                            <div class="flex justify-between items-center mt-auto">
-                            <button onclick="tambahKeKeranjang('Pasta brulee persegi 2 pcs', 32000)" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-center py-3 rounded-xl font-semibold transition-colors shadow-sm flex justify-center items-center gap-2 cursor-pointer">
-                                <i class="fas fa-cart-plus text-xl"></i> Tambah
-                            </button>
-                            </div>
-                        </div>
-                    </div>
+                <div
+                    class="
+                        relative
+                        z-10
+                        grid
+                        lg:grid-cols-[1.15fr_.85fr]
+                        gap-10
+                        items-center
+                    "
+                >
 
-                </div>
-            </div>
-            
-<!-- Paste Kode Metode Pembayaran di Sini -->
-<div class="mt-8 bg-white p-6 rounded-2xl shadow-sm mb-8">
-    <h3 class="text-xl font-bold text-gray-800 text-center mb-4">Metode Pembayaran</h3>
-    <p class="text-gray-500 text-center text-sm mb-4">Kami menerima pembayaran melalui transfer e-wallet:</p>
-    
-    <div class="flex justify-center items-center gap-3 flex-wrap">
-        <span class="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-bold text-sm border border-purple-200">OVO</span>
-        <span class="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg font-bold text-sm border border-orange-200">ShopeePay</span>
-        <span class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold text-sm border border-blue-200">DANA</span>
-    </div>
-</div>
-<!-- Batas Akhir Kode -->
-        </div>
-    </main>
-   <!-- ================= TAMPILAN KERANJANG ================= -->
-<div id="cart-button" onclick="toggleKeranjang()" class="fixed bottom-6 right-6 bg-red-800 text-white p-4 rounded-full shadow-lg cursor-pointer hover:bg-red-900 transition-all z-50 flex items-center justify-center">
-    <i class="fas fa-shopping-cart text-2xl"></i>
-    <span id="cart-count" class="absolute -top-2 -right-2 bg-yellow-500 text-red-900 text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white">0</span>
-</div>
-
-<div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex justify-center items-center">
-    <div class="bg-white w-11/12 max-w-md rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
-        <div class="p-4 border-b flex justify-between items-center bg-gray-50">
-            <h3 class="text-lg font-bold text-gray-800">Pesanan Saya</h3>
-            <button onclick="toggleKeranjang()" class="text-gray-500 hover:text-red-500 font-bold text-2xl">&times;</button>
-        </div>
-        <div id="cart-items" class="p-4 overflow-y-auto flex-1 text-gray-700">
-            <p class="text-center text-gray-500 italic">Keranjang masih kosong</p>
-        </div>
-        <div class="p-4 border-t bg-gray-50">
-            <div class="flex justify-between font-bold text-lg mb-4 text-gray-800">
-                <span>Total:</span>
-                <span id="cart-total">Rp 0</span>
-            </div>
-            <button onclick="checkoutWA()" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold transition-colors flex justify-center items-center gap-2">
-                <i class="fab fa-whatsapp text-xl"></i> Checkout via WA
-            </button>
-        </div>
-    </div>
-</div>
-<!-- ================= NOTIFIKASI TOAST ================= -->
-<div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-full shadow-2xl z-[100] transition-all duration-300 opacity-0 pointer-events-none -translate-y-5 flex items-center gap-2">
-    <i class="fas fa-check-circle text-lg"></i>
-    <span id="toast-message" class="font-semibold text-sm">Berhasil ditambah!</span>
-</div>
-    <!-- ================= CHATBOT OTOMATIS ================= -->
-<!-- Tombol Floating Chat -->
-<div onclick="toggleChat()" class="fixed bottom-24 right-6 bg-green-600 text-white p-4 rounded-full shadow-lg cursor-pointer hover:bg-green-700 transition-all z-50 flex items-center justify-center">
-    <i class="fas fa-comment-dots text-2xl"></i>
-</div>
-
-<!-- Kotak Chat -->
-<div id="chat-box" class="fixed bottom-24 right-6 w-80 bg-white rounded-2xl shadow-2xl hidden flex-col overflow-hidden z-50 border border-gray-200">
-    <div class="bg-green-600 p-4 flex justify-between items-center text-white">
-        <h3 class="font-bold"><i class="fas fa-robot mr-2"></i> Asisten Dapoer Pasta</h3>
-        <button onclick="toggleChat()" class="text-white hover:text-red-300 font-bold text-xl">&times;</button>
-    </div>
-    <div id="chat-messages" class="p-4 h-64 overflow-y-auto bg-gray-50 flex flex-col gap-3 text-sm">
-        <div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm border border-gray-100 self-start max-w-[85%] text-gray-700">
-            Halo! Ada yang bisa dibantu? Ketik "menu", "lokasi", atau "promo".
-        </div>
-    </div>
-    <div class="p-3 bg-white border-t border-gray-200 flex gap-2">
-        <input type="text" id="chat-input" placeholder="Ketik pesan..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm" onkeypress="handleChatEnter(event)">
-        <button onclick="kirimPesan()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
-            <i class="fas fa-paper-plane"></i>
-        </button>
-    </div>
-</div>
-<!-- ================= LOGIKA JAVASCRIPT ================= -->
-<script>
-  // ================= LOGIKA CHATBOT =================
-function toggleChat() {
-    document.getElementById('chat-box').classList.toggle('hidden');
-    document.getElementById('chat-box').classList.toggle('flex');
-}
-
-function handleChatEnter(event) {
-    if (event.key === "Enter") kirimPesan();
-}
-async function kirimPesan() {
-    let inputField = document.getElementById('chat-input');
-    let pesanUser = inputField.value.trim();
-    if (pesanUser === "") return;
-
-    let chatMessages = document.getElementById('chat-messages');
-
-    // 1. Tampilkan pesan yang diketik pelanggan
-    chatMessages.innerHTML += `
-        <div class="bg-green-100 p-3 rounded-lg rounded-tr-none shadow-sm self-end max-w-[85%] text-green-900 border border-green-200">
-            ${pesanUser}
-        </div>
-    `;
-    inputField.value = ""; 
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-
-    // 2. Munculkan indikator "Asisten sedang berpikir..."
-    let typingId = "typing-" + Date.now();
-    chatMessages.innerHTML += `
-        <div id="${typingId}" class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm border border-gray-100 self-start text-gray-500 text-xs italic">
-            Asisten sedang berpikir...
-        </div>
-    `;
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-
-    try {
-        // 3. Kirim pesan pelanggan ke AI Gemini (lewat Netlify Functions)
-        let response = await fetch('/.netlify/functions/chat', {
-            method: 'POST',
-            body: JSON.stringify({ message: pesanUser })
-        });
-        
-        let data = await response.json();
-        
-        // 4. Hapus tulisan "berpikir..." lalu tampilkan balasan AI
-        document.getElementById(typingId).remove();
-        chatMessages.innerHTML += `
-            <div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm border border-gray-100 self-start max-w-[85%] text-gray-700">
-                ${data.reply}
-            </div>
-        `;
-    } catch (error) {
-        // Jika API gagal atau ada gangguan
-        document.getElementById(typingId).remove();
-        chatMessages.innerHTML += `
-            <div class="bg-red-50 p-3 rounded-lg rounded-tl-none shadow-sm border border-red-100 self-start max-w-[85%] text-red-600 text-sm">
-                Maaf, asisten sedang sibuk. Silakan langsung hubungi WhatsApp ya!
-            </div>
-        `;
-    }
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-   function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('-translate-x-full');
-    }
-    
-    let keranjang = [];
-// Fungsi untuk memunculkan Toast
-    function showToast(pesan) {
-        let toast = document.getElementById('toast');
-        document.getElementById('toast-message').innerText = pesan;
-        
-        // Munculkan toast
-        toast.classList.remove('opacity-0', '-translate-y-5');
-        toast.classList.add('opacity-100', 'translate-y-0');
-        
-        // Sembunyikan otomatis setelah 2.5 detik
-        setTimeout(() => {
-            toast.classList.remove('opacity-100', 'translate-y-0');
-            toast.classList.add('opacity-0', '-translate-y-5');
-        }, 2500);
-    }
-    function tambahKeKeranjang(nama, harga) {
-        let item = keranjang.find(i => i.nama === nama);
-        if (item) {
-            item.jumlah += 1;
-        } else {
-            keranjang.push({ nama: nama, harga: harga, jumlah: 1 });
-        }
-        updateKeranjang();
-        
-        let btnCart = document.getElementById('cart-button');
-        btnCart.classList.add('scale-110');
-        setTimeout(() => btnCart.classList.remove('scale-110'), 200);
-        showToast(nama + " masuk ke keranjang!");
-    }
-
-    function hapusItem(index) {
-        keranjang.splice(index, 1);
-        updateKeranjang();
-    }
-
-    function updateKeranjang() {
-        let count = keranjang.reduce((sum, item) => sum + item.jumlah, 0);
-        document.getElementById('cart-count').innerText = count;
-
-        let cartItems = document.getElementById('cart-items');
-        if (keranjang.length === 0) {
-            cartItems.innerHTML = '<p class="text-center text-gray-500 italic">Keranjang masih kosong</p>';
-            document.getElementById('cart-total').innerText = 'Rp 0';
-            return;
-        }
-
-        let html = '';
-        let total = 0;
-        keranjang.forEach((item, index) => {
-            let subtotal = item.harga * item.jumlah;
-            total += subtotal;
-            html += `
-                <div class="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
                     <div>
-                        <p class="font-semibold text-sm">${item.nama}</p>
-                        <p class="text-xs text-gray-500">${item.jumlah} x Rp ${item.harga.toLocaleString('id-ID')}</p>
+
+                        <div
+                            class="
+                                inline-flex
+                                items-center
+                                gap-2
+                                bg-white/10
+                                border
+                                border-white/15
+                                rounded-full
+                                px-4 py-2
+                                text-xs
+                                font-semibold
+                                mb-6
+                                backdrop-blur-md
+                            "
+                        >
+
+                            <span
+                                class="
+                                    w-2 h-2
+                                    bg-green-400
+                                    rounded-full
+                                    animate-pulse
+                                "
+                            ></span>
+
+                            Freshly Prepared • Homemade Quality
+
+                        </div>
+
+
+                        <p
+                            class="
+                                text-yellow-200
+                                text-xs
+                                tracking-[0.25em]
+                                uppercase
+                                font-bold
+                                mb-4
+                            "
+                        >
+                            Welcome to Dapoer Pasta
+                        </p>
+
+
+                        <h1
+                            class="
+                                text-4xl
+                                sm:text-5xl
+                                lg:text-[64px]
+                                font-bold
+                                leading-[1.05]
+                                max-w-3xl
+                            "
+                        >
+                            Rasa Premium,
+                            <span
+                                class="
+                                    text-yellow-300
+                                "
+                            >
+                                Dibuat dari Dapur Kami.
+                            </span>
+                        </h1>
+
+
+                        <p
+                            class="
+                                mt-6
+                                text-white/70
+                                text-base
+                                md:text-lg
+                                leading-relaxed
+                                max-w-2xl
+                            "
+                        >
+                            Nikmati berbagai pilihan menu Dapoer Pasta
+                            yang dibuat dengan bahan berkualitas,
+                            rasa istimewa, dan sentuhan homemade
+                            untuk menemani setiap momen Anda.
+                        </p>
+
+
+                        <div
+                            class="
+                                flex
+                                flex-wrap
+                                gap-3
+                                mt-8
+                            "
+                        >
+
+                            <a
+                                href="#menu"
+                                class="
+                                    premium-button
+                                    px-6 py-3.5
+                                    rounded-full
+                                    font-bold
+                                    inline-flex
+                                    items-center
+                                    gap-2
+                                "
+                            >
+                                <i class="fas fa-utensils"></i>
+
+                                Lihat Menu
+                            </a>
+
+
+                            <a
+                                href="https://api.whatsapp.com/send/?phone=6285175391181"
+                                target="_blank"
+                                class="
+                                    px-6 py-3.5
+                                    rounded-full
+                                    border
+                                    border-white/20
+                                    bg-white/10
+                                    hover:bg-white/20
+                                    transition
+                                    font-semibold
+                                    inline-flex
+                                    items-center
+                                    gap-2
+                                "
+                            >
+                                <i class="fab fa-whatsapp"></i>
+
+                                Hubungi Kami
+                            </a>
+
+                        </div>
+
+
+                        <!-- Badges -->
+
+                        <div
+                            class="
+                                flex
+                                flex-wrap
+                                gap-3
+                                mt-8
+                            "
+                        >
+
+                            <span
+                                class="
+                                    bg-white
+                                    text-[#681d1d]
+                                    text-[11px]
+                                    font-bold
+                                    px-4 py-2
+                                    rounded-full
+                                    shadow
+                                "
+                            >
+                                <i
+                                    class="
+                                        fas fa-circle-check
+                                        text-green-500
+                                        mr-1
+                                    "
+                                ></i>
+
+                                Halal Indonesia
+                            </span>
+
+
+                            <span
+                                class="
+                                    bg-white
+                                    text-[#681d1d]
+                                    text-[11px]
+                                    font-bold
+                                    px-4 py-2
+                                    rounded-full
+                                    shadow
+                                "
+                            >
+                                No Pengawet
+                            </span>
+
+
+                            <span
+                                class="
+                                    bg-white
+                                    text-[#681d1d]
+                                    text-[11px]
+                                    font-bold
+                                    px-4 py-2
+                                    rounded-full
+                                    shadow
+                                "
+                            >
+                                No Pewarna
+                            </span>
+
+                        </div>
+
                     </div>
-                    <div class="flex items-center gap-3">
-                        <p class="font-bold text-sm">Rp ${subtotal.toLocaleString('id-ID')}</p>
-                        <button onclick="hapusItem(${index})" class="text-red-500 hover:text-red-700 font-bold text-lg">&times;</button>
+
+
+                    <!-- Hero visual -->
+
+                    <div
+                        class="
+                            hidden
+                            lg:flex
+                            justify-center
+                            relative
+                        "
+                    >
+
+                        <div
+                            class="
+                                w-[300px]
+                                h-[300px]
+                                rounded-full
+                                border
+                                border-white/10
+                                bg-white/5
+                                backdrop-blur-sm
+                                flex
+                                items-center
+                                justify-center
+                                relative
+                            "
+                        >
+
+                            <div
+                                class="
+                                    w-[225px]
+                                    h-[225px]
+                                    rounded-full
+                                    bg-gradient-to-br
+                                    from-yellow-300/20
+                                    to-transparent
+                                    flex
+                                    items-center
+                                    justify-center
+                                    border
+                                    border-yellow-200/20
+                                "
+                            >
+
+                                <i
+                                    class="
+                                        fas
+                                        fa-utensils
+                                        text-[75px]
+                                        text-yellow-300
+                                    "
+                                ></i>
+
+                            </div>
+
+
+                            <div
+                                class="
+                                    absolute
+                                    -left-8
+                                    bottom-12
+                                    glass
+                                    text-gray-800
+                                    rounded-2xl
+                                    px-5 py-4
+                                    shadow-xl
+                                "
+                            >
+
+                                <p
+                                    class="
+                                        text-xs
+                                        text-gray-400
+                                    "
+                                >
+                                    Homemade
+                                </p>
+
+                                <p
+                                    class="
+                                        font-bold
+                                        text-sm
+                                        text-[#681d1d]
+                                    "
+                                >
+                                    Made with ❤️
+                                </p>
+
+                            </div>
+
+
+                            <div
+                                class="
+                                    absolute
+                                    -right-5
+                                    top-12
+                                    bg-[#d7a84d]
+                                    text-[#3d1a0e]
+                                    rounded-2xl
+                                    px-5 py-4
+                                    shadow-xl
+                                "
+                            >
+
+                                <p
+                                    class="
+                                        font-bold
+                                        text-sm
+                                    "
+                                >
+                                    Premium
+                                </p>
+
+                                <p
+                                    class="
+                                        text-xs
+                                    "
+                                >
+                                    Quality Food
+                                </p>
+
+                            </div>
+
+                        </div>
+
                     </div>
+
                 </div>
-            `;
-        });
-        cartItems.innerHTML = html;
-        document.getElementById('cart-total').innerText = 'Rp ' + total.toLocaleString('id-ID');
-    }
 
-    function toggleKeranjang() {
-        document.getElementById('cart-modal').classList.toggle('hidden');
-    }
+            </section>
 
-    function checkoutWA() {
-        if (keranjang.length === 0) {
-            alert("Pilih menu terlebih dahulu!");
-            return;
+
+            <!-- ====================================================
+                 INFO BAR
+            ===================================================== -->
+
+            <section
+                class="
+                    grid
+                    sm:grid-cols-2
+                    xl:grid-cols-4
+                    gap-4
+                    reveal
+                "
+            >
+
+                <div
+                    class="
+                        bg-white
+                        rounded-3xl
+                        p-5
+                        border
+                        border-[#6b3e2e]/10
+                        shadow-sm
+                        flex
+                        items-center
+                        gap-4
+                    "
+                >
+
+                    <div
+                        class="
+                            w-12 h-12
+                            rounded-2xl
+                            bg-red-50
+                            text-[#681d1d]
+                            flex
+                            items-center
+                            justify-center
+                        "
+                    >
+                        <i class="fas fa-heart"></i>
+                    </div>
+
+                    <div>
+
+                        <p
+                            class="
+                                font-bold
+                                text-sm
+                            "
+                        >
+                            Homemade
+                        </p>
+
+                        <p
+                            class="
+                                text-xs
+                                text-gray-400
+                            "
+                        >
+                            Dibuat dengan cinta
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="
+                        bg-white
+                        rounded-3xl
+                        p-5
+                        border
+                        border-[#6b3e2e]/10
+                        shadow-sm
+                        flex
+                        items-center
+                        gap-4
+                    "
+                >
+
+                    <div
+                        class="
+                            w-12 h-12
+                            rounded-2xl
+                            bg-yellow-50
+                            text-yellow-600
+                            flex
+                            items-center
+                            justify-center
+                        "
+                    >
+                        <i class="fas fa-star"></i>
+                    </div>
+
+                    <div>
+
+                        <p
+                            class="
+                                font-bold
+                                text-sm
+                            "
+                        >
+                            Premium Taste
+                        </p>
+
+                        <p
+                            class="
+                                text-xs
+                                text-gray-400
+                            "
+                        >
+                            Kualitas pilihan
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="
+                        bg-white
+                        rounded-3xl
+                        p-5
+                        border
+                        border-[#6b3e2e]/10
+                        shadow-sm
+                        flex
+                        items-center
+                        gap-4
+                    "
+                >
+
+                    <div
+                        class="
+                            w-12 h-12
+                            rounded-2xl
+                            bg-green-50
+                            text-green-600
+                            flex
+                            items-center
+                            justify-center
+                        "
+                    >
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+
+                    <div>
+
+                        <p
+                            class="
+                                font-bold
+                                text-sm
+                            "
+                        >
+                            Easy Order
+                        </p>
+
+                        <p
+                            class="
+                                text-xs
+                                text-gray-400
+                            "
+                        >
+                            Checkout WhatsApp
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="
+                        bg-white
+                        rounded-3xl
+                        p-5
+                        border
+                        border-[#6b3e2e]/10
+                        shadow-sm
+                        flex
+                        items-center
+                        gap-4
+                    "
+                >
+
+                    <div
+                        class="
+                            w-12 h-12
+                            rounded-2xl
+                            bg-purple-50
+                            text-purple-600
+                            flex
+                            items-center
+                            justify-center
+                        "
+                    >
+                        <i class="fas fa-wallet"></i>
+                    </div>
+
+                    <div>
+
+                        <p
+                            class="
+                                font-bold
+                                text-sm
+                            "
+                        >
+                            Easy Payment
+                        </p>
+
+                        <p
+                            class="
+                                text-xs
+                                text-gray-400
+                            "
+                        >
+                            OVO • DANA • ShopeePay
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ====================================================
+                 MENU
+            ===================================================== -->
+
+            <section
+                id="menu"
+                class="
+                    pt-4
+                "
+            >
+
+                <!-- Section title -->
+
+                <div
+                    class="
+                        flex
+                        flex-col
+                        md:flex-row
+                        md:items-end
+                        justify-between
+                        gap-5
+                        mb-8
+                        reveal
+                    "
+                >
+
+                    <div>
+
+                        <div class="gold-line mb-4"></div>
+
+                        <p
+                            class="
+                                text-xs
+                                uppercase
+                                tracking-[0.25em]
+                                font-bold
+                                text-[#a36e4d]
+                                mb-2
+                            "
+                        >
+                            Our Selection
+                        </p>
+
+                        <h2
+                            class="
+                                text-3xl
+                                md:text-4xl
+                                font-bold
+                                text-[#3d1715]
+                            "
+                        >
+                            Katalog Menu
+                        </h2>
+
+
+                        <p
+                            class="
+                                text-gray-500
+                                text-sm
+                                mt-3
+                                max-w-xl
+                            "
+                        >
+                            Pilih menu favorit Anda dan tambahkan
+                            langsung ke keranjang.
+                        </p>
+
+                    </div>
+
+
+                    <div
+                        class="
+                            bg-white
+                            border
+                            border-[#6b3e2e]/10
+                            px-5 py-3
+                            rounded-full
+                            text-sm
+                            text-gray-500
+                            shadow-sm
+                        "
+                    >
+                        <i
+                            class="
+                                fas fa-sparkles
+                                text-yellow-500
+                                mr-2
+                            "
+                        ></i>
+
+                        Spesial Dapoer Pasta
+                    </div>
+
+                </div>
+
+
+                <!-- Product grid -->
+
+                <div
+                    class="
+                        grid
+                        grid-cols-1
+                        sm:grid-cols-2
+                        xl:grid-cols-3
+                        gap-7
+                    "
+                >
+
+                    <!-- ====================================================
+                         PRODUCT 1
+                    ===================================================== -->
+
+                    <article
+                        class="
+                            product-card
+                            rounded-[28px]
+                            overflow-hidden
+                            reveal
+                        "
+                    >
+
+                        <div
+                            class="
+                                product-image
+                                h-[270px]
+                            "
+                        >
+
+                            <div
+                                class="product-image-inner"
+                                style="
+                                    background-image: url('8.png');
+                                    background-position: center 30%;
+                                "
+                            ></div>
+
+
+                            <div
+                                class="
+                                    absolute
+                                    top-4 left-4
+                                    z-10
+                                    bg-white/90
+                                    backdrop-blur
+                                    text-[#681d1d]
+                                    text-[10px]
+                                    uppercase
+                                    tracking-wider
+                                    font-bold
+                                    px-3 py-2
+                                    rounded-full
+                                "
+                            >
+                                Premium
+                            </div>
+
+
+                            <span
+                                class="
+                                    absolute
+                                    top-4 right-4
+                                    z-10
+                                    bg-[#681d1d]
+                                    text-white
+                                    text-sm
+                                    font-bold
+                                    px-4 py-2
+                                    rounded-full
+                                    shadow-lg
+                                "
+                            >
+                                Rp 37.000
+                            </span>
+
+                        </div>
+
+
+                        <div
+                            class="
+                                p-6
+                            "
+                        >
+
+                            <div class="gold-line mb-5"></div>
+
+                            <h3
+                                class="
+                                    text-[23px]
+                                    font-bold
+                                    text-[#3d1715]
+                                    leading-tight
+                                "
+                            >
+                                Chicken pop corn 250gr
+                            </h3>
+
+
+                            <p
+                                class="
+                                    text-gray-500
+                                    text-sm
+                                    mt-3
+                                    mb-6
+                                "
+                            >
+                                Fresh chicken with crispy taste
+                            </p>
+
+
+                            <button
+                                onclick="tambahKeKeranjang('Chicken pop corn 250gr', 37000)"
+                                class="
+                                    premium-button
+                                    w-full
+                                    py-3.5
+                                    rounded-2xl
+                                    font-bold
+                                    flex
+                                    justify-center
+                                    items-center
+                                    gap-2
+                                "
+                            >
+                                <i class="fas fa-cart-plus"></i>
+
+                                Tambah ke Keranjang
+                            </button>
+
+                        </div>
+
+                    </article>
+
+
+                    <!-- ====================================================
+                         PRODUCT 2
+                    ===================================================== -->
+
+                    <article
+                        class="
+                            product-card
+                            rounded-[28px]
+                            overflow-hidden
+                            reveal
+                        "
+                    >
+
+                        <div
+                            class="
+                                product-image
+                                h-[270px]
+                            "
+                        >
+
+                            <div
+                                class="product-image-inner"
+                                style="
+                                    background-image: url('9.png');
+                                    background-position: center 30%;
+                                "
+                            ></div>
+
+
+                            <div
+                                class="
+                                    absolute
+                                    top-4 left-4
+                                    z-10
+                                    bg-white/90
+                                    text-[#681d1d]
+                                    text-[10px]
+                                    uppercase
+                                    tracking-wider
+                                    font-bold
+                                    px-3 py-2
+                                    rounded-full
+                                "
+                            >
+                                Best Seller
+                            </div>
+
+
+                            <span
+                                class="
+                                    absolute
+                                    top-4 right-4
+                                    z-10
+                                    bg-[#681d1d]
+                                    text-white
+                                    text-sm
+                                    font-bold
+                                    px-4 py-2
+                                    rounded-full
+                                    shadow-lg
+                                "
+                            >
+                                Rp 37.000
+                            </span>
+
+                        </div>
+
+
+                        <div class="p-6">
+
+                            <div class="gold-line mb-5"></div>
+
+                            <h3
+                                class="
+                                    text-[23px]
+                                    font-bold
+                                    text-[#3d1715]
+                                    leading-tight
+                                "
+                            >
+                                Chicken Cordon Blue 7 pcs
+                            </h3>
+
+
+                            <p
+                                class="
+                                    text-gray-500
+                                    text-sm
+                                    mt-3
+                                    mb-6
+                                "
+                            >
+                                Fresh chicken with smoke beef and Mozzarella
+                            </p>
+
+
+                            <button
+                                onclick="tambahKeKeranjang('Chicken Cordon Blue 7 pcs', 37000)"
+                                class="
+                                    premium-button
+                                    w-full
+                                    py-3.5
+                                    rounded-2xl
+                                    font-bold
+                                    flex
+                                    justify-center
+                                    items-center
+                                    gap-2
+                                "
+                            >
+                                <i class="fas fa-cart-plus"></i>
+
+                                Tambah ke Keranjang
+                            </button>
+
+                        </div>
+
+                    </article>
+
+
+                    <!-- ====================================================
+                         PRODUCT 3
+                    ===================================================== -->
+
+                    <article
+                        class="
+                            product-card
+                            rounded-[28px]
+                            overflow-hidden
+                            reveal
+                        "
+                    >
+
+                        <div
+                            class="
+                                product-image
+                                h-[270px]
+                            "
+                        >
+
+                            <div
+                                class="product-image-inner"
+                                style="
+                                    background-image: url('7 m.png');
+                                    background-position: center 30%;
+                                "
+                            ></div>
+
+
+                            <div
+                                class="
+                                    absolute
+                                    top-4 left-4
+                                    z-10
+                                    bg-white/90
+                                    text-[#681d1d]
+                                    text-[10px]
+                                    uppercase
+                                    tracking-wider
+                                    font-bold
+                                    px-3 py-2
+                                    rounded-full
+                                "
+                            >
+                                Crispy
+                            </div>
+
+
+                            <span
+                                class="
+                                    absolute
+                                    top-4 right-4
+                                    z-10
+                                    bg-[#681d1d]
+                                    text-white
+                                    text-sm
+                                    font-bold
+                                    px-4 py-2
+                                    rounded-full
+                                    shadow-lg
+                                "
+                            >
+                                Rp 37.000
+                            </span>
+
+                        </div>
+
+
+                        <div class="p-6">
+
+                            <div class="gold-line mb-5"></div>
+
+                            <h3
+                                class="
+                                    text-[23px]
+                                    font-bold
+                                    text-[#3d1715]
+                                    leading-tight
+                                "
+                            >
+                                Mini wonton 250gr
+                            </h3>
+
+
+                            <p
+                                class="
+                                    text-gray-500
+                                    text-sm
+                                    mt-3
+                                    mb-6
+                                "
+                            >
+                                Fresh chiken with Prawn and cripy taste
+                            </p>
+
+
+                            <button
+                                onclick="tambahKeKeranjang('Mini wonton', 37000)"
+                                class="
+                                    premium-button
+                                    w-full
+                                    py-3.5
+                                    rounded-2xl
+                                    font-bold
+                                    flex
+                                    justify-center
+                                    items-center
+                                    gap-2
+                                "
+                            >
+                                <i class="fas fa-cart-plus"></i>
+
+                                Tambah ke Keranjang
+                            </button>
+
+                        </div>
+
+                    </article>
+
+
+                    <!-- ====================================================
+                         PRODUCT 4
+                    ===================================================== -->
+
+                    <article
+                        class="
+                            product-card
+                            rounded-[28px]
+                            overflow-hidden
+                            reveal
+                        "
+                    >
+
+                        <div
+                            class="
+                                product-image
+                                h-[270px]
+                            "
+                        >
+
+                            <div
+                                class="product-image-inner"
+                                style="
+                                    background-image: url('10.png');
+                                    background-position: center 30%;
+                                "
+                            ></div>
+
+
+                            <div
+                                class="
+                                    absolute
+                                    top-4 left-4
+                                    z-10
+                                    bg-white/90
+                                    text-[#681d1d]
+                                    text-[10px]
+                                    uppercase
+                                    tracking-wider
+                                    font-bold
+                                    px-3 py-2
+                                    rounded-full
+                                "
+                            >
+                                Cheesy
+                            </div>
+
+
+                            <span
+                                class="
+                                    absolute
+                                    top-4 right-4
+                                    z-10
+                                    bg-[#681d1d]
+                                    text-white
+                                    text-sm
+                                    font-bold
+                                    px-4 py-2
+                                    rounded-full
+                                    shadow-lg
+                                "
+                            >
+                                Rp 27.000
+                            </span>
+
+                        </div>
+
+
+                        <div class="p-6">
+
+                            <div class="gold-line mb-5"></div>
+
+                            <h3
+                                class="
+                                    text-[23px]
+                                    font-bold
+                                    text-[#3d1715]
+                                    leading-tight
+                                "
+                            >
+                                Pasta brulee oval 2 pcs
+                            </h3>
+
+
+                            <p
+                                class="
+                                    text-gray-500
+                                    text-sm
+                                    mt-3
+                                    mb-6
+                                "
+                            >
+                                Fresh chicken with cheese melted
+                            </p>
+
+
+                            <button
+                                onclick="tambahKeKeranjang('Pasta brulee oval 2 pcs', 27000)"
+                                class="
+                                    premium-button
+                                    w-full
+                                    py-3.5
+                                    rounded-2xl
+                                    font-bold
+                                    flex
+                                    justify-center
+                                    items-center
+                                    gap-2
+                                "
+                            >
+                                <i class="fas fa-cart-plus"></i>
+
+                                Tambah ke Keranjang
+                            </button>
+
+                        </div>
+
+                    </article>
+
+
+                    <!-- ====================================================
+                         PRODUCT 5
+                    ===================================================== -->
+
+                    <article
+                        class="
+                            product-card
+                            rounded-[28px]
+                            overflow-hidden
+                            reveal
+                        "
+                    >
+
+                        <div
+                            class="
+                                product-image
+                                h-[270px]
+                            "
+                        >
+
+                            <div
+                                class="product-image-inner"
+                                style="
+                                    background-image: url('11.png');
+                                    background-position: center 30%;
+                                "
+                            ></div>
+
+
+                            <div
+                                class="
+                                    absolute
+                                    top-4 left-4
+                                    z-10
+                                    bg-white/90
+                                    text-[#681d1d]
+                                    text-[10px]
+                                    uppercase
+                                    tracking-wider
+                                    font-bold
+                                    px-3 py-2
+                                    rounded-full
+                                "
+                            >
+                                Signature
+                            </div>
+
+
+                            <span
+                                class="
+                                    absolute
+                                    top-4 right-4
+                                    z-10
+                                    bg-[#681d1d]
+                                    text-white
+                                    text-sm
+                                    font-bold
+                                    px-4 py-2
+                                    rounded-full
+                                    shadow-lg
+                                "
+                            >
+                                Rp 32.000
+                            </span>
+
+                        </div>
+
+
+                        <div class="p-6">
+
+                            <div class="gold-line mb-5"></div>
+
+                            <h3
+                                class="
+                                    text-[23px]
+                                    font-bold
+                                    text-[#3d1715]
+                                    leading-tight
+                                "
+                            >
+                                Pasta brulee persegi 2 pcs
+                            </h3>
+
+
+                            <p
+                                class="
+                                    text-gray-500
+                                    text-sm
+                                    mt-3
+                                    mb-6
+                                "
+                            >
+                                Fresh chicken with cheese melted
+                            </p>
+
+
+                            <button
+                                onclick="tambahKeKeranjang('Pasta brulee persegi 2 pcs', 32000)"
+                                class="
+                                    premium-button
+                                    w-full
+                                    py-3.5
+                                    rounded-2xl
+                                    font-bold
+                                    flex
+                                    justify-center
+                                    items-center
+                                    gap-2
+                                "
+                            >
+                                <i class="fas fa-cart-plus"></i>
+
+                                Tambah ke Keranjang
+                            </button>
+
+                        </div>
+
+                    </article>
+
+
+                    <!-- ====================================================
+                         INSTAGRAM CARD
+                    ===================================================== -->
+
+                    <article
+                        class="
+                            rounded-[28px]
+                            overflow-hidden
+                            reveal
+                            bg-gradient-to-br
+                            from-[#681d1d]
+                            via-[#4a1010]
+                            to-[#260808]
+                            text-white
+                            min-h-[430px]
+                            p-8
+                            flex
+                            flex-col
+                            justify-between
+                            relative
+                            shadow-xl
+                        "
+                    >
+
+                        <div
+                            class="
+                                absolute
+                                -right-12
+                                -top-12
+                                w-40 h-40
+                                rounded-full
+                                bg-yellow-400/10
+                            "
+                        ></div>
+
+
+                        <div>
+
+                            <div
+                                class="
+                                    w-14 h-14
+                                    bg-white/10
+                                    border
+                                    border-white/10
+                                    rounded-2xl
+                                    flex
+                                    items-center
+                                    justify-center
+                                    text-2xl
+                                    mb-7
+                                "
+                            >
+                                <i class="fab fa-instagram"></i>
+                            </div>
+
+
+                            <p
+                                class="
+                                    text-yellow-200
+                                    text-xs
+                                    font-bold
+                                    uppercase
+                                    tracking-[0.2em]
+                                    mb-3
+                                "
+                            >
+                                Follow Us
+                            </p>
+
+
+                            <h3
+                                class="
+                                    text-3xl
+                                    font-bold
+                                "
+                            >
+                                Lihat update terbaru dari Dapoer Pasta.
+                            </h3>
+
+
+                            <p
+                                class="
+                                    text-white/60
+                                    text-sm
+                                    mt-4
+                                "
+                            >
+                                Temukan menu, informasi, dan update lainnya
+                                di Instagram resmi kami.
+                            </p>
+
+                        </div>
+
+
+                        <a
+                            href="https://instagram.com/Dapoer.Pasta"
+                            target="_blank"
+                            class="
+                                mt-8
+                                inline-flex
+                                items-center
+                                justify-center
+                                gap-2
+                                w-full
+                                bg-white
+                                text-[#681d1d]
+                                py-3.5
+                                rounded-2xl
+                                font-bold
+                                hover:bg-yellow-50
+                                transition
+                            "
+                        >
+                            <i class="fab fa-instagram"></i>
+
+                            @Dapoer.Pasta
+                        </a>
+
+                    </article>
+
+                </div>
+
+            </section>
+
+
+            <!-- ====================================================
+                 PAYMENT
+            ===================================================== -->
+
+            <section
+                id="payment"
+                class="
+                    bg-white
+                    rounded-[32px]
+                    border
+                    border-[#6b3e2e]/10
+                    shadow-sm
+                    p-7
+                    md:p-10
+                    reveal
+                "
+            >
+
+                <div
+                    class="
+                        text-center
+                        max-w-2xl
+                        mx-auto
+                    "
+                >
+
+                    <div
+                        class="
+                            mx-auto
+                            gold-line
+                            mb-5
+                        "
+                    ></div>
+
+                    <p
+                        class="
+                            text-xs
+                            uppercase
+                            tracking-[0.25em]
+                            font-bold
+                            text-[#a36e4d]
+                        "
+                    >
+                        Secure & Easy
+                    </p>
+
+                    <h2
+                        class="
+                            text-3xl
+                            md:text-4xl
+                            font-bold
+                            text-[#3d1715]
+                            mt-2
+                        "
+                    >
+                        Metode Pembayaran
+                    </h2>
+
+                    <p
+                        class="
+                            text-gray-500
+                            text-sm
+                            mt-3
+                        "
+                    >
+                        Kami menerima pembayaran melalui beberapa
+                        pilihan e-wallet.
+                    </p>
+
+                </div>
+
+
+                <div
+                    class="
+                        grid
+                        sm:grid-cols-3
+                        gap-4
+                        max-w-3xl
+                        mx-auto
+                        mt-9
+                    "
+                >
+
+                    <!-- OVO -->
+
+                    <div
+                        class="
+                            payment-card
+                            rounded-2xl
+                            bg-purple-50
+                            border
+                            border-purple-100
+                            p-5
+                            flex
+                            items-center
+                            justify-center
+                            gap-3
+                        "
+                    >
+
+                        <div
+                            class="
+                                w-10 h-10
+                                bg-purple-600
+                                text-white
+                                rounded-xl
+                                flex
+                                items-center
+                                justify-center
+                                font-bold
+                            "
+                        >
+                            O
+                        </div>
+
+                        <strong
+                            class="
+                                text-purple-700
+                            "
+                        >
+                            OVO
+                        </strong>
+
+                    </div>
+
+
+                    <!-- SHOPEEPAY -->
+
+                    <div
+                        class="
+                            payment-card
+                            rounded-2xl
+                            bg-orange-50
+                            border
+                            border-orange-100
+                            p-5
+                            flex
+                            items-center
+                            justify-center
+                            gap-3
+                        "
+                    >
+
+                        <div
+                            class="
+                                w-10 h-10
+                                bg-orange-500
+                                text-white
+                                rounded-xl
+                                flex
+                                items-center
+                                justify-center
+                            "
+                        >
+                            <i class="fas fa-wallet"></i>
+                        </div>
+
+                        <strong
+                            class="
+                                text-orange-700
+                            "
+                        >
+                            ShopeePay
+                        </strong>
+
+                    </div>
+
+
+                    <!-- DANA -->
+
+                    <div
+                        class="
+                            payment-card
+                            rounded-2xl
+                            bg-blue-50
+                            border
+                            border-blue-100
+                            p-5
+                            flex
+                            items-center
+                            justify-center
+                            gap-3
+                        "
+                    >
+
+                        <div
+                            class="
+                                w-10 h-10
+                                bg-blue-500
+                                text-white
+                                rounded-xl
+                                flex
+                                items-center
+                                justify-center
+                                font-bold
+                            "
+                        >
+                            D
+                        </div>
+
+                        <strong
+                            class="
+                                text-blue-700
+                            "
+                        >
+                            DANA
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ====================================================
+                 CTA
+            ===================================================== -->
+
+            <section
+                class="
+                    rounded-[34px]
+                    p-8
+                    md:p-12
+                    bg-gradient-to-r
+                    from-[#331010]
+                    to-[#681d1d]
+                    text-white
+                    flex
+                    flex-col
+                    lg:flex-row
+                    items-center
+                    justify-between
+                    gap-8
+                    reveal
+                    shadow-xl
+                "
+            >
+
+                <div>
+
+                    <p
+                        class="
+                            text-yellow-200
+                            uppercase
+                            tracking-[0.22em]
+                            text-xs
+                            font-bold
+                            mb-3
+                        "
+                    >
+                        Ready to Order?
+                    </p>
+
+
+                    <h2
+                        class="
+                            text-3xl
+                            md:text-4xl
+                            font-bold
+                        "
+                    >
+                        Sudah menemukan menu favorit Anda?
+                    </h2>
+
+
+                    <p
+                        class="
+                            text-white/60
+                            mt-3
+                            max-w-xl
+                        "
+                    >
+                        Tambahkan menu ke keranjang dan checkout
+                        langsung melalui WhatsApp Dapoer Pasta.
+                    </p>
+
+                </div>
+
+
+                <button
+                    onclick="toggleKeranjang()"
+                    class="
+                        premium-button
+                        whitespace-nowrap
+                        px-7 py-4
+                        rounded-full
+                        font-bold
+                        flex
+                        items-center
+                        gap-2
+                    "
+                >
+                    <i class="fas fa-shopping-bag"></i>
+
+                    Lihat Keranjang
+                </button>
+
+            </section>
+
+
+            <!-- Footer -->
+
+            <footer
+                class="
+                    border-t
+                    border-[#6b3e2e]/10
+                    pt-8
+                    pb-4
+                    flex
+                    flex-col
+                    sm:flex-row
+                    justify-between
+                    gap-4
+                    text-xs
+                    text-gray-400
+                "
+            >
+
+                <p>
+                    © 2026 Dapoer Pasta. All Rights Reserved.
+                </p>
+
+
+                <p>
+                    Homemade food, made with
+                    <span class="text-red-600">
+                        ♥
+                    </span>
+                </p>
+
+            </footer>
+
+        </div>
+
+    </main>
+
+
+    <!-- ====================================================
+         CART FLOATING BUTTON
+    ===================================================== -->
+
+    <button
+        id="cart-button"
+        onclick="toggleKeranjang()"
+        class="
+            floating-button
+            fixed
+            bottom-6
+            right-5
+            md:right-7
+            z-50
+            w-[62px]
+            h-[62px]
+            rounded-full
+            bg-gradient-to-br
+            from-[#761f1f]
+            to-[#3d0e0e]
+            text-white
+            flex
+            items-center
+            justify-center
+            border
+            border-white/10
+        "
+    >
+
+        <i
+            class="
+                fas fa-shopping-bag
+                text-xl
+            "
+        ></i>
+
+
+        <span
+            id="cart-count"
+            class="
+                absolute
+                -top-1
+                -right-1
+                bg-[#d7a84d]
+                text-[#3d1a0e]
+                text-xs
+                font-bold
+                min-w-[25px]
+                h-[25px]
+                px-1
+                flex
+                items-center
+                justify-center
+                rounded-full
+                border-2
+                border-white
+            "
+        >
+            0
+        </span>
+
+    </button>
+
+
+    <!-- ====================================================
+         CART MODAL
+    ===================================================== -->
+
+    <div
+        id="cart-modal"
+        class="
+            fixed
+            inset-0
+            bg-black/60
+            backdrop-blur-sm
+            hidden
+            z-[70]
+            flex
+            justify-center
+            items-center
+            p-4
+        "
+        onclick="closeCartOutside(event)"
+    >
+
+        <div
+            class="
+                cart-modal-box
+                bg-white
+                w-full
+                max-w-lg
+                rounded-[28px]
+                shadow-2xl
+                overflow-hidden
+                max-h-[85vh]
+                flex
+                flex-col
+            "
+        >
+
+            <!-- Cart header -->
+
+            <div
+                class="
+                    bg-gradient-to-r
+                    from-[#681d1d]
+                    to-[#430d0d]
+                    p-6
+                    text-white
+                    flex
+                    justify-between
+                    items-center
+                "
+            >
+
+                <div>
+
+                    <p
+                        class="
+                            text-yellow-200
+                            text-[10px]
+                            uppercase
+                            tracking-[0.2em]
+                        "
+                    >
+                        Your Order
+                    </p>
+
+                    <h3
+                        class="
+                            text-2xl
+                            font-bold
+                            mt-1
+                        "
+                    >
+                        Pesanan Saya
+                    </h3>
+
+                </div>
+
+
+                <button
+                    onclick="toggleKeranjang()"
+                    class="
+                        w-10 h-10
+                        rounded-full
+                        bg-white/10
+                        hover:bg-white/20
+                        transition
+                    "
+                >
+                    <i class="fas fa-times"></i>
+                </button>
+
+            </div>
+
+
+            <!-- Items -->
+
+            <div
+                id="cart-items"
+                class="
+                    p-6
+                    overflow-y-auto
+                    flex-1
+                "
+            >
+
+                <div
+                    class="
+                        text-center
+                        py-12
+                    "
+                >
+
+                    <div
+                        class="
+                            w-16 h-16
+                            mx-auto
+                            rounded-full
+                            bg-red-50
+                            text-[#681d1d]
+                            flex
+                            items-center
+                            justify-center
+                            text-xl
+                            mb-4
+                        "
+                    >
+                        <i class="fas fa-shopping-basket"></i>
+                    </div>
+
+                    <p
+                        class="
+                            text-gray-500
+                        "
+                    >
+                        Keranjang masih kosong
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- Cart footer -->
+
+            <div
+                class="
+                    p-6
+                    bg-[#fbf7f0]
+                    border-t
+                    border-[#6b3e2e]/10
+                "
+            >
+
+                <div
+                    class="
+                        flex
+                        justify-between
+                        items-end
+                        mb-5
+                    "
+                >
+
+                    <div>
+
+                        <p
+                            class="
+                                text-xs
+                                text-gray-400
+                            "
+                        >
+                            Total Pesanan
+                        </p>
+
+                        <span
+                            class="
+                                text-sm
+                                text-gray-500
+                            "
+                        >
+                            Belum termasuk ongkir
+                        </span>
+
+                    </div>
+
+
+                    <span
+                        id="cart-total"
+                        class="
+                            text-2xl
+                            font-bold
+                            text-[#681d1d]
+                        "
+                    >
+                        Rp 0
+                    </span>
+
+                </div>
+
+
+                <button
+                    onclick="checkoutWA()"
+                    class="
+                        w-full
+                        bg-green-600
+                        hover:bg-green-700
+                        text-white
+                        py-4
+                        rounded-2xl
+                        font-bold
+                        transition
+                        flex
+                        justify-center
+                        items-center
+                        gap-2
+                        shadow-lg
+                    "
+                >
+                    <i
+                        class="
+                            fab fa-whatsapp
+                            text-xl
+                        "
+                    ></i>
+
+                    Checkout via WhatsApp
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ====================================================
+         TOAST
+    ===================================================== -->
+
+    <div
+        id="toast"
+        class="
+            fixed
+            top-6
+            left-1/2
+            transform
+            -translate-x-1/2
+            -translate-y-5
+            bg-[#27110e]
+            text-white
+            px-5 py-3.5
+            rounded-full
+            shadow-2xl
+            z-[100]
+            transition-all
+            duration-300
+            opacity-0
+            pointer-events-none
+            flex
+            items-center
+            gap-3
+        "
+    >
+
+        <div
+            class="
+                w-8 h-8
+                rounded-full
+                bg-green-500
+                flex
+                items-center
+                justify-center
+            "
+        >
+            <i class="fas fa-check"></i>
+        </div>
+
+        <span
+            id="toast-message"
+            class="
+                font-semibold
+                text-sm
+            "
+        >
+            Berhasil ditambah!
+        </span>
+
+    </div>
+
+
+    <!-- ====================================================
+         CHAT BUTTON
+    ===================================================== -->
+
+    <button
+        onclick="toggleChat()"
+        class="
+            floating-button
+            fixed
+            bottom-[96px]
+            right-5
+            md:right-7
+            z-50
+            w-[58px]
+            h-[58px]
+            rounded-full
+            bg-white
+            text-[#681d1d]
+            border
+            border-[#681d1d]/10
+            flex
+            items-center
+            justify-center
+        "
+    >
+        <i class="fas fa-comment-dots text-xl"></i>
+    </button>
+
+
+    <!-- ====================================================
+         CHAT BOX
+    ===================================================== -->
+
+    <div
+        id="chat-box"
+        class="
+            fixed
+            bottom-[165px]
+            right-4
+            md:right-7
+            w-[calc(100%-32px)]
+            sm:w-[350px]
+            bg-white
+            rounded-[26px]
+            shadow-2xl
+            hidden
+            flex-col
+            overflow-hidden
+            z-[60]
+            border
+            border-[#6b3e2e]/10
+        "
+    >
+
+        <!-- Chat header -->
+
+        <div
+            class="
+                bg-gradient-to-r
+                from-[#681d1d]
+                to-[#430d0d]
+                p-5
+                flex
+                justify-between
+                items-center
+                text-white
+            "
+        >
+
+            <div
+                class="
+                    flex
+                    items-center
+                    gap-3
+                "
+            >
+
+                <div
+                    class="
+                        w-10 h-10
+                        rounded-full
+                        bg-white/10
+                        flex
+                        items-center
+                        justify-center
+                    "
+                >
+                    <i class="fas fa-robot"></i>
+                </div>
+
+
+                <div>
+
+                    <h3
+                        class="
+                            font-bold
+                            font-sans
+                            text-sm
+                        "
+                    >
+                        Asisten Dapoer Pasta
+                    </h3>
+
+                    <p
+                        class="
+                            text-[10px]
+                            text-green-300
+                            mt-0.5
+                        "
+                    >
+                        ● Online
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <button
+                onclick="toggleChat()"
+                class="
+                    w-8 h-8
+                    rounded-full
+                    hover:bg-white/10
+                "
+            >
+                <i class="fas fa-times"></i>
+            </button>
+
+        </div>
+
+
+        <!-- Chat messages -->
+
+        <div
+            id="chat-messages"
+            class="
+                p-4
+                h-[300px]
+                overflow-y-auto
+                bg-[#fbf7f0]
+                flex
+                flex-col
+                gap-3
+                text-sm
+            "
+        >
+
+            <div
+                class="
+                    bg-white
+                    p-3.5
+                    rounded-2xl
+                    rounded-tl-sm
+                    shadow-sm
+                    border
+                    border-gray-100
+                    self-start
+                    max-w-[88%]
+                    text-gray-600
+                "
+            >
+                Halo! 👋 Selamat datang di Dapoer Pasta.
+
+                <br><br>
+
+                Ada yang bisa dibantu?
+
+                Anda bisa mengetik
+                <strong>"menu"</strong>,
+                <strong>"lokasi"</strong>,
+                atau
+                <strong>"promo"</strong>.
+            </div>
+
+        </div>
+
+
+        <!-- Chat input -->
+
+        <div
+            class="
+                p-3
+                bg-white
+                border-t
+                border-gray-100
+                flex
+                gap-2
+            "
+        >
+
+            <input
+                type="text"
+                id="chat-input"
+                placeholder="Ketik pesan..."
+                onkeypress="handleChatEnter(event)"
+                class="
+                    flex-1
+                    px-4 py-3
+                    bg-gray-50
+                    border
+                    border-gray-100
+                    rounded-xl
+                    focus:outline-none
+                    focus:border-[#681d1d]
+                    text-sm
+                "
+            >
+
+
+            <button
+                onclick="kirimPesan()"
+                class="
+                    w-12
+                    rounded-xl
+                    bg-[#681d1d]
+                    text-white
+                    hover:bg-[#481010]
+                    transition
+                "
+            >
+                <i class="fas fa-paper-plane"></i>
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ====================================================
+         JAVASCRIPT
+    ===================================================== -->
+
+    <script>
+
+        /*
+        =====================================================
+        SIDEBAR
+        =====================================================
+        */
+
+        function toggleSidebar() {
+
+            const sidebar =
+                document.getElementById("sidebar");
+
+            const overlay =
+                document.getElementById("sidebar-overlay");
+
+
+            sidebar.classList.toggle(
+                "-translate-x-full"
+            );
+
+
+            overlay.classList.toggle(
+                "hidden"
+            );
+
         }
 
-        let pesan = "Halo Admin Dapoer Pasta, saya mau pesan:%0A%0A";
-        let total = 0;
 
-        keranjang.forEach((item, i) => {
-            let subtotal = item.harga * item.jumlah;
-            total += subtotal;
-            pesan += `${i + 1}. *${item.nama}*%0A   Jumlah: ${item.jumlah}%0A   Subtotal: Rp ${subtotal.toLocaleString('id-ID')}%0A%0A`;
-        });
+        /*
+        =====================================================
+        CART DATA
+        =====================================================
+        */
 
-        pesan += `*TOTAL PESANAN: Rp ${total.toLocaleString('id-ID')}*%0A%0A`;
-        pesan += "Nama Pemesan:%0AAlamat Pengiriman:%0AMetode Pembayaran: (OVO / ShopeePay / DANA)%0A%0A_Mohon info ongkirnya ya kak._";
+        let keranjang = [];
 
-        window.open(`https://api.whatsapp.com/send?phone=6285175391181&text=${pesan}`, '_blank');
-    }
-</script>
-<!-- ================= BATAS AKHIR KODE ================= --> 
+
+        /*
+        =====================================================
+        TOAST
+        =====================================================
+        */
+
+        function showToast(pesan) {
+
+            const toast =
+                document.getElementById("toast");
+
+
+            document
+                .getElementById("toast-message")
+                .innerText = pesan;
+
+
+            toast.classList.remove(
+                "opacity-0",
+                "-translate-y-5"
+            );
+
+
+            toast.classList.add(
+                "opacity-100",
+                "translate-y-0"
+            );
+
+
+            setTimeout(() => {
+
+                toast.classList.remove(
+                    "opacity-100",
+                    "translate-y-0"
+                );
+
+
+                toast.classList.add(
+                    "opacity-0",
+                    "-translate-y-5"
+                );
+
+            }, 2500);
+
+        }
+
+
+        /*
+        =====================================================
+        TAMBAH KE KERANJANG
+        =====================================================
+        */
+
+        function tambahKeKeranjang(
+            nama,
+            harga
+        ) {
+
+            const item =
+                keranjang.find(
+                    i => i.nama === nama
+                );
+
+
+            if (item) {
+
+                item.jumlah += 1;
+
+            } else {
+
+                keranjang.push({
+
+                    nama: nama,
+                    harga: harga,
+                    jumlah: 1
+
+                });
+
+            }
+
+
+            updateKeranjang();
+
+
+            const cart =
+                document.getElementById(
+                    "cart-button"
+                );
+
+
+            cart.classList.add(
+                "scale-110"
+            );
+
+
+            setTimeout(() => {
+
+                cart.classList.remove(
+                    "scale-110"
+                );
+
+            }, 200);
+
+
+            showToast(
+                nama +
+                " masuk ke keranjang!"
+            );
+
+        }
+
+
+        /*
+        =====================================================
+        TAMBAH JUMLAH
+        =====================================================
+        */
+
+        function tambahJumlah(index) {
+
+            keranjang[index].jumlah++;
+
+            updateKeranjang();
+
+        }
+
+
+        /*
+        =====================================================
+        KURANGI JUMLAH
+        =====================================================
+        */
+
+        function kurangiJumlah(index) {
+
+            if (
+                keranjang[index].jumlah > 1
+            ) {
+
+                keranjang[index].jumlah--;
+
+            } else {
+
+                keranjang.splice(
+                    index,
+                    1
+                );
+
+            }
+
+
+            updateKeranjang();
+
+        }
+
+
+        /*
+        =====================================================
+        HAPUS ITEM
+        =====================================================
+        */
+
+        function hapusItem(index) {
+
+            keranjang.splice(
+                index,
+                1
+            );
+
+
+            updateKeranjang();
+
+        }
+
+
+        /*
+        =====================================================
+        UPDATE KERANJANG
+        =====================================================
+        */
+
+        function updateKeranjang() {
+
+            const count =
+                keranjang.reduce(
+                    (sum, item) =>
+                        sum + item.jumlah,
+                    0
+                );
+
+
+            document
+                .getElementById(
+                    "cart-count"
+                )
+                .innerText = count;
+
+
+            const cartItems =
+                document.getElementById(
+                    "cart-items"
+                );
+
+
+            if (
+                keranjang.length === 0
+            ) {
+
+                cartItems.innerHTML = `
+
+                    <div
+                        class="
+                            text-center
+                            py-12
+                        "
+                    >
+
+                        <div
+                            class="
+                                w-16 h-16
+                                mx-auto
+                                rounded-full
+                                bg-red-50
+                                text-[#681d1d]
+                                flex
+                                items-center
+                                justify-center
+                                text-xl
+                                mb-4
+                            "
+                        >
+                            <i
+                                class="
+                                    fas
+                                    fa-shopping-basket
+                                "
+                            ></i>
+                        </div>
+
+
+                        <p
+                            class="
+                                text-gray-500
+                            "
+                        >
+                            Keranjang masih kosong
+                        </p>
+
+
+                        <p
+                            class="
+                                text-xs
+                                text-gray-400
+                                mt-1
+                            "
+                        >
+                            Pilih menu favorit Anda.
+                        </p>
+
+                    </div>
+
+                `;
+
+
+                document
+                    .getElementById(
+                        "cart-total"
+                    )
+                    .innerText =
+                    "Rp 0";
+
+
+                return;
+
+            }
+
+
+            let html = "";
+
+            let total = 0;
+
+
+            keranjang.forEach(
+                (item, index) => {
+
+                    const subtotal =
+                        item.harga *
+                        item.jumlah;
+
+
+                    total += subtotal;
+
+
+                    html += `
+
+                        <div
+                            class="
+                                mb-4
+                                pb-4
+                                border-b
+                                border-gray-100
+                            "
+                        >
+
+                            <div
+                                class="
+                                    flex
+                                    justify-between
+                                    gap-4
+                                "
+                            >
+
+                                <div>
+
+                                    <p
+                                        class="
+                                            font-bold
+                                            text-[#3d1715]
+                                        "
+                                    >
+                                        ${item.nama}
+                                    </p>
+
+
+                                    <p
+                                        class="
+                                            text-xs
+                                            text-gray-400
+                                            mt-1
+                                        "
+                                    >
+                                        Rp ${item.harga.toLocaleString("id-ID")}
+                                        / item
+                                    </p>
+
+                                </div>
+
+
+                                <button
+                                    onclick="hapusItem(${index})"
+                                    class="
+                                        w-8 h-8
+                                        rounded-full
+                                        bg-red-50
+                                        text-red-500
+                                        hover:bg-red-100
+                                        transition
+                                    "
+                                >
+                                    <i
+                                        class="
+                                            fas
+                                            fa-trash
+                                            text-xs
+                                        "
+                                    ></i>
+                                </button>
+
+                            </div>
+
+
+                            <div
+                                class="
+                                    flex
+                                    items-center
+                                    justify-between
+                                    mt-4
+                                "
+                            >
+
+                                <div
+                                    class="
+                                        flex
+                                        items-center
+                                        gap-2
+                                        bg-[#fbf7f0]
+                                        p-1
+                                        rounded-xl
+                                    "
+                                >
+
+                                    <button
+                                        onclick="kurangiJumlah(${index})"
+                                        class="
+                                            w-8 h-8
+                                            rounded-lg
+                                            bg-white
+                                            shadow-sm
+                                            text-[#681d1d]
+                                        "
+                                    >
+                                        −
+                                    </button>
+
+
+                                    <span
+                                        class="
+                                            min-w-[28px]
+                                            text-center
+                                            font-bold
+                                        "
+                                    >
+                                        ${item.jumlah}
+                                    </span>
+
+
+                                    <button
+                                        onclick="tambahJumlah(${index})"
+                                        class="
+                                            w-8 h-8
+                                            rounded-lg
+                                            bg-[#681d1d]
+                                            text-white
+                                        "
+                                    >
+                                        +
+                                    </button>
+
+                                </div>
+
+
+                                <p
+                                    class="
+                                        font-bold
+                                        text-[#681d1d]
+                                    "
+                                >
+                                    Rp ${subtotal.toLocaleString("id-ID")}
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            );
+
+
+            cartItems.innerHTML =
+                html;
+
+
+            document
+                .getElementById(
+                    "cart-total"
+                )
+                .innerText =
+                "Rp " +
+                total.toLocaleString(
+                    "id-ID"
+                );
+
+        }
+
+
+        /*
+        =====================================================
+        TOGGLE CART
+        =====================================================
+        */
+
+        function toggleKeranjang() {
+
+            document
+                .getElementById(
+                    "cart-modal"
+                )
+                .classList
+                .toggle("hidden");
+
+        }
+
+
+        /*
+        =====================================================
+        CLOSE CART OUTSIDE
+        =====================================================
+        */
+
+        function closeCartOutside(event) {
+
+            if (
+                event.target.id ===
+                "cart-modal"
+            ) {
+
+                toggleKeranjang();
+
+            }
+
+        }
+
+
+        /*
+        =====================================================
+        CHECKOUT WHATSAPP
+        =====================================================
+        */
+
+        function checkoutWA() {
+
+            if (
+                keranjang.length === 0
+            ) {
+
+                showToast(
+                    "Pilih menu terlebih dahulu!"
+                );
+
+                return;
+
+            }
+
+
+            let pesan =
+                "Halo Admin Dapoer Pasta, saya mau pesan:%0A%0A";
+
+
+            let total = 0;
+
+
+            keranjang.forEach(
+                (item, i) => {
+
+                    const subtotal =
+                        item.harga *
+                        item.jumlah;
+
+
+                    total += subtotal;
+
+
+                    pesan +=
+                        `${i + 1}. *${item.nama}*%0A` +
+                        `   Jumlah: ${item.jumlah}%0A` +
+                        `   Subtotal: Rp ${subtotal.toLocaleString("id-ID")}%0A%0A`;
+
+                }
+            );
+
+
+            pesan +=
+                `*TOTAL PESANAN: Rp ${total.toLocaleString("id-ID")}*%0A%0A`;
+
+
+            pesan +=
+                "Nama Pemesan:%0A" +
+                "Alamat Pengiriman:%0A" +
+                "Metode Pembayaran: (OVO / ShopeePay / DANA)%0A%0A" +
+                "_Mohon info ongkirnya ya kak._";
+
+
+            window.open(
+
+                `https://api.whatsapp.com/send?phone=6285175391181&text=${pesan}`,
+
+                "_blank"
+
+            );
+
+        }
+
+
+        /*
+        =====================================================
+        CHAT TOGGLE
+        =====================================================
+        */
+
+        function toggleChat() {
+
+            const chat =
+                document.getElementById(
+                    "chat-box"
+                );
+
+
+            chat.classList.toggle(
+                "hidden"
+            );
+
+
+            chat.classList.toggle(
+                "flex"
+            );
+
+        }
+
+
+        /*
+        =====================================================
+        CHAT ENTER
+        =====================================================
+        */
+
+        function handleChatEnter(event) {
+
+            if (
+                event.key === "Enter"
+            ) {
+
+                kirimPesan();
+
+            }
+
+        }
+
+
+        /*
+        =====================================================
+        CHAT SEND
+        =====================================================
+        */
+
+        async function kirimPesan() {
+
+            const inputField =
+                document.getElementById(
+                    "chat-input"
+                );
+
+
+            const pesanUser =
+                inputField.value.trim();
+
+
+            if (
+                pesanUser === ""
+            ) {
+
+                return;
+
+            }
+
+
+            const chatMessages =
+                document.getElementById(
+                    "chat-messages"
+                );
+
+
+            /*
+            User message
+            */
+
+            chatMessages.innerHTML += `
+
+                <div
+                    class="
+                        bg-[#681d1d]
+                        text-white
+                        p-3.5
+                        rounded-2xl
+                        rounded-tr-sm
+                        shadow-sm
+                        self-end
+                        max-w-[88%]
+                    "
+                >
+                    ${pesanUser}
+                </div>
+
+            `;
+
+
+            inputField.value = "";
+
+
+            chatMessages.scrollTop =
+                chatMessages.scrollHeight;
+
+
+            /*
+            Typing indicator
+            */
+
+            const typingId =
+                "typing-" +
+                Date.now();
+
+
+            chatMessages.innerHTML += `
+
+                <div
+                    id="${typingId}"
+                    class="
+                        bg-white
+                        p-3
+                        rounded-2xl
+                        rounded-tl-sm
+                        shadow-sm
+                        border
+                        border-gray-100
+                        self-start
+                        text-gray-400
+                        text-xs
+                        italic
+                    "
+                >
+                    <i
+                        class="
+                            fas
+                            fa-circle-notch
+                            fa-spin
+                            mr-2
+                        "
+                    ></i>
+
+                    Asisten sedang berpikir...
+                </div>
+
+            `;
+
+
+            chatMessages.scrollTop =
+                chatMessages.scrollHeight;
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/.netlify/functions/chat",
+                        {
+
+                            method: "POST",
+
+                            body: JSON.stringify({
+
+                                message:
+                                    pesanUser
+
+                            })
+
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                const typingElement =
+                    document.getElementById(
+                        typingId
+                    );
+
+
+                if (
+                    typingElement
+                ) {
+
+                    typingElement.remove();
+
+                }
+
+
+                chatMessages.innerHTML += `
+
+                    <div
+                        class="
+                            bg-white
+                            p-3.5
+                            rounded-2xl
+                            rounded-tl-sm
+                            shadow-sm
+                            border
+                            border-gray-100
+                            self-start
+                            max-w-[88%]
+                            text-gray-600
+                        "
+                    >
+                        ${data.reply}
+                    </div>
+
+                `;
+
+            }
+
+            catch (error) {
+
+                const typingElement =
+                    document.getElementById(
+                        typingId
+                    );
+
+
+                if (
+                    typingElement
+                ) {
+
+                    typingElement.remove();
+
+                }
+
+
+                chatMessages.innerHTML += `
+
+                    <div
+                        class="
+                            bg-red-50
+                            p-3.5
+                            rounded-2xl
+                            rounded-tl-sm
+                            border
+                            border-red-100
+                            self-start
+                            max-w-[88%]
+                            text-red-600
+                            text-sm
+                        "
+                    >
+                        Maaf, asisten sedang sibuk.
+
+                        Silakan langsung hubungi
+                        WhatsApp Dapoer Pasta ya!
+                    </div>
+
+                `;
+
+            }
+
+
+            chatMessages.scrollTop =
+                chatMessages.scrollHeight;
+
+        }
+
+
+        /*
+        =====================================================
+        SCROLL REVEAL
+        =====================================================
+        */
+
+        const revealObserver =
+            new IntersectionObserver(
+
+                entries => {
+
+                    entries.forEach(
+                        entry => {
+
+                            if (
+                                entry.isIntersecting
+                            ) {
+
+                                entry
+                                    .target
+                                    .classList
+                                    .add("show");
+
+                            }
+
+                        }
+                    );
+
+                },
+
+                {
+
+                    threshold: 0.1
+
+                }
+
+            );
+
+
+        document
+            .querySelectorAll(
+                ".reveal"
+            )
+            .forEach(
+                element => {
+
+                    revealObserver.observe(
+                        element
+                    );
+
+                }
+            );
+
+    </script>
+
 </body>
+
 </html>
