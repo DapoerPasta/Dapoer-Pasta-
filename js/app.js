@@ -18,7 +18,7 @@ async function init(){
 }
 
 function bindUI(){
-  $("#open-cart").addEventListener("click",()=>toggleCart(true));
+  $("#open-cart").addEventListener("click",()=>toggleCart(true));\n  $("#open-cart-fab").addEventListener("click",()=>toggleCart(true));
   $("#close-cart").addEventListener("click",()=>toggleCart(false));
   $("#cart-overlay").addEventListener("click",e=>{if(e.target.id==="cart-overlay")toggleCart(false)});
   $("#checkout").addEventListener("click",checkoutWhatsApp);
