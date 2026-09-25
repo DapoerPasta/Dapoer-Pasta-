@@ -1,68 +1,39 @@
-exports.handler = async function(event, context) {
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Content-Type': 'application/json'
-    };
+const MENU_CONTEXT=`
+Kamu adalah Concierge Dapoer Pasta, asisten restoran online Dapoer Pasta.
+Jawab dalam Bahasa Indonesia yang ramah, hangat, singkat, profesional, dan luwes. Emoji boleh digunakan secukupnya.
+Jangan mengarang stok, promo, ongkir, alamat, sertifikasi, atau informasi yang tidak tersedia.
+Jika pertanyaan memerlukan informasi yang tidak tersedia, arahkan pelanggan untuk menghubungi WhatsApp Dapoer Pasta.
 
-    if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-    if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: 'Method Not Allowed' };
+Menu Dapoer Pasta:
+- Chicken pop corn 250gr — Rp 37.000
+- Chicken Cordon Blue 7 pcs — Rp 37.000
+- Mini wonton 250gr — Rp 37.000
+- Pasta brulee oval 2 pcs — Rp 27.000
+- Pasta brulee persegi 2 pcs — Rp 32.000
 
-    try {
-        const body = JSON.parse(event.body);
-        const userMessage = body.message || body.text || body.chat || "Halo";
-        
-        const k1 = "AQ.Ab8RN6";
-        const k2 = "IEy_9fj7ZhY";
-        const k3 = "QV1KJm26bozpOsE";
-        const k4 = "FrnpkuU4h7cpWjXW-A";
-        const apiKey = k1 + k2 + k3 + k4; 
-
-        const gabunganPesan = "Kamu adalah asisten restoran online bernama Dapoer Pasta. Menu andalan: Chicken Pop Corn 250gr (37k), Chicken Cordon Blue (37k), Mini Wonton (37k), Pasta Brulee Oval (27k), Pasta Brulee Persegi (32k). Halal, tanpa pengawet. Pemesanan via pre-order WhatsApp. Jawab pelanggan dengan ramah, luwes, singkat, dan gunakan emoji.\n\nPesan pelanggan: " + userMessage;
-        
-        // KITA GUNAKAN MODEL 3.6-FLASH SESUAI PERINTAH LANGSUNG DARI GOOGLE
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-        
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: gabunganPesan }] }]
-            })
-        });
-
-        const data = await response.json();
-        let botReply = "";
-
-        if (!response.ok || data.error) {
-            botReply = "Error Google API: " + (data.error?.message || "Kesalahan Autentikasi");
-        } else if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-            botReply = data.candidates[0].content.parts[0].text;
-        } else {
-            botReply = "Format aneh dari Google: " + JSON.stringify(data);
-        }
-
-        return { 
-            statusCode: 200, 
-            headers,
-            body: JSON.stringify({ 
-                reply: botReply,
-                response: botReply,
-                message: botReply,
-                answer: botReply,
-                text: botReply,
-                data: botReply
-            }) 
-        };
-
-    } catch (error) {
-        return { 
-            statusCode: 200, 
-            headers,
-            body: JSON.stringify({ 
-                reply: "Error Sistem: " + error.message,
-                response: "Error Sistem: " + error.message 
-            }) 
-        };
-    }
+Informasi toko:
+- Halal Indonesia
+- Tanpa pengawet
+- Homemade
+- Pemesanan via pre-order WhatsApp
+- Pembayaran: OVO, ShopeePay, DANA
+`;
+const headers={"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
+const json=(statusCode,payload,extraHeaders={})=>({statusCode,headers:{...headers,...extraHeaders},body:JSON.stringify(payload)});
+function sanitizeMessage(value){if(typeof value!=="string")return"";return value.replace(/[\u0000-\u001F\u007F]/g," ").trim().slice(0,500)}
+exports.handler=async function(event){
+if(event.httpMethod==="OPTIONS")return{statusCode:204,headers:{...headers,Allow:"POST, OPTIONS"},body:""};
+if(event.httpMethod!=="POST")return json(405,{reply:"Metode tidak diizinkan."},{Allow:"POST, OPTIONS"});
+let payload;try{payload=JSON.parse(event.body||"{}")}catch{return json(400,{reply:"Format pesan tidak valid."})}
+const message=sanitizeMessage(payload.message||payload.text||payload.chat);if(!message)return json(400,{reply:"Silakan tulis pertanyaan terlebih dahulu."});
+const apiKey=process.env.GEMINI_API_KEY;const model=process.env.GEMINI_MODEL||"gemini-2.5-flash-lite";
+if(!apiKey)return json(503,{reply:"Chatbot belum diaktifkan. Silakan hubungi WhatsApp Dapoer Pasta untuk pemesanan."});
+try{
+const endpoint=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({systemInstruction:{parts:[{text:MENU_CONTEXT}]},contents:[{role:"user",parts:[{text:message}]}],generationConfig:{temperature:.45,maxOutputTokens:260}})});
+const data=await response.json();
+if(!response.ok||data.error){console.error("Gemini error",response.status,data?.error?.message);return json(502,{reply:"Maaf, layanan chat sedang tidak tersedia. Silakan hubungi WhatsApp Dapoer Pasta."})}
+const reply=data?.candidates?.[0]?.content?.parts?.map(p=>p?.text||"").join("").trim();
+return json(200,{reply:reply||"Maaf, saya belum mendapat jawaban. Silakan hubungi WhatsApp Dapoer Pasta."});
+}catch(error){console.error("Chat function failed",error);return json(500,{reply:"Maaf, asisten sedang sibuk. Silakan hubungi WhatsApp Dapoer Pasta."})}
 };
