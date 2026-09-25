@@ -1,0 +1,52 @@
+{
+  "store": {
+    "name": "Dapoer Pasta",
+    "tagline": "Maison de Saveur",
+    "whatsapp": "6285175391181",
+    "instagram": "Dapoer.Pasta",
+    "paymentMethods": ["OVO", "ShopeePay", "DANA"],
+    "orderNote": "Pre-order. Ongkir dikonfirmasi admin melalui WhatsApp."
+  },
+  "products": [
+    {
+      "id": "chicken-pop-corn-250",
+      "name": "Chicken Pop Corn 250gr",
+      "price": 37000,
+      "image": "/8.png",
+      "badge": "Maison",
+      "description": "Ayam pilihan dengan lapisan renyah, praktis untuk stok frozen food di rumah."
+    },
+    {
+      "id": "chicken-cordon-bleu-7",
+      "name": "Chicken Cordon Bleu 7 pcs",
+      "price": 37000,
+      "image": "/9.png",
+      "badge": "Signature",
+      "description": "Ayam dengan smoked beef dan mozzarella, gurih dan creamy di bagian dalam."
+    },
+    {
+      "id": "mini-wonton-250",
+      "name": "Mini Wonton 250gr",
+      "price": 37000,
+      "image": "/7 m.png",
+      "badge": "Croustillant",
+      "description": "Wonton mini berisi ayam dan udang dengan tekstur renyah setelah digoreng."
+    },
+    {
+      "id": "pasta-brulee-oval-2",
+      "name": "Pasta Brulee Oval 2 pcs",
+      "price": 27000,
+      "image": "/10.png",
+      "badge": "Brûlée",
+      "description": "Pasta creamy dengan ayam dan lapisan keju panggang dalam porsi oval."
+    },
+    {
+      "id": "pasta-brulee-square-2",
+      "name": "Pasta Brulee Persegi 2 pcs",
+      "price": 32000,
+      "image": "/11.png",
+      "badge": "Signature",
+      "description": "Pasta brulee creamy dengan ayam dan keju leleh dalam porsi persegi."
+    }
+  ]
+}
