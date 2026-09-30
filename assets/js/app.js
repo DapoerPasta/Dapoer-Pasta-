@@ -115,14 +115,49 @@ function loadCart(){try{const raw=localStorage.getItem("dapoer-pasta-cart");cons
 function persistCart(){localStorage.setItem("dapoer-pasta-cart",JSON.stringify(state.cart))}
 function toggleCart(open){$("#cart-overlay")?.classList.toggle("open",open);$("#cart-overlay")?.setAttribute("aria-hidden",String(!open));document.body.classList.toggle("no-scroll",open)}
 
-function checkoutWhatsApp(){
+async function checkoutWhatsApp(){
   if(!state.cart.length){showToast("Pilih menu terlebih dahulu.");toggleCart(true);return}
-  const phone=state.store?.whatsapp||"6285175391181";
-  const total=state.cart.reduce((s,x)=>s+x.price*x.quantity,0);
-  const lines=["Halo Admin Dapoer Pasta, saya mau pesan:",""];
-  state.cart.forEach((x,i)=>{lines.push(`${i+1}. *${x.name}*`,`Jumlah: ${x.quantity}`,`Subtotal: ${rupiah(x.price*x.quantity)}`,"")});
-  lines.push(`*TOTAL PESANAN: ${rupiah(total)}*`,"","Nama Pemesan:","Alamat Pengiriman:","Metode Pembayaran: (OVO / ShopeePay / DANA)","","_Mohon info ongkirnya ya kak._");
-  window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(lines.join("\n"))}`,"_blank","noopener,noreferrer");
+
+  const button=$("#checkout-button");
+  const originalLabel=button?.innerHTML;
+  if(button){
+    button.disabled=true;
+    button.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Memvalidasi pesanan…';
+  }
+
+  try{
+    const items=state.cart.map(item=>({id:item.id,quantity:item.quantity}));
+    const res=await fetch("/.netlify/functions/order",{
+      method:"POST",
+      headers:{"Content-Type":"application/json",Accept:"application/json"},
+      body:JSON.stringify({items})
+    });
+    const data=await res.json();
+
+    if(!res.ok||!data.whatsappUrl){
+      throw new Error(data.error||"Pesanan tidak valid");
+    }
+
+    if(data.order?.items){
+      state.cart=data.order.items.map(item=>({
+        id:item.id,
+        name:item.name,
+        price:item.price,
+        quantity:item.quantity
+      }));
+      persistCart();
+      renderCart();
+    }
+
+    window.open(data.whatsappUrl,"_blank","noopener,noreferrer");
+  }catch{
+    showToast("Pesanan belum dapat diproses. Coba lagi.");
+  }finally{
+    if(button){
+      button.disabled=false;
+      button.innerHTML=originalLabel;
+    }
+  }
 }
 
 function toggleMobileMenu(open){$("#mobile-menu")?.classList.toggle("open",open);$("#mobile-menu")?.setAttribute("aria-hidden",String(!open));$("#mobile-menu-button")?.setAttribute("aria-expanded",String(open));document.body.classList.toggle("no-scroll",open)}
