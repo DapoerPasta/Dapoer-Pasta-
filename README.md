@@ -1,6 +1,6 @@
-# Dapoer Pasta — Full Stack Serverless
+# Dapoer Pasta — Full Stack Serverless v2
 
-Website Dapoer Pasta dengan frontend modular dan backend Netlify Functions. Dibuat agar tetap ringan dan cocok untuk paket gratis.
+Website Dapoer Pasta menggunakan frontend modular dan backend Netlify Functions. Arsitektur dibuat ringan agar tetap cocok untuk paket gratis.
 
 ## Yang dipertahankan
 
@@ -8,42 +8,50 @@ Website Dapoer Pasta dengan frontend modular dan backend Netlify Functions. Dibu
 - Instagram: `@Dapoer.Pasta`
 - Foto produk: `8.png`, `9.png`, `7 m.png`, `10.png`, `11.png`
 - Harga seluruh menu
-- Chatbot berbasis Gemini melalui Netlify Function
-- Checkout langsung ke WhatsApp
+- Chatbot Gemini
+- Checkout ke WhatsApp
+- Gaya visual Italia profesional
 
-## Struktur
+## Arsitektur
 
 ```text
-.
-├── index.html
-├── assets/
-│   ├── css/style.css
-│   └── js/app.js
-├── netlify/
-│   └── functions/
-│       ├── menu.js
-│       └── chat.js
-├── netlify.toml
-└── .env.example
+Browser
+  │
+  ├─ GET  /.netlify/functions/menu
+  │       └─ katalog resmi server
+  │
+  ├─ POST /.netlify/functions/order
+  │       ├─ validasi ID produk
+  │       ├─ validasi jumlah
+  │       ├─ hitung ulang harga server-side
+  │       └─ hasilkan URL checkout WhatsApp
+  │
+  └─ POST /.netlify/functions/chat
+          └─ Gemini API melalui secret server-side
 ```
 
-## Backend
+## Satu sumber data
 
-- `/.netlify/functions/menu` menyajikan data toko dan menu.
-- `/.netlify/functions/chat` menangani chatbot Gemini di sisi server.
-- API key tidak disimpan di frontend atau repository.
+Menu, harga, data toko, dan konteks chatbot berasal dari:
 
-## Netlify
+`netlify/functions/_lib/catalog.js`
 
-Tambahkan Environment Variables:
+Frontend tidak menjadi sumber kebenaran untuk harga.
+
+## Keamanan
+
+- `GEMINI_API_KEY` hanya dibaca dari Netlify Environment Variables.
+- Input chatbot dibatasi dan disanitasi.
+- Order dihitung ulang di backend agar manipulasi harga di browser tidak dipercaya.
+- Security headers diatur melalui `netlify.toml`.
+
+## Environment Variables
 
 ```text
 GEMINI_API_KEY=API_KEY_BARU_ANDA
 GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
-API key lama yang pernah disimpan di repository public harus di-revoke/rotate sebelum deploy.
+## Catatan
 
-## Biaya
-
-Website tidak membutuhkan database atau VPS. Frontend, keranjang lokal, checkout WhatsApp, dan Netlify Functions dapat dipakai dengan arsitektur free-tier. Penggunaan chatbot mengikuti kuota API Gemini yang tersedia pada akun Anda.
+Cart tetap disimpan lokal di browser agar tidak memerlukan database berbayar. Order belum disimpan permanen di server; setelah divalidasi backend, pengguna diarahkan ke WhatsApp untuk menyelesaikan pemesanan.
