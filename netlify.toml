@@ -5,6 +5,21 @@
 [functions]
   node_bundler = "esbuild"
 
+[[redirects]]
+  from = "/api/menu"
+  to = "/.netlify/functions/menu"
+  status = 200
+
+[[redirects]]
+  from = "/api/order"
+  to = "/.netlify/functions/order"
+  status = 200
+
+[[redirects]]
+  from = "/api/chat"
+  to = "/.netlify/functions/chat"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
