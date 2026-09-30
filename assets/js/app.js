@@ -26,7 +26,7 @@ function bindUI(){
 async function loadMenu(){
   const root=$("#menu-grid");
   try{
-    const res=await fetch("/.netlify/functions/menu",{headers:{Accept:"application/json"}});
+    const res=await fetch("/api/menu",{headers:{Accept:"application/json"}});
     if(!res.ok)throw new Error("menu");
     const data=await res.json();
     state.menu=data.products||[]; state.store=data.store||null; renderMenu();
@@ -127,7 +127,7 @@ async function checkoutWhatsApp(){
 
   try{
     const items=state.cart.map(item=>({id:item.id,quantity:item.quantity}));
-    const res=await fetch("/.netlify/functions/order",{
+    const res=await fetch("/api/order",{
       method:"POST",
       headers:{"Content-Type":"application/json",Accept:"application/json"},
       body:JSON.stringify({items})
@@ -167,7 +167,7 @@ async function sendChat(e){
   addChatMessage(message,"user-message"); input.value="";
   const pending=addChatMessage("Concierge sedang menyiapkan jawaban…","bot-message");
   try{
-    const res=await fetch("/.netlify/functions/chat",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({message})});
+    const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({message})});
     const data=await res.json(); pending.textContent=data.reply||"Maaf, saya belum dapat menjawab. Silakan hubungi WhatsApp Dapoer Pasta.";
   }catch{pending.textContent="Maaf, asisten sedang sibuk. Silakan hubungi WhatsApp Dapoer Pasta."}
 }
