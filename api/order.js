@@ -9,9 +9,9 @@ function normalizeItems(input) {
     const id = typeof raw?.id === "string" ? raw.id : "";
     const quantity = Number(raw?.quantity);
     const product = byId.get(id);
-    if (!product || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) throw new Error("INVALID_ITEM");
+    if (!product || !Number.isSafeInteger(quantity) || quantity < 1) throw new Error("INVALID_ITEM");
     const next = (merged.get(id) || 0) + quantity;
-    if (next > 20) throw new Error("INVALID_QUANTITY");
+    if (!Number.isSafeInteger(next)) throw new Error("INVALID_QUANTITY");
     merged.set(id, next);
   }
 
