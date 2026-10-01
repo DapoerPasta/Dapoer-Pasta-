@@ -26,12 +26,12 @@ function normalizeItems(input) {
     const quantity = Number(raw?.quantity);
     const product = byId.get(id);
 
-    if (!product || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
+    if (!product || !Number.isSafeInteger(quantity) || quantity < 1) {
       throw new Error("INVALID_ITEM");
     }
 
     const nextQuantity = (merged.get(id) || 0) + quantity;
-    if (nextQuantity > 20) throw new Error("INVALID_QUANTITY");
+    if (!Number.isSafeInteger(nextQuantity)) throw new Error("INVALID_QUANTITY");
     merged.set(id, nextQuantity);
   }
 
