@@ -54,7 +54,7 @@ function createOrderId() {
   return `DP-${stamp}-${suffix}`;
 }
 
-function buildMessage(order) {
+function buildMessage(order, trackingUrl) {
   const lines = [
     "Halo Admin Dapoer Pasta, saya mau pesan:",
     "",
@@ -78,6 +78,8 @@ function buildMessage(order) {
 
   lines.push(
     `*TOTAL PESANAN: ${rupiah(order.total)}*`,
+    "",
+    trackingUrl ? `Lacak status: ${trackingUrl}` : "",
     "",
     "_Mohon konfirmasi pesanan dan info ongkirnya ya kak._"
   );
@@ -126,10 +128,12 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  const message = buildMessage(order);
+  const relativeTrackingUrl = `/track/?id=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.trackingToken)}`;
+  const proto = req.headers["x-forwarded-proto"] || "https";
+  const host = req.headers.host || "";
+  const trackingUrl = host ? `${proto}://${host}${relativeTrackingUrl}` : relativeTrackingUrl;
+  const message = buildMessage(order, trackingUrl);
   const whatsappUrl = `https://api.whatsapp.com/send?phone=${STORE.whatsapp}&text=${encodeURIComponent(message)}`;
-
-  const trackingUrl = `/track/?id=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.trackingToken)}`;
 
   return res.status(200).json({
     order: { id: order.id, items, total, customer },
