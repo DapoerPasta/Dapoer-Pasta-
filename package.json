@@ -4,6 +4,7 @@
   "version": "3.0.0",
   "description": "Dapoer Pasta full-stack serverless",
   "dependencies": {
-    "@neondatabase/serverless": "latest"
+    "@neondatabase/serverless": "latest",
+    "qrcode": "latest"
   }
 }
