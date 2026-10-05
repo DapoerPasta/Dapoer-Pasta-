@@ -33,6 +33,17 @@ function render(order){
   $("#track-status").textContent=order.status;
   $("#track-updated").textContent=`Diperbarui ${new Date(order.updatedAt).toLocaleString("id-ID")}`;
 
+  const params=new URLSearchParams(location.search);
+  const id=params.get("id")||"";
+  const token=params.get("token")||"";
+  const receiptUrl=`${location.origin}/nota/?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`;
+  $("#receipt-link").href=receiptUrl;
+  const qrRoot=$("#receipt-qr");
+  if(qrRoot&&!qrRoot.dataset.ready&&window.QRCode){
+    qrRoot.dataset.ready="1";
+    new QRCode(qrRoot,{text:receiptUrl,width:168,height:168,correctLevel:QRCode.CorrectLevel.M});
+  }
+
   const currentIndex=statusOrder.indexOf(order.status);
   document.querySelectorAll(".step").forEach((step,i)=>{
     step.classList.toggle("done",currentIndex>=0&&i<currentIndex);
