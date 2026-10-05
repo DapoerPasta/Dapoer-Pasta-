@@ -179,6 +179,16 @@ function makeOrderCard(order){
   button.addEventListener("click",()=>changeStatus(order.id,select.value,button));
   controls.append(select,button);statusCell.append(badge,controls);
 
+  if(order.tracking_token){
+    const tracking=document.createElement("a");
+    tracking.className="tracking-link";
+    tracking.href=`/track/?id=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.tracking_token)}`;
+    tracking.target="_blank";
+    tracking.rel="noopener";
+    tracking.textContent="↗ Buka Tracking Customer";
+    statusCell.append(tracking);
+  }
+
   card.append(primary,customer,items,total,statusCell);
   return card;
 }
