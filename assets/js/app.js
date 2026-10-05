@@ -159,8 +159,11 @@ async function submitCheckout(e){
 
     const orderId=data.order?.id||"";
     state.cart=[];persistCart();renderCart();$("#checkout-form")?.reset();toggleCheckout(false);
+    const trackingUrl=data.trackingUrl||"";
+    if(trackingUrl)localStorage.setItem("dapoer-pasta-last-tracking",trackingUrl);
     showToast(orderId?`Pesanan ${orderId} tersimpan.`:"Pesanan tersimpan.");
     window.open(data.whatsappUrl,"_blank","noopener,noreferrer");
+    if(trackingUrl)setTimeout(()=>{window.location.href=trackingUrl},250);
   }catch{
     showToast("Pesanan belum dapat disimpan. Periksa data lalu coba lagi.");
   }finally{
