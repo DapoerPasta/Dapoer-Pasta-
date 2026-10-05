@@ -107,8 +107,10 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: "Total pesanan tidak valid." });
   }
 
+  const trackingToken = crypto.randomBytes(24).toString("hex");
   const order = {
     id: createOrderId(),
+    trackingToken,
     customer,
     items,
     total
@@ -127,9 +129,12 @@ module.exports = async function handler(req, res) {
   const message = buildMessage(order);
   const whatsappUrl = `https://api.whatsapp.com/send?phone=${STORE.whatsapp}&text=${encodeURIComponent(message)}`;
 
+  const trackingUrl = `/track/?id=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.trackingToken)}`;
+
   return res.status(200).json({
     order: { id: order.id, items, total, customer },
     persisted,
-    whatsappUrl
+    whatsappUrl,
+    trackingUrl
   });
 };
