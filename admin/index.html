@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/admin.css?v=20261005-pro">
-  <script src="/assets/js/admin.js?v=20261005-pro" defer></script>
+  <link rel="stylesheet" href="/assets/css/admin.css?v=20261005-liveorders">
+  <script src="/assets/js/admin.js?v=20261005-liveorders" defer></script>
 </head>
 <body>
   <main class="admin-shell">
@@ -69,7 +69,8 @@
             <p class="topbar-subtitle">Pantau pesanan masuk dan ubah status order dari satu tempat.</p>
           </div>
           <div class="topbar-actions">
-            <div class="live-pill"><span></span> Sistem aktif</div>
+            <div class="live-pill"><span></span> Live monitoring aktif</div>
+            <button id="enable-notifications" type="button">🔔 Aktifkan notifikasi</button>
             <button id="refresh-orders" type="button">↻ Refresh data</button>
           </div>
         </header>
@@ -127,6 +128,10 @@
           </div>
           <div id="orders-list" class="orders-list"></div>
         </section>
+      </div>
+      <div class="admin-notification" id="admin-notification" role="status" aria-live="polite">
+        <strong id="notification-title">Pesanan baru masuk</strong>
+        <span id="notification-text"></span>
       </div>
     </section>
   </main>
