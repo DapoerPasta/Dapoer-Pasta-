@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="/assets/css/style.css?v=20261005-checkoutpro">
-  <script src="/assets/js/app.js?v=20261005-liveorders" defer></script>
+  <script src="/assets/js/app.js?v=20261005-orderflow" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#menu">Lewati ke menu</a>
@@ -83,8 +83,8 @@
             <a href="#menu" class="button button-gold">
               Lihat Menu <i class="fa-solid fa-arrow-down"></i>
             </a>
-            <a href="https://api.whatsapp.com/send/?phone=6285175391181" target="_blank" rel="noopener noreferrer" class="button button-outline">
-              <i class="fa-brands fa-whatsapp"></i> Pesan Sekarang
+            <a href="#menu" class="button button-outline">
+              <i class="fa-solid fa-bag-shopping"></i> Pilih Menu & Pesan
             </a>
           </div>
           <div class="hero-trust">
@@ -167,8 +167,8 @@
         <div class="payment-card reveal">
           <div class="payment-mark" aria-hidden="true">DP</div>
           <p class="eyebrow">Pembayaran</p>
-          <h2>Pemesanan sederhana, langsung melalui WhatsApp.</h2>
-          <p>Masukkan menu ke keranjang, periksa pesanan, lalu kirim detailnya langsung ke admin Dapoer Pasta.</p>
+          <h2>Pesanan tercatat, lalu lanjut ke WhatsApp.</h2>
+          <p>Pilih menu, checkout di website agar pesanan masuk dashboard dan mendapatkan live tracking, lalu lanjutkan konfirmasi ke WhatsApp admin.</p>
           <div class="payment-methods">
             <span>OVO</span><span>ShopeePay</span><span>DANA</span>
           </div>
@@ -238,7 +238,7 @@
           <strong id="cart-total">Rp 0</strong>
         </div>
         <button class="checkout-button" id="checkout-button" type="button">
-          <i class="fa-brands fa-whatsapp"></i> Checkout via WhatsApp
+          <i class="fa-solid fa-receipt"></i> Lanjutkan Checkout
         </button>
       </div>
     </aside>
@@ -262,7 +262,7 @@
         </label>
         <label>Catatan pesanan <span>(opsional)</span><textarea id="checkout-notes" maxlength="300" rows="2" placeholder="Contoh: kirim sore hari"></textarea></label>
         <div class="checkout-summary"><span>Total pesanan</span><strong id="checkout-total">Rp 0</strong><small>Belum termasuk ongkir. Admin akan mengonfirmasi melalui WhatsApp.</small></div>
-        <button class="checkout-submit" id="checkout-submit" type="submit"><i class="fa-brands fa-whatsapp"></i> Simpan & lanjut ke WhatsApp</button>
+        <button class="checkout-submit" id="checkout-submit" type="submit"><i class="fa-solid fa-check"></i> Simpan Pesanan & Buka WhatsApp</button>
       </form>
     </div>
   </div>
