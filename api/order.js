@@ -128,6 +128,12 @@ module.exports = async function handler(req, res) {
     });
   }
 
+  if (!persisted) {
+    return res.status(503).json({
+      error: "Database pesanan belum terhubung. Pesanan belum disimpan dan tracking belum dibuat."
+    });
+  }
+
   const relativeTrackingUrl = `/track/?id=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.trackingToken)}`;
   const proto = req.headers["x-forwarded-proto"] || "https";
   const host = req.headers.host || "";
