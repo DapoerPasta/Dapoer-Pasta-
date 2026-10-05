@@ -10,7 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/track.css?v=20261005">
-  <script src="/assets/js/track.js?v=20261005" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="/assets/js/track.js?v=20261005-receipt" defer></script>
 </head>
 <body>
   <main class="track-shell">
@@ -49,6 +50,16 @@
           <h2>Ringkasan Pesanan</h2>
           <div id="track-items"></div>
         </div>
+
+        <section class="receipt-card">
+          <div>
+            <p class="eyebrow">Nota Digital</p>
+            <h2>Scan QR untuk membuka nota</h2>
+            <p>QR ini terhubung ke nota pesanan Anda dan dapat dipakai sebagai referensi transaksi.</p>
+            <a id="receipt-link" class="receipt-button" href="#">Lihat Nota Lengkap</a>
+          </div>
+          <div id="receipt-qr" class="receipt-qr" aria-label="QR code nota pesanan"></div>
+        </section>
 
         <div id="cancelled-note" class="cancelled-note" hidden>Pesanan ini dibatalkan. Hubungi admin Dapoer Pasta jika membutuhkan bantuan.</div>
       </div>

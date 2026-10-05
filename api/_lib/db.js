@@ -68,7 +68,7 @@ async function getPublicOrderStatus(id, trackingToken) {
   const sql = await ensureSchema();
   if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
   const rows = await sql`
-    SELECT id, items, total, status, payment_method, created_at, updated_at
+    SELECT id, customer_name, customer_phone, address, notes, items, total, status, payment_method, created_at, updated_at
     FROM orders
     WHERE id = ${id} AND tracking_token = ${trackingToken}
     LIMIT 1
