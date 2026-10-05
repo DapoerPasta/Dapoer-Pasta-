@@ -23,6 +23,8 @@ async function ensureSchema() {
         total BIGINT NOT NULL,
         status TEXT NOT NULL DEFAULT 'baru',
         tracking_token TEXT,
+        payment_status TEXT NOT NULL DEFAULT 'belum_bayar',
+        paid_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -30,6 +32,8 @@ async function ensureSchema() {
   }
   await schemaPromise;
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_token TEXT`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'belum_bayar'`;
+  await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS orders_tracking_token_idx ON orders(tracking_token) WHERE tracking_token IS NOT NULL`;
   return sql;
 }
@@ -57,7 +61,7 @@ async function listOrders(limit = 100) {
   const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
   return sql`
     SELECT id, customer_name, customer_phone, address, notes,
-           payment_method, items, total, status, tracking_token, created_at, updated_at
+           payment_method, items, total, status, tracking_token, payment_status, paid_at, created_at, updated_at
     FROM orders
     ORDER BY created_at DESC
     LIMIT ${safeLimit}
@@ -68,10 +72,25 @@ async function getPublicOrderStatus(id, trackingToken) {
   const sql = await ensureSchema();
   if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
   const rows = await sql`
-    SELECT id, items, total, status, payment_method, created_at, updated_at
+    SELECT id, customer_name, customer_phone, address, notes, items, total, status,
+           payment_method, payment_status, paid_at, created_at, updated_at
     FROM orders
     WHERE id = ${id} AND tracking_token = ${trackingToken}
     LIMIT 1
+  `;
+  return rows[0] || null;
+}
+
+async function updatePaymentStatus(id, paymentStatus) {
+  const sql = await ensureSchema();
+  if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
+  const rows = await sql`
+    UPDATE orders
+    SET payment_status = ${paymentStatus},
+        paid_at = CASE WHEN ${paymentStatus} = 'lunas' THEN COALESCE(paid_at, NOW()) ELSE NULL END,
+        updated_at = NOW()
+    WHERE id = ${id}
+    RETURNING id, payment_status, paid_at, updated_at
   `;
   return rows[0] || null;
 }
@@ -88,4 +107,4 @@ async function updateOrderStatus(id, status) {
   return rows[0] || null;
 }
 
-module.exports = { getSql, ensureSchema, saveOrder, listOrders, getPublicOrderStatus, updateOrderStatus };
+module.exports = { getSql, ensureSchema, saveOrder, listOrders, getPublicOrderStatus, updatePaymentStatus, updateOrderStatus };
