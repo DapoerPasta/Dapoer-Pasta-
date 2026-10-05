@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#2a0808">
+  <title>Admin Dapoer Pasta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/admin.css?v=20261005">
+  <script src="/assets/js/admin.js?v=20261005" defer></script>
+</head>
+<body>
+  <main class="admin-shell">
+    <section class="login-view" id="login-view">
+      <div class="login-card">
+        <div class="admin-mark">DP</div>
+        <p class="eyebrow">Area Private</p>
+        <h1>Admin Dapoer Pasta</h1>
+        <p class="muted">Masuk untuk melihat dan mengelola pesanan pelanggan.</p>
+        <form id="login-form">
+          <label>Email admin<input id="admin-email" type="email" required autocomplete="username"></label>
+          <label>Password<input id="admin-password" type="password" required autocomplete="current-password"></label>
+          <button id="login-button" type="submit">Masuk Dashboard</button>
+        </form>
+        <p class="form-message" id="login-message" role="status"></p>
+        <a class="back-link" href="/">← Kembali ke website</a>
+      </div>
+    </section>
+
+    <section class="dashboard-view" id="dashboard-view" hidden>
+      <header class="admin-header">
+        <div><p class="eyebrow">Dapoer Pasta</p><h1>Order Dashboard</h1></div>
+        <div class="header-actions"><span id="admin-identity"></span><button id="refresh-orders" type="button">Refresh</button><button id="logout-button" type="button">Keluar</button></div>
+      </header>
+
+      <div class="stats-grid">
+        <article><span>Total pesanan</span><strong id="stat-total">0</strong></article>
+        <article><span>Pesanan baru</span><strong id="stat-new">0</strong></article>
+        <article><span>Nilai order</span><strong id="stat-value">Rp 0</strong></article>
+      </div>
+
+      <div class="orders-toolbar">
+        <div><h2>Pesanan Terbaru</h2><p id="orders-caption">Memuat data…</p></div>
+        <select id="status-filter" aria-label="Filter status">
+          <option value="all">Semua status</option>
+          <option value="baru">Baru</option>
+          <option value="diproses">Diproses</option>
+          <option value="dikirim">Dikirim</option>
+          <option value="selesai">Selesai</option>
+          <option value="dibatalkan">Dibatalkan</option>
+        </select>
+      </div>
+
+      <div id="orders-list" class="orders-list"></div>
+    </section>
+  </main>
+</body>
+</html>

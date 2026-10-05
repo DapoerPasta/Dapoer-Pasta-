@@ -1,57 +1,91 @@
-# Dapoer Pasta — Full Stack Serverless v2
+# Dapoer Pasta — Full Stack Serverless v3
 
-Website Dapoer Pasta menggunakan frontend modular dan backend Netlify Functions. Arsitektur dibuat ringan agar tetap cocok untuk paket gratis.
+Website Dapoer Pasta berjalan di Vercel dengan frontend statis, Vercel Functions, Neon Postgres, checkout WhatsApp, dan dashboard admin private.
 
-## Yang dipertahankan
+## Fitur
 
-- WhatsApp: `6285175391181`
-- Instagram: `@Dapoer.Pasta`
-- Foto produk: `8.png`, `9.png`, `7 m.png`, `10.png`, `11.png`
-- Harga seluruh menu
-- Chatbot Gemini
-- Checkout ke WhatsApp
-- Gaya visual Italia profesional
+- Menu dinamis dari backend
+- Keranjang belanja localStorage
+- Checkout form: nama, WhatsApp, alamat, pembayaran, catatan
+- Harga dan total dihitung ulang di backend
+- Pesanan disimpan ke Postgres
+- Nomor order unik
+- Checkout diteruskan ke WhatsApp
+- Dashboard private di `/admin/`
+- Status pesanan: baru, diproses, dikirim, selesai, dibatalkan
+- Chatbot Gemini via backend
+- Security headers melalui `vercel.json`
 
 ## Arsitektur
 
 ```text
-Browser
-  │
-  ├─ GET  /.netlify/functions/menu
-  │       └─ katalog resmi server
-  │
-  ├─ POST /.netlify/functions/order
-  │       ├─ validasi ID produk
-  │       ├─ validasi jumlah
-  │       ├─ hitung ulang harga server-side
-  │       └─ hasilkan URL checkout WhatsApp
-  │
-  └─ POST /.netlify/functions/chat
-          └─ Gemini API melalui secret server-side
+Customer
+   ↓
+Website + Cart
+   ↓
+Checkout Form
+   ↓
+POST /api/order
+   ├─ validasi customer
+   ├─ validasi produk dan quantity
+   ├─ hitung ulang total
+   ├─ simpan ke Neon Postgres
+   └─ buat URL WhatsApp
+
+Admin
+   ↓
+/admin/
+   ↓
+Login private
+   ↓
+HttpOnly signed session cookie
+   ↓
+/api/admin/orders
+   ↓
+Neon Postgres
 ```
-
-## Satu sumber data
-
-Menu, harga, data toko, dan konteks chatbot berasal dari:
-
-`netlify/functions/_lib/catalog.js`
-
-Frontend tidak menjadi sumber kebenaran untuk harga.
-
-## Keamanan
-
-- `GEMINI_API_KEY` hanya dibaca dari Netlify Environment Variables.
-- Input chatbot dibatasi dan disanitasi.
-- Order dihitung ulang di backend agar manipulasi harga di browser tidak dipercaya.
-- Security headers diatur melalui `netlify.toml`.
 
 ## Environment Variables
 
+Atur di Vercel Project Settings → Environment Variables:
+
 ```text
-GEMINI_API_KEY=API_KEY_BARU_ANDA
+DATABASE_URL=
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
+ADMIN_SESSION_SECRET=
+GEMINI_API_KEY=
 GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
+Gunakan password admin yang kuat dan isi `ADMIN_SESSION_SECRET` dengan string acak panjang. Jangan commit nilai secret ke GitHub.
+
+## Database
+
+Project memakai `@neondatabase/serverless`. Tabel `orders` dibuat otomatis ketika database pertama kali dipakai.
+
+Data order yang disimpan:
+- nomor order
+- nama customer
+- nomor WhatsApp
+- alamat
+- catatan
+- metode pembayaran
+- item pesanan
+- total
+- status
+- waktu dibuat / diperbarui
+
+## Admin Dashboard
+
+Buka:
+
+```text
+/admin/
+```
+
+Dashboard tidak menampilkan data tanpa session admin yang valid.
+
 ## Catatan
 
-Cart tetap disimpan lokal di browser agar tidak memerlukan database berbayar. Order belum disimpan permanen di server; setelah divalidasi backend, pengguna diarahkan ke WhatsApp untuk menyelesaikan pemesanan.
+Website publik tidak membutuhkan akun customer. Customer tetap checkout langsung dan dilanjutkan ke WhatsApp setelah order divalidasi oleh backend.

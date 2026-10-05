@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="/assets/css/style.css?v=20261001-platefocus2">
-  <script src="/assets/js/app.js" defer></script>
+  <script src="/assets/js/app.js?v=20261005-checkout" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#menu">Lewati ke menu</a>
@@ -242,6 +242,29 @@
         </button>
       </div>
     </aside>
+  </div>
+
+
+  <div class="checkout-modal" id="checkout-modal" aria-hidden="true">
+    <div class="checkout-panel" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
+      <div class="checkout-panel-head">
+        <div><small>Finalisasi Pesanan</small><h2 id="checkout-title">Data Pemesan</h2></div>
+        <button type="button" id="close-checkout" aria-label="Tutup checkout"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="checkout-form" class="checkout-form">
+        <label>Nama lengkap<input id="checkout-name" maxlength="80" required autocomplete="name"></label>
+        <label>Nomor WhatsApp<input id="checkout-phone" maxlength="24" required autocomplete="tel" placeholder="08xxxxxxxxxx"></label>
+        <label>Alamat pengiriman<textarea id="checkout-address" maxlength="500" required rows="3" autocomplete="street-address"></textarea></label>
+        <label>Metode pembayaran
+          <select id="checkout-payment" required>
+            <option value="">Pilih pembayaran</option><option value="OVO">OVO</option><option value="ShopeePay">ShopeePay</option><option value="DANA">DANA</option>
+          </select>
+        </label>
+        <label>Catatan pesanan <span>(opsional)</span><textarea id="checkout-notes" maxlength="300" rows="2" placeholder="Contoh: kirim sore hari"></textarea></label>
+        <div class="checkout-summary"><span>Total pesanan</span><strong id="checkout-total">Rp 0</strong><small>Belum termasuk ongkir. Admin akan mengonfirmasi melalui WhatsApp.</small></div>
+        <button class="checkout-submit" id="checkout-submit" type="submit"><i class="fa-brands fa-whatsapp"></i> Simpan & lanjut ke WhatsApp</button>
+      </form>
+    </div>
   </div>
 
   <section class="chat-box" id="chat-box" aria-label="Chatbot Concierge Dapoer Pasta">
