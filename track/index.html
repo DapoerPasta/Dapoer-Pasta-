@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#2a0808">
+  <title>Status Pesanan | Dapoer Pasta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/track.css?v=20261005">
+  <script src="/assets/js/track.js?v=20261005" defer></script>
+</head>
+<body>
+  <main class="track-shell">
+    <a class="track-brand" href="/">
+      <span class="track-mark">DP</span>
+      <span><strong>Dapoer Pasta</strong><small>Cucina Artigianale</small></span>
+    </a>
+
+    <section class="track-card">
+      <p class="eyebrow">Live Order Tracking</p>
+      <h1>Status pesanan Anda</h1>
+      <p class="track-intro">Halaman ini memperbarui status pesanan secara otomatis.</p>
+
+      <div id="track-loading" class="track-loading">Memuat status pesanan…</div>
+
+      <div id="track-content" hidden>
+        <div class="order-meta">
+          <div><span>Nomor Pesanan</span><strong id="track-order-id">—</strong></div>
+          <div><span>Total</span><strong id="track-total">Rp 0</strong></div>
+        </div>
+
+        <div class="current-status">
+          <span>Status saat ini</span>
+          <strong id="track-status">Baru</strong>
+          <small id="track-updated">—</small>
+        </div>
+
+        <div class="timeline" aria-label="Progress pesanan">
+          <div class="step" data-status="baru"><span>1</span><div><strong>Pesanan diterima</strong><small>Order masuk ke sistem Dapoer Pasta</small></div></div>
+          <div class="step" data-status="diproses"><span>2</span><div><strong>Sedang diproses</strong><small>Admin sedang menyiapkan pesanan</small></div></div>
+          <div class="step" data-status="dikirim"><span>3</span><div><strong>Dikirim</strong><small>Pesanan dalam proses pengiriman</small></div></div>
+          <div class="step" data-status="selesai"><span>4</span><div><strong>Selesai</strong><small>Pesanan telah selesai</small></div></div>
+        </div>
+
+        <div class="track-items">
+          <h2>Ringkasan Pesanan</h2>
+          <div id="track-items"></div>
+        </div>
+
+        <div id="cancelled-note" class="cancelled-note" hidden>Pesanan ini dibatalkan. Hubungi admin Dapoer Pasta jika membutuhkan bantuan.</div>
+      </div>
+
+      <div id="track-error" class="track-error" hidden></div>
+    </section>
+
+    <p class="track-help">Butuh bantuan? <a href="https://api.whatsapp.com/send/?phone=6285175391181" target="_blank" rel="noopener noreferrer">Hubungi WhatsApp Dapoer Pasta</a></p>
+  </main>
+</body>
+</html>
