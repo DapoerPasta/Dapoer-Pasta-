@@ -17,7 +17,10 @@ function bindUI(){
   $("#open-cart")?.addEventListener("click",()=>toggleCart(true));
   $("#close-cart")?.addEventListener("click",()=>toggleCart(false));
   $("#cart-overlay")?.addEventListener("click",e=>{if(e.target.id==="cart-overlay")toggleCart(false)});
-  $("#checkout-button")?.addEventListener("click",checkoutWhatsApp);
+  $("#checkout-button")?.addEventListener("click",openCheckout);
+  $("#close-checkout")?.addEventListener("click",()=>toggleCheckout(false));
+  $("#checkout-modal")?.addEventListener("click",e=>{if(e.target.id==="checkout-modal")toggleCheckout(false)});
+  $("#checkout-form")?.addEventListener("submit",submitCheckout);
   $("#open-chat")?.addEventListener("click",()=>$("#chat-box")?.classList.toggle("open"));
   $("#close-chat")?.addEventListener("click",()=>$("#chat-box")?.classList.remove("open"));
   $("#chat-form")?.addEventListener("submit",sendChat);
@@ -115,10 +118,14 @@ function loadCart(){try{const raw=localStorage.getItem("dapoer-pasta-cart");cons
 function persistCart(){localStorage.setItem("dapoer-pasta-cart",JSON.stringify(state.cart))}
 function toggleCart(open){$("#cart-overlay")?.classList.toggle("open",open);$("#cart-overlay")?.setAttribute("aria-hidden",String(!open));document.body.classList.toggle("no-scroll",open)}
 
-async function checkoutWhatsApp(){
-  if(!state.cart.length){showToast("Pilih menu terlebih dahulu.");toggleCart(true);return}
+function cartTotal(){return state.cart.reduce((sum,item)=>sum+(item.price*item.quantity),0)}
+function toggleCheckout(open){$("#checkout-modal")?.classList.toggle("open",open);$("#checkout-modal")?.setAttribute("aria-hidden",String(!open));document.body.classList.toggle("no-scroll",open)}
+function openCheckout(){if(!state.cart.length){showToast("Pilih menu terlebih dahulu.");toggleCart(true);return}$("#checkout-total").textContent=rupiah(cartTotal());toggleCart(false);toggleCheckout(true);setTimeout(()=>$("#checkout-name")?.focus(),80)}
+async function submitCheckout(e){
+  e.preventDefault();
+  if(!state.cart.length){showToast("Keranjang kosong.");toggleCheckout(false);return}
 
-  const button=$("#checkout-button");
+  const button=$("#checkout-submit");
   const originalLabel=button?.innerHTML;
   if(button){
     button.disabled=true;
@@ -127,10 +134,11 @@ async function checkoutWhatsApp(){
 
   try{
     const items=state.cart.map(item=>({id:item.id,quantity:item.quantity}));
+    const customer={name:$("#checkout-name").value.trim(),phone:$("#checkout-phone").value.trim(),address:$("#checkout-address").value.trim(),paymentMethod:$("#checkout-payment").value,notes:$("#checkout-notes").value.trim()};
     const res=await fetch("/api/order",{
       method:"POST",
       headers:{"Content-Type":"application/json",Accept:"application/json"},
-      body:JSON.stringify({items})
+      body:JSON.stringify({items,customer})
     });
     const data=await res.json();
 
@@ -149,9 +157,12 @@ async function checkoutWhatsApp(){
       renderCart();
     }
 
+    const orderId=data.order?.id||"";
+    state.cart=[];persistCart();renderCart();$("#checkout-form")?.reset();toggleCheckout(false);
+    showToast(orderId?`Pesanan ${orderId} tersimpan.`:"Pesanan tersimpan.");
     window.open(data.whatsappUrl,"_blank","noopener,noreferrer");
   }catch{
-    showToast("Pesanan belum dapat diproses. Coba lagi.");
+    showToast("Pesanan belum dapat disimpan. Periksa data lalu coba lagi.");
   }finally{
     if(button){
       button.disabled=false;
