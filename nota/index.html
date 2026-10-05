@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#2a0808">
+  <title>Nota Pesanan | Dapoer Pasta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/receipt.css?v=20261005">
+  <script src="/assets/js/receipt.js?v=20261005" defer></script>
+</head>
+<body>
+  <main class="receipt-shell">
+    <div class="receipt-actions no-print">
+      <a id="back-tracking" href="/track/">← Kembali ke Tracking</a>
+      <button id="print-receipt" type="button">Cetak / Simpan PDF</button>
+    </div>
+
+    <section class="receipt-paper">
+      <header class="receipt-header">
+        <div class="receipt-logo">DP</div>
+        <div>
+          <h1>Dapoer Pasta</h1>
+          <p>Cucina Artigianale</p>
+          <small>WhatsApp 0851-7539-1181 • @Dapoer.Pasta</small>
+        </div>
+      </header>
+
+      <div class="divider"></div>
+
+      <section class="receipt-meta">
+        <div><span>Order ID</span><strong id="receipt-id">—</strong></div>
+        <div><span>Pelanggan</span><strong id="receipt-customer">—</strong></div>
+        <div><span>Tanggal Pesan</span><strong id="receipt-date">—</strong></div>
+        <div><span>Status Order</span><strong id="receipt-status">—</strong></div>
+      </section>
+
+      <div class="divider"></div>
+
+      <section>
+        <h2>Detail Pesanan</h2>
+        <div id="receipt-items"></div>
+      </section>
+
+      <div class="divider"></div>
+
+      <section class="receipt-summary">
+        <div><span>Total Harga</span><strong id="receipt-total">Rp 0</strong></div>
+        <div><span>Pembayaran</span><strong id="receipt-method">—</strong></div>
+      </section>
+
+      <div class="divider"></div>
+
+      <section class="receipt-extra">
+        <div><span>WhatsApp</span><strong id="receipt-phone">—</strong></div>
+        <div><span>Alamat</span><strong id="receipt-address">—</strong></div>
+        <div><span>Catatan</span><strong id="receipt-notes">—</strong></div>
+      </section>
+
+      <div class="divider"></div>
+
+      <footer>
+        <p>Terima kasih sudah memesan di Dapoer Pasta.</p>
+        <small>Simpan nota ini sebagai bukti transaksi dan referensi pesanan Anda.</small>
+      </footer>
+
+      <div id="receipt-loading" class="receipt-loading">Memuat nota…</div>
+      <div id="receipt-error" class="receipt-error" hidden></div>
+    </section>
+  </main>
+</body>
+</html>
