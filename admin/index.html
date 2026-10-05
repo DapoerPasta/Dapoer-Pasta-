@@ -4,57 +4,130 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#2a0808">
+  <meta name="theme-color" content="#24100f">
   <title>Admin Dapoer Pasta</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/admin.css?v=20261005">
-  <script src="/assets/js/admin.js?v=20261005" defer></script>
+  <link rel="stylesheet" href="/assets/css/admin.css?v=20261005-pro">
+  <script src="/assets/js/admin.js?v=20261005-pro" defer></script>
 </head>
 <body>
   <main class="admin-shell">
     <section class="login-view" id="login-view">
       <div class="login-card">
-        <div class="admin-mark">DP</div>
-        <p class="eyebrow">Area Private</p>
-        <h1>Admin Dapoer Pasta</h1>
-        <p class="muted">Masuk untuk melihat dan mengelola pesanan pelanggan.</p>
-        <form id="login-form">
-          <label>Email admin<input id="admin-email" type="email" required autocomplete="username"></label>
-          <label>Password<input id="admin-password" type="password" required autocomplete="current-password"></label>
-          <button id="login-button" type="submit">Masuk Dashboard</button>
+        <div class="login-brand">
+          <div class="admin-mark">DP</div>
+          <div>
+            <span>Dapoer Pasta</span>
+            <small>Admin Console</small>
+          </div>
+        </div>
+        <div class="login-copy">
+          <p class="eyebrow">Area Private</p>
+          <h1>Selamat datang kembali.</h1>
+          <p>Masuk untuk mengelola pesanan dan memantau operasional Dapoer Pasta.</p>
+        </div>
+        <form id="login-form" class="login-form">
+          <label>Email admin<input id="admin-email" type="email" required autocomplete="username" placeholder="admin@dapoerpasta.com"></label>
+          <label>Password<input id="admin-password" type="password" required autocomplete="current-password" placeholder="••••••••••••"></label>
+          <button id="login-button" type="submit">Masuk ke Dashboard</button>
         </form>
         <p class="form-message" id="login-message" role="status"></p>
-        <a class="back-link" href="/">← Kembali ke website</a>
+        <a class="back-link" href="/">← Kembali ke website Dapoer Pasta</a>
       </div>
     </section>
 
     <section class="dashboard-view" id="dashboard-view" hidden>
-      <header class="admin-header">
-        <div><p class="eyebrow">Dapoer Pasta</p><h1>Order Dashboard</h1></div>
-        <div class="header-actions"><span id="admin-identity"></span><button id="refresh-orders" type="button">Refresh</button><button id="logout-button" type="button">Keluar</button></div>
-      </header>
+      <aside class="admin-sidebar">
+        <a class="sidebar-brand" href="/admin/" aria-label="Dapoer Pasta Admin">
+          <span class="sidebar-mark">DP</span>
+          <span><strong>Dapoer Pasta</strong><small>Admin Console</small></span>
+        </a>
 
-      <div class="stats-grid">
-        <article><span>Total pesanan</span><strong id="stat-total">0</strong></article>
-        <article><span>Pesanan baru</span><strong id="stat-new">0</strong></article>
-        <article><span>Nilai order</span><strong id="stat-value">Rp 0</strong></article>
+        <nav class="sidebar-nav" aria-label="Navigasi admin">
+          <a class="active" href="#overview"><span>⌂</span> Overview</a>
+          <a href="#orders"><span>▤</span> Pesanan</a>
+          <a href="/" target="_blank" rel="noopener"><span>↗</span> Lihat Website</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="admin-avatar">A</div>
+          <div class="sidebar-user">
+            <small>Login sebagai</small>
+            <strong id="admin-identity">Admin</strong>
+          </div>
+          <button id="logout-button" type="button" aria-label="Keluar">Keluar</button>
+        </div>
+      </aside>
+
+      <div class="admin-main">
+        <header class="admin-topbar">
+          <div>
+            <p class="eyebrow">Dashboard Operasional</p>
+            <h1>Selamat datang, Admin.</h1>
+            <p class="topbar-subtitle">Pantau pesanan masuk dan ubah status order dari satu tempat.</p>
+          </div>
+          <div class="topbar-actions">
+            <div class="live-pill"><span></span> Sistem aktif</div>
+            <button id="refresh-orders" type="button">↻ Refresh data</button>
+          </div>
+        </header>
+
+        <section id="overview" class="stats-grid" aria-label="Ringkasan pesanan">
+          <article class="stat-card">
+            <div class="stat-icon">01</div>
+            <div><span>Total Pesanan</span><strong id="stat-total">0</strong><small>Semua order tersimpan</small></div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-icon">02</div>
+            <div><span>Pesanan Baru</span><strong id="stat-new">0</strong><small>Menunggu diproses</small></div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-icon">03</div>
+            <div><span>Sedang Diproses</span><strong id="stat-processing">0</strong><small>Order aktif</small></div>
+          </article>
+          <article class="stat-card stat-card-value">
+            <div class="stat-icon">04</div>
+            <div><span>Nilai Order</span><strong id="stat-value">Rp 0</strong><small>Selain order dibatalkan</small></div>
+          </article>
+        </section>
+
+        <section class="orders-section" id="orders">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Order Management</p>
+              <h2>Pesanan Pelanggan</h2>
+              <p id="orders-caption">Memuat data…</p>
+            </div>
+            <div class="last-updated">Terakhir diperbarui <strong id="last-updated">—</strong></div>
+          </div>
+
+          <div class="orders-toolbar">
+            <label class="search-box">
+              <span>⌕</span>
+              <input id="order-search" type="search" placeholder="Cari ID, nama, WhatsApp…" autocomplete="off">
+            </label>
+            <select id="status-filter" aria-label="Filter status">
+              <option value="all">Semua status</option>
+              <option value="baru">Baru</option>
+              <option value="diproses">Diproses</option>
+              <option value="dikirim">Dikirim</option>
+              <option value="selesai">Selesai</option>
+              <option value="dibatalkan">Dibatalkan</option>
+            </select>
+          </div>
+
+          <div class="orders-table-head" aria-hidden="true">
+            <span>Pesanan</span>
+            <span>Customer</span>
+            <span>Item</span>
+            <span>Total</span>
+            <span>Status</span>
+          </div>
+          <div id="orders-list" class="orders-list"></div>
+        </section>
       </div>
-
-      <div class="orders-toolbar">
-        <div><h2>Pesanan Terbaru</h2><p id="orders-caption">Memuat data…</p></div>
-        <select id="status-filter" aria-label="Filter status">
-          <option value="all">Semua status</option>
-          <option value="baru">Baru</option>
-          <option value="diproses">Diproses</option>
-          <option value="dikirim">Dikirim</option>
-          <option value="selesai">Selesai</option>
-          <option value="dibatalkan">Dibatalkan</option>
-        </select>
-      </div>
-
-      <div id="orders-list" class="orders-list"></div>
     </section>
   </main>
 </body>
