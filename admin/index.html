@@ -10,7 +10,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/admin.css?v=20261005-tracklink">
+  <link rel="stylesheet" href="/assets/css/admin-history.css">
   <script src="/assets/js/admin.js?v=20261005-tracklink" defer></script>
+  <script src="/assets/js/admin-history-loader.js" defer></script>
 </head>
 <body>
   <main class="admin-shell">
@@ -66,7 +68,7 @@
           <div>
             <p class="eyebrow">Dashboard Operasional</p>
             <h1>Selamat datang, Admin.</h1>
-            <p class="topbar-subtitle">Pantau pesanan masuk dan ubah status order dari satu tempat.</p>
+            <p class="topbar-subtitle">Pantau pesanan per hari dan buka kembali riwayat tanpa menghapus pesanan lama.</p>
           </div>
           <div class="topbar-actions">
             <div class="live-pill"><span></span> Live monitoring aktif</div>
@@ -78,19 +80,19 @@
         <section id="overview" class="stats-grid" aria-label="Ringkasan pesanan">
           <article class="stat-card">
             <div class="stat-icon">01</div>
-            <div><span>Total Pesanan</span><strong id="stat-total">0</strong><small>Semua order tersimpan</small></div>
+            <div><span>Total Pesanan</span><strong id="stat-total">0</strong><small>Seluruh pesanan tanggal pilihan</small></div>
           </article>
           <article class="stat-card">
             <div class="stat-icon">02</div>
-            <div><span>Pesanan Baru</span><strong id="stat-new">0</strong><small>Menunggu diproses</small></div>
+            <div><span>Pesanan Baru</span><strong id="stat-new">0</strong><small>Tanggal pilihan · menunggu diproses</small></div>
           </article>
           <article class="stat-card">
             <div class="stat-icon">03</div>
-            <div><span>Sedang Diproses</span><strong id="stat-processing">0</strong><small>Order aktif</small></div>
+            <div><span>Sedang Diproses</span><strong id="stat-processing">0</strong><small>Tanggal pilihan · diproses / dikirim</small></div>
           </article>
           <article class="stat-card stat-card-value">
             <div class="stat-icon">04</div>
-            <div><span>Nilai Order</span><strong id="stat-value">Rp 0</strong><small>Selain order dibatalkan</small></div>
+            <div><span>Nilai Order</span><strong id="stat-value">Rp 0</strong><small>Tanggal pilihan · selain dibatalkan</small></div>
           </article>
         </section>
 
@@ -98,10 +100,21 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">Order Management</p>
-              <h2>Pesanan Pelanggan</h2>
-              <p id="orders-caption">Memuat data…</p>
+              <h2>Riwayat Pesanan Harian</h2>
+              <p id="order-period" class="order-period" aria-live="polite">Hari ini · WIB</p>
+              <p id="orders-caption" role="status">Memuat data…</p>
             </div>
             <div class="last-updated">Terakhir diperbarui <strong id="last-updated">—</strong></div>
+          </div>
+
+          <div class="order-date-toolbar" aria-label="Pilih tanggal riwayat pesanan">
+            <label for="order-date">Tanggal pesanan <span>Waktu Indonesia Barat (WIB)</span></label>
+            <div class="order-date-controls">
+              <button id="previous-order-date" type="button" aria-label="Lihat hari sebelumnya">←</button>
+              <input id="order-date" type="date" aria-label="Tanggal pesanan" required>
+              <button id="next-order-date" type="button" aria-label="Lihat hari berikutnya">→</button>
+              <button id="today-orders" type="button" aria-pressed="true">Hari ini</button>
+            </div>
           </div>
 
           <div class="orders-toolbar">
@@ -127,6 +140,9 @@
             <span>Status</span>
           </div>
           <div id="orders-list" class="orders-list"></div>
+          <div class="orders-pagination">
+            <button id="load-more-orders" type="button" hidden>Muat pesanan berikutnya</button>
+          </div>
         </section>
       </div>
       <div class="admin-notification" id="admin-notification" role="status" aria-live="polite">

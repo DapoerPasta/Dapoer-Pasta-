@@ -1,4 +1,5 @@
 const { neon } = require("@neondatabase/serverless");
+const { TIME_ZONE, createHistoryOptions } = require("./order-history");
 
 let schemaPromise;
 
@@ -31,6 +32,7 @@ async function ensureSchema() {
   await schemaPromise;
   await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_token TEXT`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS orders_tracking_token_idx ON orders(tracking_token) WHERE tracking_token IS NOT NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS orders_created_at_id_idx ON orders(created_at DESC, id DESC)`;
   return sql;
 }
 
@@ -64,6 +66,50 @@ async function listOrders(limit = 100) {
   `;
 }
 
+async function listOrdersByDate(options = {}) {
+  // Validate again before schema or order queries so direct callers are safe too.
+  const { date, page, pageSize, offset, start, end } = createHistoryOptions(options);
+  const sql = await ensureSchema();
+  if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
+  // The page and full-day totals share one Postgres snapshot, including empty pages.
+  const rows = await sql`
+    WITH day_summary AS (
+      SELECT COUNT(*) AS total_orders,
+             COUNT(*) FILTER (WHERE status = 'baru') AS new_orders,
+             COUNT(*) FILTER (WHERE status IN ('diproses', 'dikirim')) AS processing_orders,
+             COALESCE(SUM(total) FILTER (WHERE status <> 'dibatalkan'), 0) AS order_value
+      FROM orders
+      WHERE created_at >= ${start}::timestamptz AND created_at < ${end}::timestamptz
+    ), page_orders AS (
+      SELECT id, customer_name, customer_phone, address, notes,
+             payment_method, items, total, status, tracking_token, created_at, updated_at
+      FROM orders
+      WHERE created_at >= ${start}::timestamptz AND created_at < ${end}::timestamptz
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${pageSize} OFFSET ${offset}
+    )
+    SELECT day_summary.*,
+           (SELECT COALESCE(jsonb_agg(page_orders ORDER BY created_at DESC, id DESC), '[]'::jsonb)
+            FROM page_orders) AS orders
+    FROM day_summary
+  `;
+  const result = rows[0];
+  const total = Number(result.total_orders);
+  const totalPages = Math.ceil(total / pageSize);
+  return {
+    orders: result.orders,
+    date,
+    timeZone: TIME_ZONE,
+    pagination: { page, pageSize, total, totalPages, hasMore: page < totalPages },
+    summary: {
+      totalOrders: total,
+      newOrders: Number(result.new_orders),
+      processingOrders: Number(result.processing_orders),
+      orderValue: Number(result.order_value)
+    }
+  };
+}
+
 async function getPublicOrderStatus(id, trackingToken) {
   const sql = await ensureSchema();
   if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
@@ -88,4 +134,4 @@ async function updateOrderStatus(id, status) {
   return rows[0] || null;
 }
 
-module.exports = { getSql, ensureSchema, saveOrder, listOrders, getPublicOrderStatus, updateOrderStatus };
+module.exports = { getSql, ensureSchema, saveOrder, listOrders, listOrdersByDate, getPublicOrderStatus, updateOrderStatus };

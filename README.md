@@ -12,6 +12,7 @@ Website Dapoer Pasta berjalan di Vercel dengan frontend statis, Vercel Functions
 - Nomor order unik
 - Checkout diteruskan ke WhatsApp
 - Dashboard private di `/admin/`
+- Riwayat pesanan per tanggal WIB, ringkasan harian, dan pemuatan halaman berikutnya
 - Status pesanan: baru, diproses, dikirim, selesai, dibatalkan
 - Chatbot Gemini via backend
 - Security headers melalui `vercel.json`
@@ -58,7 +59,7 @@ GEMINI_API_KEY=
 GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
-Gunakan password admin yang kuat dan isi `ADMIN_SESSION_SECRET` dengan string acak panjang. Jangan commit nilai secret ke GitHub.
+Gunakan password admin minimal 12 karakter dan isi `ADMIN_SESSION_SECRET` dengan string acak minimal 32 karakter. Login ditolak jika konfigurasi ini belum memenuhi persyaratan. Jangan commit nilai secret ke GitHub. Untuk mengakhiri semua sesi admin yang sudah aktif, ganti `ADMIN_SESSION_SECRET` dan redeploy.
 
 ## Database
 
@@ -86,6 +87,37 @@ Buka:
 
 Dashboard tidak menampilkan data tanpa session admin yang valid.
 
+Riwayat dibuka pada **hari ini menurut WIB (Asia/Jakarta)**. Pilih tanggal untuk melihat pesanan hari sebelumnya, atau gunakan tombol panah untuk berpindah hari. Pesanan lama tetap tersimpan di database. Tombol **Hari ini** mengaktifkan pergantian tanggal otomatis pada pukul 00.00 WIB; tanggal riwayat yang dipilih manual tetap ditampilkan sampai admin menggantinya.
+
+Ringkasan menghitung seluruh pesanan pada tanggal pilihan. Daftar memuat 100 pesanan per halaman; tombol **Muat pesanan berikutnya** membuka sisanya. Pencarian dan filter status berlaku pada pesanan yang sudah dimuat. Refresh berkala mempertahankan halaman yang sudah dibuka. Memilih tanggal atau berganti hari tidak memicu notifikasi untuk pesanan lama.
+
+API tetap menggunakan `GET /api/admin/orders`, dengan parameter opsional `date=YYYY-MM-DD`, `page=1`, dan `pageSize=100` (maksimal 200). Tanpa tanggal, API memakai hari ini dalam WIB. Indeks `orders_created_at_id_idx` dibuat otomatis untuk pencarian tanggal dan urutan halaman; tidak ada pesanan yang dihapus. URL dashboard, tracking, dan nota tetap sama. Loader dan stylesheet tambahan memastikan kontrol harian juga tersedia bagi browser yang masih menyimpan aset admin versi lama.
+
 ## Catatan
 
 Website publik tidak membutuhkan akun customer. Customer tetap checkout langsung dan dilanjutkan ke WhatsApp setelah order divalidasi oleh backend.
+
+## Pengamanan link publik di Vercel
+
+Alamat beranda, dashboard, tracking, nota, endpoint API, parameter `id`/`token`, dan URL aset tetap sama. Nota yang dibuka tanpa sesi admin hanya menampilkan ringkasan transaksi. Nama, nomor WhatsApp, alamat, dan catatan pelanggan tidak dikirim melalui API publik; admin yang login dapat melihat data lengkap melalui link nota yang sama. Pembeli tetap menerima ringkasan pesanan, sementara admin menerima detail pengiriman lewat checkout WhatsApp dan dashboard.
+
+API sensitif membatasi permintaan melalui tabel `security_rate_limits` di Neon. Tabel dan indeksnya dibuat otomatis menggunakan koneksi `DATABASE_URL` yang sama dengan pesanan. Counter diperbarui secara atomik sehingga batas tetap berlaku pada beberapa instance Vercel. Role database harus dapat membuat tabel/indeks dan menjalankan INSERT, UPDATE, SELECT, serta DELETE. Di produksi, jika database atau identitas IP dari Vercel tidak tersedia, API sensitif mengembalikan `503` sebelum menjalankan operasi. Penyimpanan counter di memori hanya berlaku untuk pengembangan lokal, bukan produksi.
+
+| Operasi | Batas bawaan |
+| --- | --- |
+| Login admin | 10 per IP dan 8 per akun dalam 15 menit |
+| Checkout | 10 per IP dalam 5 menit |
+| Chatbot | 15 per IP per menit; 300 total per hari |
+| Tracking | 60 per IP per menit |
+| Nota | 30 per IP per menit |
+| Perubahan status / logout | 60 per IP per menit |
+
+Permintaan yang melampaui batas menerima `429` dengan header `Retry-After`. Batas dapat disesuaikan di `api/_lib/security.js`. POST/PATCH menolak asal browser yang berbeda, format selain JSON, dan payload di atas 16 KiB; logout tetap mendukung permintaan tanpa body.
+
+Halaman/API pesanan dan admin menggunakan cache privat tanpa penyimpanan dan tidak diindeks. `no-referrer` mencegah token URL terkirim sebagai referer ke situs lain. Skrip QR yang URL-nya tetap sama memakai pemeriksaan integritas SRI. Aset baru harus divalidasi ulang oleh browser; stylesheet privasi tambahan memperbaiki overlay nota sekalipun CSS lama masih tersimpan di cache. Perlindungan data pribadi berlaku di backend, sehingga tetap aman ketika browser masih memakai JavaScript versi lama.
+
+Sesudah perubahan di-deploy ke **project Vercel yang sama**, URL situs tetap sama. Konfigurasi secret produksi, akses Neon, dan respons deployment perlu diverifikasi sebelum menganggap pengamanan sudah aktif. Pembatasan aplikasi tidak menggantikan perlindungan trafik di Vercel Firewall; aktifkan perlindungan tambahan di sana sesuai kebutuhan trafik dan anggaran.
+
+## Pengujian
+
+Jalankan `npm test`. Pengujian memakai fixture lokal dan database/API tiruan; tidak membuat pesanan produksi atau memanggil Gemini sungguhan. Suite mencakup sesi admin, asal permintaan, batas payload, counter lintas instance, perlindungan data nota, format URL yang harus tetap sama, batas tanggal WIB, ringkasan seluruh hari, paginasi, respons terlambat, dan pergantian hari otomatis.

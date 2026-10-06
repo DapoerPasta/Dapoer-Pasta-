@@ -1,11 +1,48 @@
-const state={orders:[],filter:"all",query:"",initialized:false,pollTimer:null};
+(()=>{
+const ORDER_TIME_ZONE="Asia/Jakarta";
+const ORDER_PAGE_SIZE=100;
+const state={orders:[],filter:"all",query:"",initialized:false,pollTimer:null,rolloverTimer:null,selectedDate:todayInWib(),followingToday:true,pageCount:1,pagination:null,summary:null,seenIds:new Set(),generation:0,request:null};
 const $=s=>document.querySelector(s);
 const rupiah=v=>`Rp ${Number(v||0).toLocaleString("id-ID")}`;
 
-document.addEventListener("DOMContentLoaded",init);
+// Use the shop's calendar even when the administrator's device is abroad.
+function todayInWib(now=new Date()){
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:ORDER_TIME_ZONE,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now);
+  const part=type=>parts.find(p=>p.type===type).value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+function validOrderDate(value){
+  if(typeof value!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+  const date=new Date(`${value}T12:00:00Z`);
+  return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;
+}
+function shiftOrderDate(value,days){
+  if(!validOrderDate(value))return null;
+  const date=new Date(`${value}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate()+days);
+  return date.toISOString().slice(0,10);
+}
+function orderDateLabel(value){
+  return new Date(`${value}T12:00:00Z`).toLocaleDateString("id-ID",{timeZone:"UTC",weekday:"long",day:"numeric",month:"long",year:"numeric"});
+}
+function millisecondsToWibMidnight(now=new Date()){
+  const shifted=now.getTime()+7*60*60*1000;
+  return 24*60*60*1000-(shifted%(24*60*60*1000));
+}
+function mergeOrders(previous,next){
+  const orders=new Map(previous.map(order=>[order.id,order]));
+  next.forEach(order=>orders.set(order.id,order));
+  return Array.from(orders.values()).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)||String(b.id).localeCompare(String(a.id)));
+}
+
+// An older cached copy of this script cannot initialize the daily dashboard.
+window.DapoerAdminDailyHistory=true;
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
+else init();
 
 async function init(){
   bind();
+  updateDateControls();
   await checkSession();
 }
 
@@ -16,7 +53,59 @@ function bind(){
   $("#enable-notifications").addEventListener("click",enableNotifications);
   $("#status-filter").addEventListener("change",e=>{state.filter=e.target.value;renderOrders()});
   $("#order-search").addEventListener("input",e=>{state.query=e.target.value.trim().toLowerCase();renderOrders()});
+  $("#order-date").addEventListener("change",e=>{
+    if(!validOrderDate(e.target.value)){e.target.value=state.selectedDate;return}
+    selectOrderDate(e.target.value,false);
+  });
+  $("#today-orders").addEventListener("click",()=>selectOrderDate(todayInWib(),true));
+  $("#previous-order-date").addEventListener("click",()=>selectOrderDate(shiftOrderDate(state.selectedDate,-1),false));
+  $("#next-order-date").addEventListener("click",()=>selectOrderDate(shiftOrderDate(state.selectedDate,1),false));
+  $("#load-more-orders").addEventListener("click",()=>loadOrders(false,true));
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&$("#dashboard-view")&&!$("#dashboard-view").hidden)loadOrders(true)});
+}
+
+function updateDateControls(now=new Date()){
+  const today=todayInWib(now);
+  $("#order-date").value=state.selectedDate;
+  $("#order-date").max=today;
+  $("#next-order-date").disabled=state.selectedDate>=today;
+  $("#today-orders").classList.toggle("active",state.followingToday&&state.selectedDate===today);
+  $("#today-orders").setAttribute("aria-pressed",String(state.followingToday));
+  $("#order-period").textContent=`${orderDateLabel(state.selectedDate)}${state.selectedDate===today?" · Hari ini":""} · WIB`;
+  $("#overview").setAttribute("aria-label",`Ringkasan pesanan ${orderDateLabel(state.selectedDate)}`);
+}
+function cancelOrderRequest(){
+  state.generation++;
+  if(state.request)state.request.controller.abort();
+  state.request=null;
+}
+function resetOrderDate(date,followingToday){
+  cancelOrderRequest();
+  state.selectedDate=date;
+  state.followingToday=followingToday;
+  state.orders=[];
+  state.seenIds=new Set();
+  state.initialized=false;
+  state.pageCount=1;
+  state.pagination=null;
+  state.summary=null;
+  $("#last-updated").textContent="—";
+  updateDateControls();
+  updateStats();
+  renderOrders();
+  updateLoadingControls();
+}
+function selectOrderDate(date,followingToday=false){
+  if(!validOrderDate(date))return;
+  if(date!==state.selectedDate)resetOrderDate(date,followingToday);
+  else{state.followingToday=followingToday;updateDateControls()}
+  return loadOrders(false);
+}
+function syncToday(now=new Date()){
+  const today=todayInWib(now);
+  if(state.followingToday&&state.selectedDate!==today){resetOrderDate(today,true);return true}
+  updateDateControls(now);
+  return false;
 }
 
 async function checkSession(){
@@ -28,12 +117,20 @@ async function checkSession(){
     showDashboard();
     syncNotificationButton();
     await loadOrders(true);
-    startPolling();
+    if(!$("#dashboard-view").hidden)startPolling();
   }catch{showLogin()}
 }
 
 function showLogin(){
   stopPolling();
+  cancelOrderRequest();
+  state.orders=[];
+  state.seenIds=new Set();
+  state.initialized=false;
+  state.summary=null;
+  state.pagination=null;
+  state.pageCount=1;
+  $("#orders-list").replaceChildren();
   $("#login-view").hidden=false;
   $("#dashboard-view").hidden=true;
 }
@@ -56,60 +153,108 @@ async function login(e){
 }
 
 async function logout(){
-  stopPolling();
-  await fetch("/api/admin/logout",{method:"POST"});
-  state.orders=[];
-  state.initialized=false;
   showLogin();
+  await fetch("/api/admin/logout",{method:"POST"});
 }
 
 function startPolling(){
   stopPolling();
   state.pollTimer=setInterval(()=>loadOrders(true),10000);
+  scheduleDayRollover();
+}
+function scheduleDayRollover(){
+  state.rolloverTimer=setTimeout(()=>{
+    loadOrders(true);
+    scheduleDayRollover();
+  },millisecondsToWibMidnight()+50);
 }
 function stopPolling(){
   if(state.pollTimer){clearInterval(state.pollTimer);state.pollTimer=null}
+  if(state.rolloverTimer){clearTimeout(state.rolloverTimer);state.rolloverTimer=null}
+}
+function hasMoreOrders(){
+  return !!state.pagination&&state.pageCount<state.pagination.totalPages&&state.orders.length<state.pagination.total;
+}
+function updateLoadingControls(){
+  const request=state.request;
+  const refresh=$("#refresh-orders");
+  refresh.disabled=!!request;
+  refresh.textContent=request&&!request.silent&&!request.more?"↻ Memuat…":"↻ Refresh data";
+  const more=$("#load-more-orders");
+  more.hidden=!hasMoreOrders();
+  more.disabled=!!request;
+  more.textContent=request&&request.more?"Memuat pesanan…":"Muat pesanan berikutnya";
+}
+async function fetchOrderPage(date,page,request){
+  const params=new URLSearchParams({date,page:String(page),pageSize:String(ORDER_PAGE_SIZE)});
+  const res=await fetch(`/api/admin/orders?${params}`,{headers:{Accept:"application/json"},cache:"no-store",signal:request.controller.signal});
+  const data=await res.json();
+  if(state.request!==request||request.generation!==state.generation)return null;
+  if(res.status===401){showLogin();return null}
+  if(!res.ok)throw new Error(data.error||"Gagal memuat pesanan");
+  if(data.date!==date||data.timeZone!==ORDER_TIME_ZONE||!data.pagination||!data.summary||!Array.isArray(data.orders)){
+    throw new Error("Riwayat harian belum tersedia. Coba refresh setelah deployment selesai.");
+  }
+  return data;
 }
 
-async function loadOrders(silent=false){
-  const refresh=$("#refresh-orders");
-  if(!silent){
-    $("#orders-caption").textContent="Memuat data pesanan…";
-    refresh.disabled=true;
-    refresh.textContent="↻ Memuat…";
-  }
+async function loadOrders(silent=false,more=false){
+  if(syncToday())more=false;
+  // A visibility event, manual refresh, and poll share one active request.
+  if(state.request||(more&&!hasMoreOrders()))return;
+  const request={date:state.selectedDate,generation:state.generation,controller:new AbortController(),silent,more};
+  state.request=request;
+  updateLoadingControls();
+  if(!silent)$("#orders-caption").textContent="Memuat data pesanan…";
   try{
-    const previousIds=new Set(state.orders.map(o=>o.id));
-    const res=await fetch("/api/admin/orders",{headers:{Accept:"application/json"},cache:"no-store"});
-    const data=await res.json();
-    if(res.status===401)return showLogin();
-    if(!res.ok)throw new Error(data.error||"Gagal memuat pesanan");
-    const next=Array.isArray(data.orders)?data.orders:[];
-    const fresh=state.initialized?next.filter(o=>!previousIds.has(o.id)):[];
-    state.orders=next;
+    const initialSnapshot=state.initialized;
+    const page=more?state.pageCount+1:1;
+    const first=await fetchOrderPage(request.date,page,request);
+    if(!first)return;
+    const received=[...first.orders];
+    let latest=first;
+    let loadedPages=page;
+    if(!more){
+      // Retain every loaded page on refresh, including rows displaced by new orders.
+      const pages=Math.min(state.pageCount,Math.max(1,Number(first.pagination.totalPages)));
+      for(let next=2;next<=pages;next++){
+        const data=await fetchOrderPage(request.date,next,request);
+        if(!data)return;
+        received.push(...data.orders);
+        latest=data;
+        loadedPages=next;
+      }
+    }
+    if(state.request!==request||request.generation!==state.generation)return;
+    const fresh=!more&&initialSnapshot&&request.date===todayInWib()
+      ?first.orders.filter(order=>!state.seenIds.has(order.id)):[];
+    state.orders=mergeOrders(state.orders,received);
+    received.forEach(order=>state.seenIds.add(order.id));
+    state.pageCount=loadedPages;
+    state.summary=first.summary;
+    state.pagination=latest.pagination;
+    state.initialized=true;
     updateStats();
     renderOrders();
-    $("#last-updated").textContent=new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});
-    state.initialized=true;
+    $("#last-updated").textContent=new Date().toLocaleTimeString("id-ID",{timeZone:ORDER_TIME_ZONE,hour:"2-digit",minute:"2-digit"})+" WIB";
     if(fresh.length)notifyNewOrders(fresh);
   }catch(err){
-    if(!silent){
+    if(state.request!==request||err.name==="AbortError")return;
+    if(!silent||!state.initialized){
       $("#orders-caption").textContent=err.message||"Pesanan belum dapat dimuat.";
-      $("#orders-list").replaceChildren(makeEmpty("Data belum tersedia","Database belum siap atau terjadi gangguan."));
+      if(!state.orders.length)$("#orders-list").replaceChildren(makeEmpty("Data belum tersedia","Coba refresh data kembali."));
     }
   }finally{
-    if(!silent){
-      refresh.disabled=false;
-      refresh.textContent="↻ Refresh data";
-    }
+    if(state.request===request){state.request=null;updateLoadingControls()}
   }
 }
 
 function updateStats(){
-  $("#stat-total").textContent=state.orders.length;
-  $("#stat-new").textContent=state.orders.filter(o=>o.status==="baru").length;
-  $("#stat-processing").textContent=state.orders.filter(o=>["diproses","dikirim"].includes(o.status)).length;
-  $("#stat-value").textContent=rupiah(state.orders.filter(o=>o.status!=="dibatalkan").reduce((s,o)=>s+Number(o.total||0),0));
+  const summary=state.summary||{};
+  $("#stat-total").textContent=Number(summary.totalOrders||0);
+  $("#stat-new").textContent=Number(summary.newOrders||0);
+  $("#stat-processing").textContent=Number(summary.processingOrders||0);
+  $("#stat-value").textContent=rupiah(summary.orderValue);
 }
 
 function filteredOrders(){
@@ -126,8 +271,12 @@ function renderOrders(){
   const root=$("#orders-list");
   root.replaceChildren();
   const rows=filteredOrders();
-  $("#orders-caption").textContent=`${rows.length} dari ${state.orders.length} pesanan ditampilkan`;
-  if(!rows.length){root.append(makeEmpty("Tidak ada pesanan","Coba ubah kata pencarian atau filter status."));return}
+  const total=Number(state.summary?.totalOrders||0);
+  $("#orders-caption").textContent=`${rows.length} ditampilkan · ${state.orders.length} dimuat dari ${total} pesanan pada tanggal ini${state.query||state.filter!=="all"?". Filter berlaku pada pesanan yang sudah dimuat.":"."}`;
+  if(!rows.length){
+    root.append(makeEmpty(total?"Tidak ada pesanan yang sesuai":"Belum ada pesanan pada tanggal ini",total?"Coba ubah pencarian atau filter, atau muat pesanan berikutnya.":"Pilih tanggal lain untuk melihat riwayat pesanan."));
+    return;
+  }
   rows.forEach(order=>root.append(makeOrderCard(order)));
 }
 
@@ -144,7 +293,7 @@ function makeOrderCard(order){
   const primary=document.createElement("div");primary.className="order-primary";
   const id=document.createElement("div");id.className="order-id";id.textContent=order.id;
   const time=document.createElement("div");time.className="order-time";
-  time.textContent=new Date(order.created_at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"});
+  time.textContent=new Date(order.created_at).toLocaleString("id-ID",{timeZone:ORDER_TIME_ZONE,dateStyle:"medium",timeStyle:"short"})+" WIB";
   primary.append(id,time);
 
   const customer=document.createElement("div");customer.className="customer-cell";
@@ -197,12 +346,24 @@ async function changeStatus(id,status,button){
   button.disabled=true;
   const original=button.textContent;
   button.textContent="…";
+  const selectedDate=state.selectedDate;
   try{
     const res=await fetch("/api/admin/status",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,status})});
     const data=await res.json();
     if(!res.ok)throw new Error(data.error||"Gagal mengubah status");
-    const target=state.orders.find(o=>o.id===id);if(target)target.status=status;
-    updateStats();renderOrders();
+    if(selectedDate===state.selectedDate)cancelOrderRequest();
+    const target=selectedDate===state.selectedDate?state.orders.find(o=>o.id===id):null;
+    if(target){
+      const previous=target.status;
+      if(state.summary){
+        state.summary.newOrders=Number(state.summary.newOrders)+(status==="baru"?1:0)-(previous==="baru"?1:0);
+        state.summary.processingOrders=Number(state.summary.processingOrders)+(["diproses","dikirim"].includes(status)?1:0)-(["diproses","dikirim"].includes(previous)?1:0);
+        state.summary.orderValue=Number(state.summary.orderValue)+(status!=="dibatalkan"?Number(target.total||0):0)-(previous!=="dibatalkan"?Number(target.total||0):0);
+      }
+      target.status=status;
+      updateStats();renderOrders();
+      await loadOrders(true);
+    }
     showAdminToast("Status diperbarui",`${id} sekarang berstatus ${status}.`);
   }catch(err){alert(err.message||"Gagal mengubah status")}
   finally{button.disabled=false;button.textContent=original}
@@ -267,3 +428,5 @@ function playBeep(){
     osc.start();osc.stop(ctx.currentTime+.28);
   }catch{}
 }
+
+})();
