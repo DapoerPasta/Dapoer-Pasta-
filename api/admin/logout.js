@@ -1,11 +1,9 @@
 const { clearSessionCookie } = require("../_lib/auth");
+const { guardRequest } = require("../_lib/security");
 
-module.exports = function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Metode tidak diizinkan." });
-  }
+  if (!(await guardRequest(req, res, { scope: "admin", methods: ["POST"], allowEmptyBody: true }))) return;
   res.setHeader("Set-Cookie", clearSessionCookie());
   return res.status(200).json({ ok: true });
 };

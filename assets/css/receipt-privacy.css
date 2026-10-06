@@ -1,0 +1,7 @@
+/* Loaded separately so browsers with the former immutable receipt CSS cache
+   still hide the loading and error overlays after a successful response. */
+.receipt-loading[hidden],
+.receipt-error[hidden],
+#receipt-privacy[hidden] {
+  display: none !important;
+}

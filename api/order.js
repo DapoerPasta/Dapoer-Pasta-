@@ -1,6 +1,7 @@
 const crypto = require("node:crypto");
 const { STORE, PRODUCTS } = require("./_lib/catalog");
 const { saveOrder } = require("./_lib/db");
+const { guardRequest } = require("./_lib/security");
 
 function normalizeItems(input) {
   if (!Array.isArray(input) || input.length < 1 || input.length > 20) throw new Error("INVALID_ITEMS");
@@ -89,11 +90,7 @@ function buildMessage(order, trackingUrl) {
 
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
-
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Metode tidak diizinkan." });
-  }
+  if (!(await guardRequest(req, res, { scope: "order", methods: ["POST"] }))) return;
 
   let items;
   let customer;
@@ -122,7 +119,7 @@ module.exports = async function handler(req, res) {
   try {
     persisted = await saveOrder(order);
   } catch (error) {
-    console.error("Order database save failed", error);
+    console.error("Order database save failed");
     return res.status(503).json({
       error: "Pesanan belum dapat disimpan. Silakan coba lagi beberapa saat."
     });
@@ -135,7 +132,7 @@ module.exports = async function handler(req, res) {
   }
 
   const relativeTrackingUrl = `/track/?id=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.trackingToken)}`;
-  const proto = req.headers["x-forwarded-proto"] || "https";
+  const proto = process.env.VERCEL === "1" || req.headers["x-forwarded-proto"] !== "http" ? "https" : "http";
   const host = req.headers.host || "";
   const trackingUrl = host ? `${proto}://${host}${relativeTrackingUrl}` : relativeTrackingUrl;
   const message = buildMessage(order, trackingUrl);

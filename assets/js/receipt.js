@@ -23,15 +23,18 @@ async function loadReceipt(){
 }
 
 function render(order){
+  const customerDataProtected=order.customerDataProtected!==false;
+  const protectedText="Data pelanggan dilindungi";
   $("#receipt-id").textContent=order.id;
-  $("#receipt-customer").textContent=order.customerName||"—";
+  $("#receipt-customer").textContent=customerDataProtected?protectedText:order.customerName||"—";
   $("#receipt-date").textContent=new Date(order.createdAt).toLocaleString("id-ID");
   $("#receipt-status").textContent=label(order.status);
   $("#receipt-total").textContent=rupiah(order.total);
   $("#receipt-method").textContent=order.paymentMethod||"—";
-  $("#receipt-phone").textContent=order.customerPhone||"—";
-  $("#receipt-address").textContent=order.address||"—";
-  $("#receipt-notes").textContent=order.notes||"Tidak ada";
+  $("#receipt-phone").textContent=customerDataProtected?"Dilindungi":order.customerPhone||"—";
+  $("#receipt-address").textContent=customerDataProtected?"Dilindungi":order.address||"—";
+  $("#receipt-notes").textContent=customerDataProtected?"Dilindungi":order.notes||"Tidak ada";
+  $("#receipt-privacy").hidden=!customerDataProtected;
 
   const root=$("#receipt-items");root.replaceChildren();
   (Array.isArray(order.items)?order.items:[]).forEach(item=>{

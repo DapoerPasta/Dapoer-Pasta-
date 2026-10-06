@@ -142,6 +142,11 @@ async function submitCheckout(e){
     });
     const data=await res.json();
 
+    if(res.status===429){
+      showToast(data.error||"Terlalu banyak permintaan. Silakan coba lagi nanti.");
+      return;
+    }
+
     if(!res.ok||!data.whatsappUrl){
       throw new Error(data.error||"Pesanan tidak valid");
     }
