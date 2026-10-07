@@ -5,6 +5,7 @@ Website Dapoer Pasta berjalan di Vercel dengan frontend statis, Vercel Functions
 ## Fitur
 
 - Menu dinamis dari backend
+- Stok setiap menu terlihat oleh pelanggan dan bisa ditambah / dikurangi admin
 - Keranjang belanja localStorage
 - Checkout form: nama, WhatsApp, alamat, pembayaran, catatan
 - Harga dan total dihitung ulang di backend
@@ -87,6 +88,49 @@ Buka:
 
 Dashboard tidak menampilkan data tanpa session admin yang valid.
 
+## Stok Menu
+
+Di `/admin/`, buka **Stok Menu**. Masukkan jumlah penyesuaian pada produk,
+lalu pilih **Tambah** atau **Kurangi**. Misalnya stok saat ini 5, memasukkan 3
+dan memilih Tambah menghasilkan stok 8. Persediaan tersimpan di tabel
+`inventory` pada database Neon yang sama, bukan di browser admin.
+
+Pada penggunaan pertama, seluruh stok dimulai dari **0**. Setelah deployment,
+admin perlu memasukkan jumlah persediaan fisik sebenarnya. Produk dengan stok
+0 tampil sebagai **Stok habis** dan tidak bisa ditambahkan ke keranjang.
+Jumlah pesanan mengikuti satuan produk pada katalog (contoh: satu produk
+“Pasta brulee oval 2 pcs” berarti satu paket berisi dua buah).
+
+Menu pelanggan memuat stok terbaru tanpa cache, diperbarui setiap 15 detik
+ketika halaman aktif, dan diperiksa kembali sebelum checkout. Dashboard stok
+admin diperbarui setiap 10 detik; input penyesuaian tetap terjaga saat refresh.
+Jika stok berubah, keranjang tetap tersedia agar pelanggan dapat memperbaiki
+jumlahnya. Backend selalu memeriksa persediaan terbaru dan menolak checkout
+yang tidak mencukupi dengan `409 INSUFFICIENT_STOCK`.
+
+Stok berkurang ketika pesanan **berhasil disimpan**, sebelum pelanggan membuka
+WhatsApp. Pengurangan semua produk dan penyimpanan pesanan dilakukan dalam
+satu transaksi PostgreSQL dengan kunci baris, sehingga checkout bersamaan
+tidak menjual stok yang sama dan kegagalan tidak mengurangi sebagian stok.
+Jika pelanggan tidak melanjutkan konfirmasi, admin dapat membatalkan pesanan:
+stok kembali tepat satu kali. Pesanan baru yang sudah dibatalkan tidak dapat
+dibuka kembali; buat pesanan baru agar stok diperiksa ulang. Pesanan lama yang
+dibuat sebelum fitur ini tidak mengurangi atau mengembalikan stok.
+
+Endpoint Vercel `GET /api/menu` menyertakan `stock` untuk setiap produk.
+`GET /api/admin/stock` dan `PATCH /api/admin/stock` (JSON `{ "id": "product-id",
+"delta": 3 }`) memakai sesi admin yang sama. Nilai delta positif menambah
+persediaan, nilai negatif mengurangi; saldo tidak bisa menjadi negatif.
+Endpoint admin mempertahankan proteksi asal permintaan, JSON, ukuran payload,
+dan pembatasan trafik. Fitur ini ditujukan untuk deployment Vercel yang
+dijelaskan di atas; fungsi Netlify lama tidak menjalankan workflow stok ini.
+
+Tabel `inventory`, kolom `orders.stock_reserved`, dan fungsi transaksi
+`dapoer_save_order` / `dapoer_update_order_status` dibuat otomatis.
+Role database harus dapat membuat / mengubah tabel, indeks, dan fungsi
+PL/pgSQL di schema aplikasi, serta membaca dan memperbarui persediaan.
+Tidak ada kredensial baru yang diperlukan.
+
 Riwayat dibuka pada **hari ini menurut WIB (Asia/Jakarta)**. Pilih tanggal untuk melihat pesanan hari sebelumnya, atau gunakan tombol panah untuk berpindah hari. Pesanan lama tetap tersimpan di database. Tombol **Hari ini** mengaktifkan pergantian tanggal otomatis pada pukul 00.00 WIB; tanggal riwayat yang dipilih manual tetap ditampilkan sampai admin menggantinya.
 
 Ringkasan menghitung seluruh pesanan pada tanggal pilihan. Daftar memuat 100 pesanan per halaman; tombol **Muat pesanan berikutnya** membuka sisanya. Pencarian dan filter status berlaku pada pesanan yang sudah dimuat. Refresh berkala mempertahankan halaman yang sudah dibuka. Memilih tanggal atau berganti hari tidak memicu notifikasi untuk pesanan lama.
@@ -121,3 +165,18 @@ Sesudah perubahan di-deploy ke **project Vercel yang sama**, URL situs tetap sam
 ## Pengujian
 
 Jalankan `npm test`. Pengujian memakai fixture lokal dan database/API tiruan; tidak membuat pesanan produksi atau memanggil Gemini sungguhan. Suite mencakup sesi admin, asal permintaan, batas payload, counter lintas instance, perlindungan data nota, format URL yang harus tetap sama, batas tanggal WIB, ringkasan seluruh hari, paginasi, respons terlambat, dan pergantian hari otomatis.
+
+Suite stok juga mencakup kontrol admin, stok habis, perubahan persediaan pada
+keranjang, konflik checkout, dan pembatasan akses. Untuk memverifikasi transaksi
+serta checkout bersamaan dengan PostgreSQL nyata, gunakan database lokal khusus
+pengujian yang namanya dimulai `dapoer_stock_test` dan paket `pg` (bisa dipasang
+di luar checkout):
+
+```bash
+STOCK_TEST_DATABASE_URL=postgresql://localhost/dapoer_stock_test \
+STOCK_TEST_PG_MODULE=/path/to/node_modules/pg \
+node --test test/inventory-postgres.integration.cjs
+```
+
+Pengujian integrasi membuat schema terpisah lalu menghapusnya; suite menolak
+host database nonlokal dan tidak disertakan pada `npm test`.

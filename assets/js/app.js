@@ -1,4 +1,4 @@
-const state={menu:[],store:null,cart:loadCart()};
+const state={menu:[],store:null,cart:loadCart(),menuReady:false,menuRequest:null};
 const $=s=>document.querySelector(s);
 const rupiah=v=>`Rp ${Number(v).toLocaleString("id-ID")}`;
 document.addEventListener("DOMContentLoaded",init);
@@ -6,6 +6,8 @@ document.addEventListener("DOMContentLoaded",init);
 async function init(){
   bindUI(); observeReveal(); renderCart();
   await loadMenu();
+  setInterval(()=>{if(!document.hidden)loadMenu()},15000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadMenu()});
 }
 
 function bindUI(){
@@ -27,18 +29,28 @@ function bindUI(){
 }
 
 async function loadMenu(){
+  if(state.menuRequest)return state.menuRequest;
+  state.menuRequest=fetchMenu();
+  try{return await state.menuRequest}finally{state.menuRequest=null}
+}
+
+async function fetchMenu(){
   const root=$("#menu-grid");
   try{
-    const res=await fetch("/api/menu",{headers:{Accept:"application/json"}});
+    const res=await fetch("/api/menu",{cache:"no-store",headers:{Accept:"application/json"}});
     if(!res.ok)throw new Error("menu");
     const data=await res.json();
-    state.menu=data.products||[]; state.store=data.store||null; renderMenu();
+    if(!Array.isArray(data.products))throw new Error("menu");
+    state.menu=data.products; state.store=data.store||null; state.menuReady=true;
+    renderMenu(); renderCart(); return true;
   }catch{
+    state.menuReady=false;
     root.replaceChildren();
     const el=document.createElement("div");
     el.className="menu-loading";
-    el.textContent="Menu belum dapat dimuat. Silakan pesan langsung melalui WhatsApp Dapoer Pasta.";
+    el.textContent="Menu dan stok belum dapat dimuat. Silakan coba lagi atau hubungi WhatsApp Dapoer Pasta.";
     root.append(el);
+    renderCart(); return false;
   }
 }
 
@@ -56,23 +68,35 @@ function renderMenu(){
     const idx=document.createElement("div"); idx.className="product-index"; idx.textContent=String(i+1).padStart(2,"0")+".";
     const title=document.createElement("h3"); title.textContent=p.name;
     const desc=document.createElement("p"); desc.textContent=p.description;
+    const stock=document.createElement("div"); stock.className="product-stock";
+    stock.textContent=p.stock>0?`Stok tersedia: ${p.stock}`:"Stok habis";
+    if(p.stock===0)stock.classList.add("sold-out");
     const action=document.createElement("div"); action.className="product-action";
     const add=document.createElement("button"); add.className="add-button"; add.type="button";
     add.innerHTML='Tambah ke keranjang <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
+    add.disabled=!Number.isSafeInteger(p.stock)||p.stock<=0;
+    if(add.disabled)add.textContent="Stok habis";
     add.addEventListener("click",()=>addToCart(p.id));
     const mark=document.createElement("span"); mark.className="small-mark"; mark.textContent="DP";
-    action.append(add,mark); body.append(idx,title,desc,action); card.append(media,body); root.append(card);
+    action.append(add,mark); body.append(idx,title,desc,stock,action); card.append(media,body); root.append(card);
   });
 }
 
 function addToCart(id){
   const p=state.menu.find(x=>x.id===id); if(!p)return;
   const found=state.cart.find(x=>x.id===id);
+  const available=stockFor(id);
+  if(available===null){showToast("Stok belum dapat diperiksa. Silakan coba lagi.");return}
+  if((found?.quantity||0)>=available){showToast(available?`Stok ${p.name} tersisa ${available}.`:"Stok produk habis.");return}
   if(found)found.quantity++; else state.cart.push({id:p.id,name:p.name,price:p.price,quantity:1});
   persistCart(); renderCart(); showToast(`${p.name} ditambahkan.`);
 }
 function updateQuantity(id,delta){
   const item=state.cart.find(x=>x.id===id); if(!item)return;
+  if(delta>0){
+    const available=stockFor(id);
+    if(available===null||item.quantity+delta>available){showToast(available===null?"Stok belum dapat diperiksa.":`Stok ${item.name} tersisa ${available}.`);return}
+  }
   item.quantity+=delta; if(item.quantity<=0)state.cart=state.cart.filter(x=>x.id!==id);
   persistCart(); renderCart();
 }
@@ -81,6 +105,8 @@ function removeCartItem(id){state.cart=state.cart.filter(x=>x.id!==id);persistCa
 function renderCart(){
   const root=$("#cart-items"); if(!root)return;
   $("#cart-count").textContent=state.cart.reduce((s,x)=>s+x.quantity,0);
+  const checkout=$("#checkout-button");
+  if(checkout)checkout.disabled=!state.cart.length||!cartStockAvailable();
   root.replaceChildren();
   if(!state.cart.length){
     const empty=document.createElement("div"); empty.className="empty-cart";
@@ -94,7 +120,10 @@ function renderCart(){
     const head=document.createElement("div"); head.className="cart-item-head";
     const info=document.createElement("div");
     const title=document.createElement("h3"); title.textContent=item.name;
-    const meta=document.createElement("small"); meta.textContent=`${rupiah(item.price)} / item`;
+    const available=stockFor(item.id);
+    const meta=document.createElement("small");
+    meta.textContent=`${rupiah(item.price)} / item · ${available===null?"Stok belum dapat diperiksa":`Stok: ${available}`}`;
+    if(available!==null&&item.quantity>available){meta.className="cart-stock-error";meta.textContent+=available===0?" · Hapus produk yang habis":" · Kurangi jumlah pesanan"}
     info.append(title,meta);
     const remove=document.createElement("button"); remove.type="button"; remove.className="cart-remove";
     remove.setAttribute("aria-label",`Hapus ${item.name}`);
@@ -107,6 +136,7 @@ function renderCart(){
     const minus=document.createElement("button"); minus.type="button"; minus.textContent="−"; minus.addEventListener("click",()=>updateQuantity(item.id,-1));
     const value=document.createElement("span"); value.textContent=item.quantity;
     const plus=document.createElement("button"); plus.type="button"; plus.textContent="+"; plus.addEventListener("click",()=>updateQuantity(item.id,1));
+    plus.disabled=available===null||item.quantity>=available;
     qty.append(minus,value,plus);
     const sub=document.createElement("div"); sub.className="subtotal"; sub.textContent=rupiah(subtotal);
     foot.append(qty,sub); row.append(head,foot); root.append(row);
@@ -116,11 +146,21 @@ function renderCart(){
 
 function loadCart(){try{const raw=localStorage.getItem("dapoer-pasta-cart");const p=raw?JSON.parse(raw):[];return Array.isArray(p)?p:[]}catch{return[]}}
 function persistCart(){localStorage.setItem("dapoer-pasta-cart",JSON.stringify(state.cart))}
+function stockFor(id){
+  const p=state.menu.find(x=>x.id===id);
+  return state.menuReady&&Number.isSafeInteger(p?.stock)&&p.stock>=0?p.stock:null;
+}
+function cartStockAvailable(){return state.cart.every(item=>{const available=stockFor(item.id);return available!==null&&item.quantity>0&&item.quantity<=available})}
 function toggleCart(open){$("#cart-overlay")?.classList.toggle("open",open);$("#cart-overlay")?.setAttribute("aria-hidden",String(!open));document.body.classList.toggle("no-scroll",open)}
 
 function cartTotal(){return state.cart.reduce((sum,item)=>sum+(item.price*item.quantity),0)}
 function toggleCheckout(open){$("#checkout-modal")?.classList.toggle("open",open);$("#checkout-modal")?.setAttribute("aria-hidden",String(!open));document.body.classList.toggle("no-scroll",open)}
-function openCheckout(){if(!state.cart.length){showToast("Pilih menu terlebih dahulu.");toggleCart(true);return}$("#checkout-total").textContent=rupiah(cartTotal());toggleCart(false);toggleCheckout(true);setTimeout(()=>$("#checkout-name")?.focus(),80)}
+async function openCheckout(){
+  if(!state.cart.length){showToast("Pilih menu terlebih dahulu.");toggleCart(true);return}
+  await loadMenu();
+  if(!cartStockAvailable()){showToast("Periksa stok terbaru dan sesuaikan jumlah di keranjang.");toggleCart(true);return}
+  $("#checkout-total").textContent=rupiah(cartTotal());toggleCart(false);toggleCheckout(true);setTimeout(()=>$("#checkout-name")?.focus(),80);
+}
 async function submitCheckout(e){
   e.preventDefault();
   if(!state.cart.length){showToast("Keranjang kosong.");toggleCheckout(false);return}
@@ -133,6 +173,8 @@ async function submitCheckout(e){
   }
 
   try{
+    await loadMenu();
+    if(!cartStockAvailable())throw new Error("Stok berubah. Sesuaikan jumlah di keranjang sebelum memesan.");
     const items=state.cart.map(item=>({id:item.id,quantity:item.quantity}));
     const customer={name:$("#checkout-name").value.trim(),phone:$("#checkout-phone").value.trim(),address:$("#checkout-address").value.trim(),paymentMethod:$("#checkout-payment").value,notes:$("#checkout-notes").value.trim()};
     const res=await fetch("/api/order",{
@@ -141,6 +183,13 @@ async function submitCheckout(e){
       body:JSON.stringify({items,customer})
     });
     const data=await res.json();
+
+    if(res.status===409&&data.code==="INSUFFICIENT_STOCK"){
+      await loadMenu();
+      toggleCheckout(false);toggleCart(true);
+      showToast(data.error||"Stok tidak mencukupi. Sesuaikan jumlah di keranjang.");
+      return;
+    }
 
     if(res.status===429){
       showToast(data.error||"Terlalu banyak permintaan. Silakan coba lagi nanti.");
@@ -169,8 +218,8 @@ async function submitCheckout(e){
     showToast(orderId?`Pesanan ${orderId} tersimpan.`:"Pesanan tersimpan.");
     window.open(data.whatsappUrl,"_blank","noopener,noreferrer");
     if(trackingUrl)setTimeout(()=>{window.location.href=trackingUrl},250);
-  }catch{
-    showToast("Pesanan belum dapat disimpan. Periksa data lalu coba lagi.");
+  }catch(error){
+    showToast(error.message||"Pesanan belum dapat disimpan. Periksa data lalu coba lagi.");
   }finally{
     if(button){
       button.disabled=false;

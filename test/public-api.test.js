@@ -107,6 +107,21 @@ test("invalid checkout and unavailable persistence do not generate successful or
   assert.equal(writes, 1);
 });
 
+test("insufficient checkout stock returns a recoverable conflict without successful order links", async () => {
+  const handler = loadHandler("order", { saveOrder: async () => {
+    const error = new Error("INSUFFICIENT_STOCK");
+    error.code = "INSUFFICIENT_STOCK";
+    throw error;
+  } });
+  const res = response();
+  await handler(request(checkout()), res);
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.body.code, "INSUFFICIENT_STOCK");
+  assert.equal(res.body.order, undefined);
+  assert.equal(res.body.trackingUrl, undefined);
+  assert.equal(res.body.whatsappUrl, undefined);
+});
+
 test("production checkout fails closed when the shared limiter is unavailable", async () => {
   let writes = 0;
   const guard = createRequestGuard({ getSql: () => null, environment: { NODE_ENV: "production", VERCEL: "1" } });

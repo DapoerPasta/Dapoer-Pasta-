@@ -4,6 +4,9 @@ const ORDER_PAGE_SIZE=100;
 const state={orders:[],filter:"all",query:"",initialized:false,pollTimer:null,rolloverTimer:null,selectedDate:todayInWib(),followingToday:true,pageCount:1,pagination:null,summary:null,seenIds:new Set(),generation:0,request:null};
 const $=s=>document.querySelector(s);
 const rupiah=v=>`Rp ${Number(v||0).toLocaleString("id-ID")}`;
+function signalAdminEvent(name,detail){
+  if(typeof document.dispatchEvent==="function"&&typeof CustomEvent==="function")document.dispatchEvent(new CustomEvent(name,{detail}));
+}
 
 // Use the shop's calendar even when the administrator's device is abroad.
 function todayInWib(now=new Date()){
@@ -61,6 +64,7 @@ function bind(){
   $("#previous-order-date").addEventListener("click",()=>selectOrderDate(shiftOrderDate(state.selectedDate,-1),false));
   $("#next-order-date").addEventListener("click",()=>selectOrderDate(shiftOrderDate(state.selectedDate,1),false));
   $("#load-more-orders").addEventListener("click",()=>loadOrders(false,true));
+  document.addEventListener("dapoer:admin-session-expired",showLogin);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&$("#dashboard-view")&&!$("#dashboard-view").hidden)loadOrders(true)});
 }
 
@@ -133,8 +137,14 @@ function showLogin(){
   $("#orders-list").replaceChildren();
   $("#login-view").hidden=false;
   $("#dashboard-view").hidden=true;
+  window.DapoerAdminAuthenticated=false;
+  signalAdminEvent("dapoer:admin-session",{authenticated:false});
 }
-function showDashboard(){$("#login-view").hidden=true;$("#dashboard-view").hidden=false}
+function showDashboard(){
+  $("#login-view").hidden=true;$("#dashboard-view").hidden=false;
+  window.DapoerAdminAuthenticated=true;
+  signalAdminEvent("dapoer:admin-session",{authenticated:true});
+}
 
 async function login(e){
   e.preventDefault();
@@ -351,6 +361,7 @@ async function changeStatus(id,status,button){
     const res=await fetch("/api/admin/status",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,status})});
     const data=await res.json();
     if(!res.ok)throw new Error(data.error||"Gagal mengubah status");
+    signalAdminEvent("dapoer:stock-changed",{orderId:id,status});
     if(selectedDate===state.selectedDate)cancelOrderRequest();
     const target=selectedDate===state.selectedDate?state.orders.find(o=>o.id===id):null;
     if(target){

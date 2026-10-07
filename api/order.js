@@ -119,6 +119,12 @@ module.exports = async function handler(req, res) {
   try {
     persisted = await saveOrder(order);
   } catch (error) {
+    if (error.code === "INSUFFICIENT_STOCK") {
+      return res.status(409).json({
+        code: "INSUFFICIENT_STOCK",
+        error: "Stok pesanan tidak mencukupi. Periksa stok terbaru dan sesuaikan jumlah di keranjang."
+      });
+    }
     console.error("Order database save failed");
     return res.status(503).json({
       error: "Pesanan belum dapat disimpan. Silakan coba lagi beberapa saat."

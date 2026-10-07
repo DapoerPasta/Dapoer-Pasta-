@@ -11,8 +11,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/admin.css?v=20261005-tracklink">
   <link rel="stylesheet" href="/assets/css/admin-history.css">
-  <script src="/assets/js/admin.js?v=20261005-tracklink" defer></script>
+  <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261007-stock">
+  <script src="/assets/js/admin.js?v=20261007-stock" defer></script>
   <script src="/assets/js/admin-history-loader.js" defer></script>
+  <script src="/assets/js/admin-stock.js?v=20261007-stock" defer></script>
 </head>
 <body>
   <main class="admin-shell">
@@ -50,6 +52,7 @@
         <nav class="sidebar-nav" aria-label="Navigasi admin">
           <a class="active" href="#overview"><span>⌂</span> Overview</a>
           <a href="#orders"><span>▤</span> Pesanan</a>
+          <a href="#stock"><span>▦</span> Stok Menu</a>
           <a href="/" target="_blank" rel="noopener"><span>↗</span> Lihat Website</a>
         </nav>
 
@@ -68,7 +71,7 @@
           <div>
             <p class="eyebrow">Dashboard Operasional</p>
             <h1>Selamat datang, Admin.</h1>
-            <p class="topbar-subtitle">Pantau pesanan per hari dan buka kembali riwayat tanpa menghapus pesanan lama.</p>
+            <p class="topbar-subtitle">Pantau pesanan harian, buka riwayat, dan atur stok yang terlihat oleh customer.</p>
           </div>
           <div class="topbar-actions">
             <div class="live-pill"><span></span> Live monitoring aktif</div>
@@ -94,6 +97,22 @@
             <div class="stat-icon">04</div>
             <div><span>Nilai Order</span><strong id="stat-value">Rp 0</strong><small>Tanggal pilihan · selain dibatalkan</small></div>
           </article>
+        </section>
+
+        <section class="stock-section" id="stock" aria-labelledby="stock-heading">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Ketersediaan Menu</p>
+              <h2 id="stock-heading">Stok Menu</h2>
+              <p id="stock-caption">Stok akan dimuat setelah login.</p>
+            </div>
+            <button id="refresh-stock" class="stock-refresh" type="button">↻ Refresh stok</button>
+          </div>
+          <p class="stock-guide">Pertama kali memakai fitur ini, masukkan jumlah stok fisik setiap menu lewat <strong>Tambah</strong>. Stok berkurang saat pesanan tersimpan dan kembali jika pesanan dibatalkan. Perubahan stok terlihat di menu customer.</p>
+          <p class="stock-message" id="stock-message" role="status" aria-live="polite"></p>
+          <div class="stock-table-head" aria-hidden="true"><span>Menu</span><span>Stok saat ini</span><span>Penyesuaian stok</span></div>
+          <div id="stock-list" class="stock-list" aria-busy="false"></div>
+          <div class="stock-footer">Terakhir diperbarui <strong id="stock-last-updated">—</strong> · otomatis setiap 10 detik</div>
         </section>
 
         <section class="orders-section" id="orders">

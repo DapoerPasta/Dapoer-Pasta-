@@ -16,6 +16,12 @@ module.exports = async function handler(req, res) {
     if (!order) return res.status(404).json({ error: "Pesanan tidak ditemukan." });
     return res.status(200).json({ order });
   } catch (error) {
+    if (error?.code === "ORDER_CANCELLED") {
+      return res.status(409).json({ code: error.code, error: "Pesanan yang dibatalkan tidak dapat dibuka kembali. Buat pesanan baru agar stok diperiksa ulang." });
+    }
+    if (error?.code === "DATABASE_NOT_CONFIGURED" || error?.message === "DATABASE_NOT_CONFIGURED") {
+      return res.status(503).json({ error: "Database belum dikonfigurasi." });
+    }
     console.error("Update order status failed");
     return res.status(500).json({ error: "Status belum dapat diperbarui." });
   }

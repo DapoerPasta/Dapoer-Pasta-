@@ -1,0 +1,4 @@
+.product-stock{margin-top:14px;color:#2e7d55;font-size:.8rem;font-weight:700}
+.product-stock.sold-out,.cart-stock-error{color:#9b423b}
+.add-button:disabled{color:#8c817a;cursor:not-allowed}
+.quantity button:disabled,#checkout-button:disabled{opacity:.45;cursor:not-allowed}
