@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
   if (!message) return res.status(400).json({ reply: "Silakan tulis pertanyaan terlebih dahulu." });
 
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = "gemini-2.5-flash-lite";
+  const model = "gemini-3.5-flash-lite";
   if (!apiKey) {
     return res.status(503).json({ reply: "Chatbot belum diaktifkan. Silakan hubungi WhatsApp Dapoer Pasta untuk pemesanan." });
   }
