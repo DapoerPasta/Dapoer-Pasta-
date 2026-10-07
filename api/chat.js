@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
   if (!message) return res.status(400).json({ reply: "Silakan tulis pertanyaan terlebih dahulu." });
 
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+  const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
   if (!apiKey) {
     return res.status(503).json({ reply: "Chatbot belum diaktifkan. Silakan hubungi WhatsApp Dapoer Pasta untuk pemesanan." });
   }
@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: buildMenuContext() }] },
         contents: [{ role: "user", parts: [{ text: message }] }],
-        generationConfig: { temperature: 0.45, maxOutputTokens: 260 }
+        generationConfig: { maxOutputTokens: 260 }
       })
     });
 
