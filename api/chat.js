@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
   if (!message) return res.status(400).json({ reply: "Silakan tulis pertanyaan terlebih dahulu." });
 
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+  const model = "gemini-2.5-flash-lite";
   if (!apiKey) {
     return res.status(503).json({ reply: "Chatbot belum diaktifkan. Silakan hubungi WhatsApp Dapoer Pasta untuk pemesanan." });
   }
@@ -34,7 +34,7 @@ module.exports = async function handler(req, res) {
 
     const data = await response.json();
     if (!response.ok || data.error) {
-      console.error("Gemini request rejected", response.status);
+      console.error("Gemini request rejected", { status: response.status, model, code: data?.error?.code || null, message: data?.error?.message || null });
       return res.status(502).json({ reply: "Maaf, layanan chat sedang tidak tersedia. Silakan hubungi WhatsApp Dapoer Pasta." });
     }
 
