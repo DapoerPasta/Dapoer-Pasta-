@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
   if (!message) return res.status(400).json({ reply: "Silakan tulis pertanyaan terlebih dahulu." });
 
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
   if (!apiKey) {
     return res.status(503).json({ reply: "Chatbot belum diaktifkan. Silakan hubungi WhatsApp Dapoer Pasta untuk pemesanan." });
   }
@@ -34,14 +34,14 @@ module.exports = async function handler(req, res) {
 
     const data = await response.json();
     if (!response.ok || data.error) {
-      console.error("Gemini request rejected", response.status);
+      console.error("Gemini request rejected", {\n        status: response.status,\n        model,\n        code: data?.error?.code || null,\n        message: data?.error?.message || null,\n        statusText: data?.error?.status || null\n      });
       return res.status(502).json({ reply: "Maaf, layanan chat sedang tidak tersedia. Silakan hubungi WhatsApp Dapoer Pasta." });
     }
 
     const reply = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || "").join("").trim();
     return res.status(200).json({ reply: reply || "Maaf, saya belum mendapat jawaban. Silakan hubungi WhatsApp Dapoer Pasta." });
   } catch (error) {
-    console.error("Chat function failed");
+    console.error("Chat function failed", {\n      model,\n      name: error?.name || "Error",\n      message: error?.message || "Unknown error"\n    });
     return res.status(500).json({ reply: "Maaf, asisten sedang sibuk. Silakan hubungi WhatsApp Dapoer Pasta." });
   }
 };
