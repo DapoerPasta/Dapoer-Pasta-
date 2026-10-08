@@ -101,6 +101,79 @@ describe("real PostgreSQL stock transactions", { skip: !enabled, concurrency: fa
     assert.equal(await stock(), 3);
   });
 
+  test("exact stock edits can increase, decrease and clear previously entered counts", async () => {
+    assert.equal((await inventory.setStock(firstProduct.id, 12, 0)).stock, 12);
+    assert.equal((await inventory.setStock(firstProduct.id, 3, 12)).stock, 3);
+    assert.equal((await inventory.setStock(firstProduct.id, 0, 3)).stock, 0);
+    assert.equal((await inventory.setStock(firstProduct.id, inventory.MAX_STOCK, 0)).stock, inventory.MAX_STOCK);
+    assert.equal((await inventory.setStock(firstProduct.id, 0, inventory.MAX_STOCK)).stock, 0);
+    assert.equal(await stock(), 0);
+  });
+
+  test("an edit based on stale stock cannot overwrite a completed checkout or admin adjustment", async () => {
+    await inventory.setStock(firstProduct.id, 5, 0);
+    await db.saveOrder(order([[firstProduct, 1]]));
+    await assert.rejects(() => inventory.setStock(firstProduct.id, 0, 5), error => error.code === "STOCK_CONFLICT");
+    assert.equal(await stock(), 4);
+    await inventory.adjustStock(firstProduct.id, 2);
+    await assert.rejects(() => inventory.setStock(firstProduct.id, 3, 4), error => error.code === "STOCK_CONFLICT");
+    assert.equal(await stock(), 6);
+    assert.equal((await inventory.setStock(firstProduct.id, 3, 6)).stock, 3);
+  });
+
+  test("two editors using the same observed stock cannot replace each other's updates", async () => {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      await reset();
+      await inventory.adjustStock(firstProduct.id, 5);
+      const results = await Promise.allSettled([
+        inventory.setStock(firstProduct.id, 0, 5),
+        inventory.setStock(firstProduct.id, 8, 5)
+      ]);
+      assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
+      assert.equal(results.find(result => result.status === "rejected").reason.code, "STOCK_CONFLICT");
+      assert.equal(await stock(), results.find(result => result.status === "fulfilled").value.stock);
+    }
+  });
+
+  test("checkout racing an exact stock edit keeps the order deduction or rejects the stale edit", async () => {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      await reset();
+      await inventory.adjustStock(firstProduct.id, 5);
+      const results = await Promise.allSettled([
+        db.saveOrder(order([[firstProduct, 1]])),
+        inventory.setStock(firstProduct.id, 3, 5)
+      ]);
+      assert.equal(results[0].status, "fulfilled");
+      if (results[1].status === "fulfilled") assert.equal(await stock(), 2);
+      else {
+        assert.equal(results[1].reason.code, "STOCK_CONFLICT");
+        assert.equal(await stock(), 4);
+      }
+      assert.equal((await pool.query("SELECT COUNT(*)::integer AS count FROM orders")).rows[0].count, 1);
+    }
+  });
+
+  test("clearing stock while checkout runs cannot erase a successful reservation", async () => {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      await reset();
+      await inventory.adjustStock(firstProduct.id, 5);
+      const results = await Promise.allSettled([
+        db.saveOrder(order([[firstProduct, 1]])),
+        inventory.setStock(firstProduct.id, 0, 5)
+      ]);
+      assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
+      if (results[0].status === "fulfilled") {
+        assert.equal(results[1].reason.code, "STOCK_CONFLICT");
+        assert.equal(await stock(), 4);
+      } else {
+        assert.match(results[0].reason.message, /INSUFFICIENT_STOCK/);
+        assert.equal(await stock(), 0);
+      }
+      const orders = (await pool.query("SELECT COUNT(*)::integer AS count FROM orders")).rows[0].count;
+      assert.equal(orders, results[0].status === "fulfilled" ? 1 : 0);
+    }
+  });
+
   test("a later insufficient item rolls back previous deductions and saves no order", async () => {
     await inventory.adjustStock(firstProduct.id, 3);
     await assert.rejects(() => db.saveOrder(order([[firstProduct, 2], [secondProduct, 1]])), /INSUFFICIENT_STOCK/);

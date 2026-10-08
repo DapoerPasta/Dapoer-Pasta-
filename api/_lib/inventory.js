@@ -16,6 +16,13 @@ function validateStockAdjustment(id, delta) {
   }
 }
 
+function validateStockSet(id, stock, expectedStock) {
+  const validCount = value => Number.isSafeInteger(value) && value >= 0 && value <= MAX_STOCK;
+  if (!byId.has(id) || !validCount(stock) || !validCount(expectedStock)) {
+    throw inventoryError("INVALID_STOCK_SET");
+  }
+}
+
 async function listInventory() {
   const sql = await ensureSchema();
   if (!sql) throw inventoryError("DATABASE_NOT_CONFIGURED");
@@ -40,4 +47,19 @@ async function adjustStock(id, delta) {
   return { ...byId.get(id), stock: Number(rows[0].stock) };
 }
 
-module.exports = { MAX_STOCK, listInventory, adjustStock, validateStockAdjustment };
+async function setStock(id, stock, expectedStock) {
+  validateStockSet(id, stock, expectedStock);
+  const sql = await ensureSchema();
+  if (!sql) throw inventoryError("DATABASE_NOT_CONFIGURED");
+  // Compare and set prevents a stale editor from replacing a checkout or
+  // another administrator's change, including when clearing stock to zero.
+  const rows = await sql`
+    UPDATE inventory SET stock = ${stock}, updated_at = NOW()
+    WHERE product_id = ${id} AND stock = ${expectedStock}
+    RETURNING product_id, stock
+  `;
+  if (!rows[0]) throw inventoryError("STOCK_CONFLICT");
+  return { ...byId.get(id), stock: Number(rows[0].stock) };
+}
+
+module.exports = { MAX_STOCK, listInventory, adjustStock, setStock, validateStockAdjustment, validateStockSet };
