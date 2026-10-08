@@ -1,9 +1,11 @@
 (() => {
   const POLL_INTERVAL = 10000;
-  const MAX_ADJUSTMENT = 1000000;
+  const MAX_STOCK = 1000000;
+  const ACTIONS = ["add", "subtract", "set", "clear"];
   const state = { authenticated: false, products: new Map(), rows: new Map(), timer: null, request: null, generation: 0, saving: null, editing: null, initialized: false };
   const $ = selector => document.querySelector(selector);
   const rupiah = value => `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
+  const units = value => value === null ? "—" : `${value.toLocaleString("id-ID")} unit`;
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
@@ -11,10 +13,11 @@
   function init() {
     if (!$("#stock-list")) return;
     $("#refresh-stock").addEventListener("click", () => loadStock(false));
-    $("#stock-edit-form").addEventListener("submit", event => { event.preventDefault(); saveExactStock(); });
+    $("#stock-edit-form").addEventListener("submit", event => { event.preventDefault(); saveStock(); });
     $("#stock-edit-quantity").addEventListener("input", updateEditor);
-    $("#stock-edit-cancel").addEventListener("click", () => closeEditor());
-    $("#stock-edit-close").addEventListener("click", () => closeEditor());
+    ACTIONS.forEach(action => $("#stock-action-" + action).addEventListener("click", () => selectAction(action)));
+    $("#stock-edit-cancel").addEventListener("click", closeEditor);
+    $("#stock-edit-close").addEventListener("click", closeEditor);
     $("#stock-editor").addEventListener("cancel", event => { event.preventDefault(); closeEditor(); });
     document.addEventListener("dapoer:admin-session", event => setAuthenticated(!!event.detail?.authenticated));
     document.addEventListener("dapoer:stock-changed", () => loadStock(true));
@@ -67,10 +70,8 @@
     const value = input.value.trim();
     if (!/^\d+$/.test(value)) return null;
     const quantity = Number(value);
-    return Number.isSafeInteger(quantity) && quantity >= minimum && quantity <= MAX_ADJUSTMENT ? quantity : null;
+    return Number.isSafeInteger(quantity) && quantity >= minimum && quantity <= MAX_STOCK ? quantity : null;
   }
-
-  function adjustment(input) { return quantityValue(input); }
 
   function currentStock(product) {
     return Number.isSafeInteger(product?.stock) && product.stock >= 0 ? product.stock : null;
@@ -82,18 +83,9 @@
     $("#refresh-stock").textContent = state.request && !state.request.silent ? "↻ Memuat…" : "↻ Refresh stok";
     $("#stock-list").setAttribute("aria-busy", String(busy));
     state.rows.forEach((row, id) => {
-      const quantity = adjustment(row.input);
-      const stock = currentStock(state.products.get(id)) ?? 0;
-      row.input.disabled = !state.authenticated || !!state.saving;
-      row.add.disabled = !state.authenticated || !!state.saving || quantity === null || stock + quantity > MAX_ADJUSTMENT;
-      row.subtract.disabled = !state.authenticated || !!state.saving || quantity === null || quantity > stock;
-      row.edit.disabled = !state.authenticated || !!state.saving || currentStock(state.products.get(id)) === null;
-      row.clear.disabled = !state.authenticated || !!state.saving || stock === 0;
+      row.manage.disabled = !state.authenticated || !!state.saving;
       row.root.classList.toggle("saving", state.saving?.id === id);
-      row.add.textContent = state.saving?.id === id && state.saving.delta > 0 ? "Menyimpan…" : "+ Tambah";
-      row.subtract.textContent = state.saving?.id === id && state.saving.delta < 0 ? "Menyimpan…" : "− Kurangi";
-      row.preview.textContent = quantity === null ? "Isi jumlah untuk menambah atau mengurangi stok." :
-        `Tambah → ${stock + quantity <= MAX_ADJUSTMENT ? (stock + quantity).toLocaleString("id-ID") : "melebihi batas"} · Kurangi → ${quantity <= stock ? (stock - quantity).toLocaleString("id-ID") : "stok tidak cukup"}`;
+      row.manage.textContent = state.saving?.id === id ? "Menyimpan…" : "Kelola stok";
     });
     updateEditor();
   }
@@ -104,38 +96,17 @@
     const name = document.createElement("h3"); name.className = "stock-product-name";
     const meta = document.createElement("p"); meta.className = "stock-product-meta";
     info.append(name, meta);
-    const actions = document.createElement("div"); actions.className = "stock-row-actions";
-    const edit = document.createElement("button"); edit.type = "button"; edit.className = "stock-edit"; edit.textContent = "Edit stok";
-    const clear = document.createElement("button"); clear.type = "button"; clear.className = "stock-clear"; clear.textContent = "Kosongkan";
-    edit.setAttribute("aria-label", `Edit stok ${product.name}`);
-    clear.setAttribute("aria-label", `Kosongkan stok ${product.name}`);
-    edit.addEventListener("click", () => openEditor(product.id));
-    clear.addEventListener("click", () => openEditor(product.id, "clear"));
-    actions.append(edit, clear); info.append(actions);
     const current = document.createElement("div"); current.className = "stock-current";
     const count = document.createElement("span"); count.className = "stock-count";
     const status = document.createElement("span"); status.className = "stock-status";
     current.append(count, status);
-    const controls = document.createElement("div"); controls.className = "stock-adjustment";
-    const label = document.createElement("label"); label.className = "stock-adjustment-label";
-    const input = document.createElement("input");
-    input.id = `stock-adjust-${product.id}`; input.type = "number"; input.min = "1"; input.max = String(MAX_ADJUSTMENT); input.step = "1";
-    input.inputMode = "numeric"; input.placeholder = "Jumlah";
-    input.setAttribute("aria-label", `Jumlah penyesuaian stok ${product.name}`);
-    const preview = document.createElement("p"); preview.className = "stock-adjustment-preview";
-    preview.id = `stock-preview-${product.id}`; input.setAttribute("aria-describedby", preview.id);
-    label.htmlFor = input.id; label.textContent = "Jumlah yang ditambah / dikurangi";
-    const buttons = document.createElement("div"); buttons.className = "stock-adjustment-controls";
-    const add = document.createElement("button"); add.type = "button"; add.className = "stock-add"; add.textContent = "+ Tambah";
-    const subtract = document.createElement("button"); subtract.type = "button"; subtract.className = "stock-subtract"; subtract.textContent = "− Kurangi";
-    add.setAttribute("aria-label", `Tambah stok ${product.name}`);
-    subtract.setAttribute("aria-label", `Kurangi stok ${product.name}`);
-    input.addEventListener("input", updateControls);
-    add.addEventListener("click", () => adjustStock(product.id, 1));
-    subtract.addEventListener("click", () => adjustStock(product.id, -1));
-    buttons.append(input, add, subtract); controls.append(label, buttons, preview);
-    root.append(info, current, controls);
-    return { root, name, meta, count, status, input, add, subtract, edit, clear, preview };
+    const manage = document.createElement("button"); manage.type = "button"; manage.className = "stock-manage"; manage.textContent = "Kelola stok";
+    manage.setAttribute("aria-label", `Kelola stok ${product.name}`);
+    manage.setAttribute("aria-haspopup", "dialog");
+    manage.setAttribute("aria-controls", "stock-editor");
+    manage.addEventListener("click", () => openEditor(product.id));
+    root.append(info, current, manage);
+    return { root, name, meta, count, status, manage };
   }
 
   function renderProducts(products) {
@@ -153,7 +124,7 @@
       const stock = currentStock(product);
       row.name.textContent = product.name;
       row.meta.textContent = `${rupiah(product.price)} / paket`;
-      row.count.textContent = stock === null ? "—" : `${stock.toLocaleString("id-ID")} unit`;
+      row.count.textContent = units(stock);
       row.status.textContent = stock === null ? "Belum diatur" : stock === 0 ? "Habis" : "Tersedia";
       row.status.classList.toggle("unset", stock === null);
       row.status.classList.toggle("empty", stock === 0);
@@ -161,11 +132,6 @@
     state.rows.forEach((row, id) => {
       if (!nextIds.has(id)) { row.root.remove(); state.rows.delete(id); state.products.delete(id); }
     });
-    updateCaption();
-    updateControls();
-  }
-
-  function updateCaption() {
     let available = 0, empty = 0, unset = 0;
     state.products.forEach(product => {
       const stock = currentStock(product);
@@ -174,6 +140,7 @@
       else available++;
     });
     $("#stock-caption").textContent = `${available} menu tersedia · ${empty} habis${unset ? ` · ${unset} belum diatur` : ""}`;
+    updateControls();
   }
 
   function updatedTime() {
@@ -185,24 +152,38 @@
     $("#stock-edit-message").classList.toggle("error", error);
   }
 
-  function openEditor(id, action = "set") {
-    if (!state.authenticated || state.saving || !["set", "clear"].includes(action)) return;
+  function allowedAction(action, stock) {
+    return ACTIONS.includes(action) && (action === "add" || (stock !== null && (action === "set" || stock > 0)));
+  }
+
+  function openEditor(id, action = "add") {
+    if (!state.authenticated || state.saving || !state.products.has(id)) return;
     const product = state.products.get(id);
     const stock = currentStock(product);
-    if (stock === null || (action === "clear" && stock === 0)) return;
-    state.editing = { id, expectedStock: stock, action, conflicted: false };
+    if (!allowedAction(action, stock)) return;
+    state.editing = { id, expectedStock: stock, action, conflicted: false, drafts: { add: "", subtract: "", set: stock === null ? "" : String(stock) } };
     $("#stock-edit-name").textContent = product.name;
-    $("#stock-edit-title").textContent = action === "clear" ? "Kosongkan stok?" : "Edit jumlah stok";
-    $("#stock-edit-description").textContent = action === "clear" ?
-      "Stok menu ini akan menjadi 0. Menu tetap tersimpan dan bisa diisi lagi kapan saja." :
-      "Masukkan jumlah stok fisik yang benar. Angka ini akan menggantikan stok saat ini.";
-    $("#stock-edit-field").hidden = action === "clear";
-    $("#stock-edit-warning").hidden = action !== "clear";
-    $("#stock-edit-quantity").value = action === "clear" ? "0" : String(stock);
+    $("#stock-edit-title").textContent = "Kelola stok";
+    $("#stock-edit-quantity").value = action === "clear" ? "0" : state.editing.drafts[action];
     editorMessage("");
     updateEditor();
     if (!$("#stock-editor").open) $("#stock-editor").showModal();
-    if (action === "clear") $("#stock-edit-cancel").focus();
+    focusEditor();
+  }
+
+  function selectAction(action) {
+    const editing = state.editing;
+    if (!editing || state.saving || action === editing.action || !allowedAction(action, currentStock(state.products.get(editing.id)))) return;
+    if (editing.action !== "clear") editing.drafts[editing.action] = $("#stock-edit-quantity").value;
+    editing.action = action;
+    $("#stock-edit-quantity").value = action === "clear" ? "0" : editing.drafts[action];
+    if (!editing.conflicted) editorMessage("");
+    updateEditor();
+    focusEditor();
+  }
+
+  function focusEditor() {
+    if (state.editing?.action === "clear") $("#stock-edit-cancel").focus();
     else { $("#stock-edit-quantity").focus(); $("#stock-edit-quantity").select(); }
   }
 
@@ -212,51 +193,81 @@
     state.editing = null;
     if ($("#stock-editor").open) $("#stock-editor").close();
     editorMessage("");
-    if (state.authenticated && editing) {
-      const row = state.rows.get(editing.id);
-      (editing.action === "clear" ? row?.clear : row?.edit)?.focus();
-    }
+    if (state.authenticated && editing) state.rows.get(editing.id)?.manage.focus();
+  }
+
+  function editorValues() {
+    const editing = state.editing;
+    const latest = currentStock(state.products.get(editing.id));
+    const relative = editing.action === "add" || editing.action === "subtract";
+    const before = relative ? latest : editing.expectedStock;
+    const quantity = editing.action === "clear" ? 0 : quantityValue($("#stock-edit-quantity"), relative ? 1 : 0);
+    let after = quantity;
+    if (relative && quantity !== null) after = (latest ?? 0) + (editing.action === "subtract" ? -quantity : quantity);
+    const valid = quantity !== null && after >= 0 && after <= MAX_STOCK && allowedAction(editing.action, latest) &&
+      (relative || (editing.expectedStock !== null && after !== editing.expectedStock));
+    return { relative, before, quantity, after, valid };
   }
 
   function updateEditor() {
     const editing = state.editing;
     if (!editing) return;
     const busy = !!state.saving;
-    const quantity = quantityValue($("#stock-edit-quantity"), 0);
-    $("#stock-edit-before").textContent = `${editing.expectedStock.toLocaleString("id-ID")} unit`;
-    $("#stock-edit-after").textContent = quantity === null ? "—" : `${quantity.toLocaleString("id-ID")} unit`;
-    $("#stock-edit-warning").hidden = editing.action !== "clear" && quantity !== 0;
-    $("#stock-edit-quantity").disabled = busy;
+    const latest = currentStock(state.products.get(editing.id));
+    const { relative, before, quantity, after, valid } = editorValues();
+    const labels = {
+      add: ["Jumlah yang ditambahkan", "Jumlah ini ditambahkan ke stok yang tersedia.", `Maksimal ${(MAX_STOCK - (latest ?? 0)).toLocaleString("id-ID")} unit tambahan.`],
+      subtract: ["Jumlah yang dikurangi", "Jumlah ini dikurangi dari stok yang tersedia.", `Maksimal ${(latest ?? 0).toLocaleString("id-ID")} unit pengurangan.`],
+      set: ["Jumlah stok akhir", "Masukkan total stok fisik yang benar untuk mengganti jumlah saat ini.", "Isi 0 untuk menandai stok habis. Maksimal 1.000.000 unit."],
+      clear: ["", "Seluruh stok menjadi 0. Menu tetap tersimpan dan bisa diisi kembali kapan saja.", ""]
+    };
+    $("#stock-edit-label").textContent = labels[editing.action][0];
+    $("#stock-edit-description").textContent = labels[editing.action][1];
+    $("#stock-edit-hint").textContent = labels[editing.action][2];
+    $("#stock-edit-before-label").textContent = relative ? "Stok saat ini" : "Stok saat dibuka";
+    $("#stock-edit-before").textContent = units(before);
+    $("#stock-edit-after").textContent = valid || (quantity !== null && after >= 0 && after <= MAX_STOCK) ? units(after) : "—";
+    $("#stock-edit-field").hidden = editing.action === "clear";
+    $("#stock-edit-warning").hidden = quantity === null || after !== 0;
+    $("#stock-edit-quantity").min = relative ? "1" : "0";
+    $("#stock-edit-quantity").max = String(editing.action === "subtract" ? (latest ?? 0) : editing.action === "add" ? MAX_STOCK - (latest ?? 0) : MAX_STOCK);
+    $("#stock-edit-quantity").placeholder = relative ? "Masukkan jumlah" : "Jumlah stok akhir";
+    $("#stock-edit-quantity").disabled = busy || editing.action === "clear";
     $("#stock-edit-cancel").disabled = busy;
     $("#stock-edit-close").disabled = busy;
+    ACTIONS.forEach(action => {
+      const button = $("#stock-action-" + action);
+      button.disabled = busy || !allowedAction(action, latest);
+      button.setAttribute("aria-pressed", String(action === editing.action));
+    });
     const save = $("#stock-edit-save");
-    save.disabled = !state.authenticated || busy || editing.conflicted || quantity === null || quantity === editing.expectedStock;
-    save.textContent = busy ? "Menyimpan…" : editing.action === "clear" ? "Ya, kosongkan stok" : "Simpan stok";
-    save.classList.toggle("danger", editing.action === "clear" || quantity === 0);
+    save.disabled = !state.authenticated || busy || editing.conflicted || !valid;
+    save.textContent = busy ? "Menyimpan…" : ({ add: "Tambah stok", subtract: "Kurangi stok", set: "Simpan jumlah", clear: "Ya, kosongkan stok" })[editing.action];
+    save.classList.toggle("danger", editing.action === "clear" || (quantity !== null && after === 0));
     $("#stock-editor").setAttribute("aria-busy", String(busy));
   }
 
-  async function saveExactStock() {
+  async function saveStock() {
     if (!state.authenticated || state.saving || !state.editing || state.editing.conflicted) return;
     const editing = state.editing;
-    const stock = quantityValue($("#stock-edit-quantity"), 0);
-    if (stock === null) {
-      editorMessage("Masukkan jumlah bulat antara 0 dan 1.000.000.", true);
+    const { relative, quantity, after, valid } = editorValues();
+    if (!valid) {
+      editorMessage(editing.action === "subtract" && quantity !== null && after < 0 ? "Jumlah pengurangan melebihi stok saat ini." :
+        editing.action === "add" && quantity !== null && after > MAX_STOCK ? "Stok akhir tidak boleh melebihi 1.000.000 unit." :
+        "Masukkan jumlah bulat sesuai batas yang ditampilkan dan pastikan stok berubah.", true);
       $("#stock-edit-quantity").focus();
       return;
     }
-    if (stock === editing.expectedStock) { editorMessage("Jumlah stok belum berubah."); return; }
+    const payload = relative ? { id: editing.id, delta: editing.action === "subtract" ? -quantity : quantity } :
+      { id: editing.id, stock: after, expectedStock: editing.expectedStock };
     cancelRead();
-    const mutation = { id: editing.id, stock, expectedStock: editing.expectedStock, generation: state.generation };
+    const mutation = { id: editing.id, generation: state.generation };
     state.saving = mutation;
     editorMessage("");
     updateControls();
     let refresh = false;
     try {
-      const response = await fetch("/api/admin/stock", {
-        method: "PATCH", headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ id: editing.id, stock, expectedStock: editing.expectedStock })
-      });
+      const response = await fetch("/api/admin/stock", { method: "PATCH", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) });
       const data = await response.json();
       if (state.saving !== mutation || !state.authenticated || mutation.generation !== state.generation) return;
       if (response.status === 401) { sessionExpired(); return; }
@@ -264,18 +275,17 @@
         if (data.code === "STOCK_CONFLICT") {
           editing.conflicted = true;
           refresh = true;
-          throw new Error("Stok sudah berubah karena pesanan atau penyesuaian lain. Tutup jendela ini, lalu buka Edit stok atau Kosongkan lagi untuk memeriksa jumlah terbaru.");
+          throw new Error("Stok sudah berubah karena pesanan atau penyesuaian lain. Tutup lalu buka Kelola stok kembali untuk memeriksa jumlah terbaru.");
         }
+        if (data.code === "INSUFFICIENT_STOCK") refresh = true;
         throw new Error(data.error || "Stok gagal diperbarui.");
       }
-      if (!data.product || data.product.id !== editing.id || currentStock(data.product) === null) {
-        throw new Error("Hasil perubahan belum dapat dipastikan. Tutup jendela ini dan refresh stok sebelum mencoba lagi.");
-      }
+      if (!data.product || data.product.id !== editing.id || currentStock(data.product) === null) throw new Error("Hasil perubahan belum dapat dipastikan. Tutup jendela ini dan refresh stok sebelum mencoba lagi.");
       state.products.set(editing.id, data.product);
-      state.rows.get(editing.id).input.value = "";
       renderProducts(Array.from(state.products.values()));
       updatedTime();
-      message(data.product.stock === 0 ? `Stok ${data.product.name} dikosongkan. Menu ditandai habis dan bisa diisi kembali.` :
+      message(relative ? `Stok ${data.product.name} ${editing.action === "add" ? "ditambah" : "dikurangi"} ${quantity} unit. Stok sekarang ${data.product.stock} unit.` :
+        data.product.stock === 0 ? `Stok ${data.product.name} dikosongkan. Menu ditandai habis dan bisa diisi kembali.` :
         `Stok ${data.product.name} diperbarui dari ${editing.expectedStock} menjadi ${data.product.stock} unit.`);
       state.saving = null;
       closeEditor();
@@ -315,43 +325,6 @@
       if (!state.initialized) $("#stock-caption").textContent = "Stok belum tersedia.";
     } finally {
       if (state.request === request) { state.request = null; updateControls(); }
-    }
-  }
-
-  async function adjustStock(id, direction) {
-    if (!state.authenticated || state.saving) return;
-    const row = state.rows.get(id);
-    if (!row) return;
-    const quantity = adjustment(row.input);
-    if (quantity === null) { message("Masukkan jumlah bulat antara 1 dan 1.000.000.", true); row.input.focus(); return; }
-    const delta = quantity * direction;
-    if (direction !== 1 && direction !== -1) return;
-    if (delta < 0 && quantity > (currentStock(state.products.get(id)) ?? 0)) { message("Jumlah pengurangan melebihi stok saat ini. Refresh stok untuk memeriksa jumlah terbaru.", true); return; }
-    cancelRead();
-    const mutation = { id, delta, generation: state.generation };
-    state.saving = mutation;
-    message("");
-    updateControls();
-    try {
-      const response = await fetch("/api/admin/stock", { method: "PATCH", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ id, delta }) });
-      const data = await response.json();
-      if (state.saving !== mutation || !state.authenticated || mutation.generation !== state.generation) return;
-      if (response.status === 401) { sessionExpired(); return; }
-      if (!response.ok) throw new Error(data.error || "Stok gagal diperbarui.");
-      if (!data.product || data.product.id !== id || currentStock(data.product) === null) throw new Error("Hasil perubahan stok belum tersedia. Refresh stok sebelum mencoba lagi.");
-      state.products.set(id, data.product);
-      row.input.value = "";
-      renderProducts(Array.from(state.products.values()));
-      updatedTime();
-      message(`Stok ${data.product.name} ${delta > 0 ? "ditambah" : "dikurangi"} ${quantity} unit. Stok sekarang ${data.product.stock} unit.`);
-    } catch (error) {
-      if (state.saving !== mutation) return;
-      message(error.message || "Stok gagal diperbarui. Refresh stok untuk memastikan jumlah terbaru.", true);
-    } finally {
-      if (state.saving === mutation) {
-        state.saving = null;
-        updateControls();
-      }
     }
   }
 })();

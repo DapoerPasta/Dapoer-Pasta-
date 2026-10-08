@@ -90,9 +90,12 @@ Dashboard tidak menampilkan data tanpa session admin yang valid.
 
 ## Stok Menu
 
-Di `/admin/`, buka **Stok Menu**. Masukkan jumlah penyesuaian pada produk,
-lalu pilih **Tambah** atau **Kurangi**. Misalnya stok saat ini 5, memasukkan 3
-dan memilih Tambah menghasilkan stok 8. Persediaan tersimpan di tabel
+Di `/admin/`, buka **Stok Menu**, lalu pilih tombol **Kelola stok** pada produk.
+Satu jendela menyediakan **Tambah**, **Kurangi**, **Atur jumlah**, dan
+**Kosongkan**. Tambah/Kurangi memakai jumlah selisih; misalnya stok saat ini 5,
+memasukkan 3 pada Tambah menghasilkan stok 8. Atur jumlah memakai stok akhir;
+memasukkan 3 menghasilkan stok 3. Perbandingan sebelum/sesudah dan penjelasan
+input mengikuti pilihan tindakan. Persediaan tersimpan di tabel
 `inventory` pada database Neon yang sama, bukan di browser admin.
 
 Pada penggunaan pertama, seluruh stok dimulai dari **0**. Setelah deployment,
@@ -121,11 +124,12 @@ Endpoint Vercel `GET /api/menu` menyertakan `stock` untuk setiap produk.
 `GET /api/admin/stock` dan `PATCH /api/admin/stock` (JSON `{ "id": "product-id",
 "delta": 3 }`) memakai sesi admin yang sama. Nilai delta positif menambah
 persediaan, nilai negatif mengurangi; saldo tidak bisa menjadi negatif.
-Stok yang sudah dimasukkan tetap dapat diedit setiap saat. Pilih **Edit stok**
+Stok yang sudah dimasukkan tetap dapat diedit setiap saat. Di **Kelola stok**,
+pilih **Atur jumlah**
 untuk memasukkan jumlah akhir sesuai stok fisik (termasuk 0), lalu periksa
-perbandingan sebelum/sesudah dan pilih **Simpan stok**. Pilih **Kosongkan**
+perbandingan sebelum/sesudah dan pilih **Simpan jumlah**. Pilih **Kosongkan**
 untuk menghapus jumlah persediaan dengan konfirmasi. Menu tetap ada, ditandai
-habis untuk pelanggan, dan bisa diisi kembali lewat Tambah atau Edit stok.
+habis untuk pelanggan, dan bisa diisi kembali lewat Tambah atau Atur jumlah.
 Mengosongkan stok tidak menghapus atau membatalkan pesanan yang sudah dibuat.
 
 Pengaturan jumlah akhir memakai `PATCH /api/admin/stock` dengan JSON
@@ -135,7 +139,9 @@ dibuka dikirim sebagai `expectedStock`; jika pesanan atau admin lain sudah
 mengubahnya, API mengembalikan `409 STOCK_CONFLICT` tanpa menimpa stok terbaru.
 Dashboard memuat ulang persediaan dan meminta admin menutup lalu membuka
 editor kembali untuk memeriksa jumlah terbaru. Input yang sedang diedit
-tetap terjaga selama refresh otomatis. Permintaan jumlah akhir tidak dapat
+tetap terjaga selama refresh otomatis dan saat berpindah pilihan tindakan.
+Pratinjau Tambah/Kurangi mengikuti stok terbaru; Atur jumlah/Kosongkan tetap
+memakai stok yang diperiksa saat jendela dibuka. Permintaan jumlah akhir tidak dapat
 digabungkan dengan `delta`; format tambah/kurangi sebelumnya tetap berlaku.
 
 Endpoint admin mempertahankan proteksi asal permintaan, JSON, ukuran payload,

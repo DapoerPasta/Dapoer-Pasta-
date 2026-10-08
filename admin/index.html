@@ -11,10 +11,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/admin.css?v=20261005-tracklink">
   <link rel="stylesheet" href="/assets/css/admin-history.css">
-  <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261008-edit-stock">
+  <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261008-manage-stock">
   <script src="/assets/js/admin.js?v=20261007-stock" defer></script>
   <script src="/assets/js/admin-history-loader.js" defer></script>
-  <script src="/assets/js/admin-stock.js?v=20261008-edit-stock" defer></script>
+  <script src="/assets/js/admin-stock.js?v=20261008-manage-stock" defer></script>
 </head>
 <body>
   <main class="admin-shell">
@@ -108,28 +108,37 @@
             </div>
             <button id="refresh-stock" class="stock-refresh" type="button">↻ Refresh stok</button>
           </div>
-          <div class="stock-guide"><strong>Persediaan selalu bisa disesuaikan.</strong><span>Gunakan <b>Tambah / Kurangi</b> untuk penyesuaian, <b>Edit stok</b> untuk mengganti jumlah, atau <b>Kosongkan</b> untuk menjadikan stok 0. Menu tetap tersimpan dan bisa diisi lagi.</span></div>
+          <p class="stock-guide">Pilih <strong>Kelola stok</strong> untuk menambah, mengurangi, mengatur jumlah akhir, atau mengosongkan persediaan menu.</p>
           <p class="stock-message" id="stock-message" role="status" aria-live="polite"></p>
-          <div class="stock-table-head" aria-hidden="true"><span>Menu</span><span>Stok saat ini</span><span>Penyesuaian stok</span></div>
+          <div class="stock-table-head" aria-hidden="true"><span>Menu</span><span>Stok saat ini</span><span>Kelola</span></div>
           <div id="stock-list" class="stock-list" aria-busy="false"></div>
           <div class="stock-footer"><span>Terakhir diperbarui <strong id="stock-last-updated">—</strong> · otomatis setiap 10 detik</span><span>Stok berkurang saat pesanan tersimpan dan kembali saat dibatalkan.</span></div>
           <dialog id="stock-editor" class="stock-editor" aria-labelledby="stock-edit-title" aria-describedby="stock-edit-description">
             <form id="stock-edit-form" novalidate>
               <div class="stock-editor-head">
-                <div><p class="eyebrow">Kelola persediaan</p><h2 id="stock-edit-title">Edit jumlah stok</h2></div>
+                <div><p class="eyebrow">Kelola persediaan</p><h2 id="stock-edit-title">Kelola stok</h2></div>
                 <button id="stock-edit-close" class="stock-editor-close" type="button" aria-label="Tutup editor stok">×</button>
               </div>
               <p id="stock-edit-name" class="stock-editor-name"></p>
+              <fieldset class="stock-editor-modes">
+                <legend>Tindakan stok</legend>
+                <div class="stock-editor-mode-buttons">
+                  <button id="stock-action-add" type="button" aria-pressed="true">+ Tambah</button>
+                  <button id="stock-action-subtract" type="button" aria-pressed="false">− Kurangi</button>
+                  <button id="stock-action-set" type="button" aria-pressed="false">Atur jumlah</button>
+                  <button id="stock-action-clear" type="button" aria-pressed="false">Kosongkan</button>
+                </div>
+              </fieldset>
               <p id="stock-edit-description" class="stock-editor-description"></p>
               <div class="stock-editor-summary">
-                <div><span>Stok saat dibuka</span><strong id="stock-edit-before">—</strong></div>
+                <div><span id="stock-edit-before-label">Stok saat ini</span><strong id="stock-edit-before">—</strong></div>
                 <span class="stock-editor-arrow" aria-hidden="true">→</span>
-                <div><span>Setelah disimpan</span><strong id="stock-edit-after">—</strong></div>
+                <div><span>Setelah disimpan</span><strong id="stock-edit-after" aria-live="polite">—</strong></div>
               </div>
               <div id="stock-edit-field" class="stock-editor-field">
-                <label for="stock-edit-quantity">Jumlah stok baru</label>
+                <label id="stock-edit-label" for="stock-edit-quantity">Jumlah yang ditambahkan</label>
                 <div class="stock-editor-input"><input id="stock-edit-quantity" type="number" min="0" max="1000000" step="1" inputmode="numeric" aria-describedby="stock-edit-hint"><span>unit</span></div>
-                <p id="stock-edit-hint">Isi 0 untuk menandai stok habis. Maksimal 1.000.000 unit.</p>
+                <p id="stock-edit-hint">Masukkan jumlah stok yang akan ditambahkan.</p>
               </div>
               <p id="stock-edit-warning" class="stock-editor-warning" hidden>Pelanggan tidak dapat memesan menu ini sampai stok diisi kembali. Pesanan yang sudah tersimpan tetap ada.</p>
               <p id="stock-edit-message" class="stock-editor-message" role="status" aria-live="polite"></p>
