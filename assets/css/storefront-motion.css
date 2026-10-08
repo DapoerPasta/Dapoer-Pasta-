@@ -4,14 +4,13 @@
   --storefront-motion-short: 180ms;
 }
 
-/* Decorative elements settle once instead of moving while people read. */
-.marquee-track,
+/* Hero artwork settles once; the brand strip keeps its original live motion. */
 .hero-medallion {
   animation: none;
 }
 
 .marquee-track {
-  transform: none;
+  animation: marquee 30s linear infinite;
 }
 
 .motion-enabled .hero-copy.motion-enter > :is(.kicker, h1, .hero-description, .hero-actions, .hero-trust) {
