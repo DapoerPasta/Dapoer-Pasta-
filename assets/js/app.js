@@ -61,9 +61,10 @@ function renderMenu(){
     card.setAttribute("data-motion-key",`product:${p.id}`);
     const media=document.createElement("div"); media.className="product-image";
     const img=document.createElement("img"); img.src=p.image; img.alt=p.name; img.loading="lazy"; img.decoding="async";
+    const plane=document.createElement("div"); plane.className="product-depth-plane"; plane.append(img);
     const badge=document.createElement("span"); badge.className="product-badge"; badge.textContent=p.badge;
     const price=document.createElement("span"); price.className="product-price"; price.textContent=rupiah(p.price);
-    media.append(img,badge,price);
+    media.append(plane,badge,price);
 
     const body=document.createElement("div"); body.className="product-body";
     const idx=document.createElement("div"); idx.className="product-index"; idx.textContent=String(i+1).padStart(2,"0")+".";

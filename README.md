@@ -196,6 +196,13 @@ API animasi/IntersectionObserver tidak tersedia. Animasi masuk bersifat singkat;
 pita teks marquee tetap berjalan kontinu seperti sebelumnya dan berhenti
 saat pengguna memilih pengurangan gerakan atau halaman dicetak.
 
+Efek kedalaman storefront memakai `assets/css/storefront-depth.css` dan
+`assets/js/storefront-depth.js`: artwork DP berlapis dan foto menu miring ringan
+mengikuti mouse pada desktop. Gerak tidak aktif pada layar sentuh atau saat
+pengurangan gerakan dipilih. Efek kembali ke posisi semula saat pointer keluar,
+fokus keyboard, tab tidak aktif, atau halaman dicetak; kartu pengganti dari polling
+tetap mendukung efek tanpa mengubah harga, stok, maupun kontrol belanja.
+
 Jalankan `npm test`. Pengujian memakai fixture lokal dan database/API tiruan; tidak membuat pesanan produksi atau memanggil Gemini sungguhan. Suite mencakup sesi admin, asal permintaan, batas payload, counter lintas instance, perlindungan data nota, format URL yang harus tetap sama, batas tanggal WIB, ringkasan seluruh hari, paginasi, respons terlambat, dan pergantian hari otomatis.
 
 Suite stok juga mencakup kontrol admin, stok habis, perubahan persediaan pada

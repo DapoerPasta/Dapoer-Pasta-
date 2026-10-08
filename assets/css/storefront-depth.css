@@ -1,0 +1,211 @@
+/* A dimensional brand illustration and product-image planes; controls stay flat. */
+.hero-scene {
+  position: relative;
+  width: 100%;
+  min-height: inherit;
+  display: grid;
+  place-items: center;
+  transform-style: preserve-3d;
+  transform: perspective(1100px) rotateX(3deg) rotateY(-6deg);
+  transform-origin: 50% 50%;
+}
+
+.hero-scene::before,
+.hero-scene::after,
+.hero-scene .hero-medallion::before,
+.hero-scene .hero-medallion::after,
+.product-image::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.hero-scene::before {
+  width: 82%;
+  height: 82%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(225, 182, 98, .13), rgba(125, 45, 27, .04) 50%, transparent 70%);
+  transform: translateZ(-85px);
+}
+
+.hero-scene::after {
+  left: 20%;
+  bottom: 20%;
+  width: 64%;
+  height: 14%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(15, 2, 2, .38), transparent 68%);
+  transform: translateZ(-70px) rotateX(70deg);
+}
+
+/* Shared rest transforms also let entrance animations preserve each depth layer. */
+.hero-scene .ring-large {
+  --hero-depth-transform: translateZ(-24px) rotateX(53deg) rotateZ(-17deg);
+  transform: var(--hero-depth-transform);
+  border-color: rgba(234, 195, 124, .45);
+  box-shadow: 0 1px 0 rgba(255, 237, 193, .18), 0 12px 22px rgba(14, 2, 2, .1);
+}
+
+.hero-scene .ring-small {
+  --hero-depth-transform: translateZ(15px) rotateY(-26deg) rotateZ(13deg);
+  transform: var(--hero-depth-transform);
+  border-color: rgba(218, 172, 92, .24);
+  box-shadow: inset 0 1px 0 rgba(255, 231, 177, .1);
+}
+
+.hero-scene .hero-medallion {
+  --hero-depth-transform: translateZ(54px);
+  position: relative;
+  transform: var(--hero-depth-transform);
+  transform-style: preserve-3d;
+  isolation: auto;
+  backdrop-filter: none;
+  border-color: rgba(239, 207, 148, .7);
+  color: #f5dfaf;
+  background: radial-gradient(circle at 27% 19%, rgba(255, 239, 195, .2), transparent 49%),
+    linear-gradient(145deg, #792d27, #45100e 61%, #230605);
+  box-shadow: inset 0 2px 1px rgba(255, 244, 212, .21),
+    inset 0 -5px 12px rgba(17, 2, 2, .28),
+    6px 9px 0 -1px #582014, 8px 11px 0 -1px #ba8847,
+    12px 19px 0 -2px #2f0907, 18px 28px 38px rgba(10, 1, 1, .37);
+}
+
+.hero-scene .hero-medallion::before {
+  inset: 9px;
+  border: 1px solid rgba(239, 208, 148, .35);
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 242, 204, .08);
+  transform: translateZ(2px);
+}
+
+.hero-scene .hero-medallion::after {
+  inset: 16px;
+  border-radius: inherit;
+  background: linear-gradient(140deg, rgba(255, 242, 207, .14), transparent 44%, rgba(255, 239, 195, .025) 73%, transparent);
+  transform: translateZ(3px);
+}
+
+.hero-scene .hero-medallion span {
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+  transform: translateZ(13px);
+  text-shadow: 0 2px 0 rgba(22, 3, 2, .4), 0 -1px 0 rgba(255, 249, 224, .26);
+}
+
+.hero-scene .hero-note {
+  border: 1px solid rgba(255, 242, 216, .85);
+  background: linear-gradient(135deg, #fffdf8, #f5ecdf);
+  box-shadow: 0 2px 0 rgba(255, 255, 255, .22), 8px 14px 28px rgba(13, 2, 2, .24);
+}
+
+.hero-scene .note-left {
+  --hero-depth-transform: translateZ(78px) rotateZ(-4deg);
+  transform: var(--hero-depth-transform);
+}
+
+.hero-scene .note-right {
+  --hero-depth-transform: translateZ(94px) rotateZ(3deg);
+  transform: var(--hero-depth-transform);
+}
+
+/* Only the photograph plane receives pointer tilt; its crop is unchanged. */
+.product-depth-plane {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  flex: 0 0 100%;
+  transform-origin: 50% 50%;
+}
+
+.product-image {
+  box-shadow: inset 0 0 0 1px rgba(152, 107, 60, .07);
+}
+
+.product-image::before {
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(132deg, rgba(255, 255, 255, .3), transparent 38%, transparent 68%, rgba(104, 27, 27, .045));
+  opacity: .65;
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .depth-enabled .hero-art.depth-hover .hero-scene {
+    will-change: transform;
+  }
+
+  .depth-enabled .product-card.depth-hover .product-depth-plane {
+    will-change: transform;
+  }
+
+  .depth-enabled .product-card.depth-hover .product-image {
+    box-shadow: inset 0 0 0 1px rgba(210, 173, 97, .22), 0 8px 24px rgba(65, 29, 15, .08);
+  }
+
+  .depth-enabled .product-image::before {
+    transition: opacity 240ms ease;
+  }
+
+  .depth-enabled .product-card.depth-hover .product-image::before {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 700px) {
+  .hero-scene {
+    transform: perspective(1100px) rotateX(2deg) rotateY(-4deg);
+  }
+
+  .hero-scene .hero-medallion {
+    box-shadow: inset 0 2px 1px rgba(255, 244, 212, .21),
+      inset 0 -4px 10px rgba(17, 2, 2, .28),
+      4px 6px 0 -1px #582014, 6px 8px 0 -1px #ba8847,
+      9px 13px 0 -2px #2f0907, 12px 20px 28px rgba(10, 1, 1, .32);
+  }
+
+  .hero-scene .hero-medallion::before { inset: 7px; }
+  .hero-scene .hero-medallion::after { inset: 12px; }
+
+  .hero-scene .hero-note {
+    box-shadow: 0 2px 0 rgba(255, 255, 255, .2), 5px 9px 19px rgba(13, 2, 2, .2);
+  }
+
+  .hero-scene .note-left {
+    --hero-depth-transform: translateZ(75px) rotateZ(-3deg);
+  }
+
+  .hero-scene .note-right {
+    --hero-depth-transform: translateZ(85px) rotateZ(2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-scene,
+  .product-depth-plane,
+  .product-image::before {
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+
+  .product-depth-plane { transform: none !important; }
+}
+
+@media print {
+  .hero-scene,
+  .hero-scene :is(.hero-ring, .hero-medallion, .hero-medallion span, .hero-note),
+  .product-depth-plane {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  .hero-scene::before,
+  .hero-scene::after,
+  .hero-scene .hero-medallion::before,
+  .hero-scene .hero-medallion::after,
+  .product-image::before {
+    display: none;
+  }
+}

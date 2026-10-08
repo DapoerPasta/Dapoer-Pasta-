@@ -33,39 +33,39 @@
   animation-delay: 200ms;
 }
 
-.motion-enabled .hero-art.motion-enter > .hero-ring {
+.motion-enabled .hero-art.motion-enter .hero-scene > .hero-ring {
   animation: storefront-ring-in 850ms var(--storefront-motion-ease) backwards;
 }
 
-.motion-enabled .hero-art.motion-enter > .ring-small {
+.motion-enabled .hero-art.motion-enter .hero-scene > .ring-small {
   animation-delay: 80ms;
 }
 
-.motion-enabled .hero-art.motion-enter > .hero-medallion {
+.motion-enabled .hero-art.motion-enter .hero-scene > .hero-medallion {
   animation: storefront-medallion-in 780ms var(--storefront-motion-ease) 100ms backwards;
 }
 
-.motion-enabled .hero-art.motion-enter > .hero-note {
+.motion-enabled .hero-art.motion-enter .hero-scene > .hero-note {
   animation: storefront-copy-in 540ms var(--storefront-motion-ease) 220ms backwards;
 }
 
-.motion-enabled .hero-art.motion-enter > .note-right {
+.motion-enabled .hero-art.motion-enter .hero-scene > .note-right {
   animation-delay: 290ms;
 }
 
 @keyframes storefront-copy-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; translate: 0 12px; }
+  to { opacity: 1; translate: 0 0; }
 }
 
 @keyframes storefront-ring-in {
-  from { opacity: 0; transform: scale(.92); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; scale: .92; }
+  to { opacity: 1; scale: 1; }
 }
 
 @keyframes storefront-medallion-in {
-  from { opacity: 0; transform: translateY(14px) scale(.95); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; translate: 0 14px; scale: .95; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
 }
 
 /* Preserve the original image framing on each screen size. */
