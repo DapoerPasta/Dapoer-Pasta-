@@ -187,6 +187,14 @@ Sesudah perubahan di-deploy ke **project Vercel yang sama**, URL situs tetap sam
 
 ## Pengujian
 
+Animasi antarmuka memakai `assets/js/motion.js` dan stylesheet tambahan,
+tanpa mengubah data maupun alur checkout/admin. Elemen muncul satu kali ketika
+masuk layar; kartu menu tidak mengulang animasi saat stok dimuat ulang.
+Gerakan mengikuti pengaturan `prefers-reduced-motion`, berhenti ketika elemen
+menerima fokus keyboard atau nota dicetak, dan tetap menampilkan konten jika
+API animasi/IntersectionObserver tidak tersedia. Animasi dekoratif bersifat
+singkat dan tidak berjalan tanpa henti.
+
 Jalankan `npm test`. Pengujian memakai fixture lokal dan database/API tiruan; tidak membuat pesanan produksi atau memanggil Gemini sungguhan. Suite mencakup sesi admin, asal permintaan, batas payload, counter lintas instance, perlindungan data nota, format URL yang harus tetap sama, batas tanggal WIB, ringkasan seluruh hari, paginasi, respons terlambat, dan pergantian hari otomatis.
 
 Suite stok juga mencakup kontrol admin, stok habis, perubahan persediaan pada

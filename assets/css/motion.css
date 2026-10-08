@@ -1,0 +1,79 @@
+:root {
+  --motion-fast: 160ms;
+  --motion-ui: 260ms;
+  --motion-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Content stays visible when JavaScript or the animation API is unavailable. */
+.reveal,
+.reveal.show {
+  opacity: 1;
+  transform: none;
+}
+.preloader { display: none; }
+
+.motion-enabled .stock-editor[open] {
+  animation: dapoer-dialog-in var(--motion-ui) var(--motion-ease);
+}
+.motion-enabled .stock-editor[open]::backdrop {
+  animation: dapoer-backdrop-in 180ms ease-out;
+}
+@keyframes dapoer-dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes dapoer-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.motion-enabled :is(.stock-manage, .stock-refresh, .stock-editor button,
+  .login-form button, .topbar-actions button, .sidebar-nav a,
+  .order-date-controls button, .order-date-controls input,
+  .status-control button, .tracking-link, .receipt-button,
+  .receipt-actions a, .receipt-actions button) {
+  transition: transform var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) ease, border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+.motion-enabled :is(.stock-manage, .stock-refresh, .stock-editor button,
+  .login-form button, .topbar-actions button, .status-control button,
+  .receipt-actions button):active:enabled {
+  transform: scale(.98);
+}
+.motion-enabled .stock-editor-input,
+.motion-enabled :is(.login-form input, .order-date-controls input, .search-box) {
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+.motion-enabled .stock-row { transition: background-color 200ms ease; }
+.motion-enabled .step span {
+  transition: background-color var(--motion-ui) ease, color var(--motion-ui) ease,
+    border-color var(--motion-ui) ease;
+}
+.motion-enabled .current-status {
+  transition: background-color var(--motion-ui) ease, border-color var(--motion-ui) ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .motion-enabled :is(.stock-manage, .stock-refresh, .topbar-actions button,
+    .receipt-actions button):hover:enabled {
+    transform: translateY(-2px);
+  }
+  .motion-enabled :is(.tracking-link, .receipt-button, .receipt-actions a):hover { transform: translateY(-1px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal, .reveal.show { opacity: 1 !important; transform: none !important; }
+}
+@media print {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  :is(.reveal, .motion-enter, .receipt-paper, .receipt-actions) {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

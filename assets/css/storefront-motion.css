@@ -1,0 +1,266 @@
+/* Storefront motion adds polish without changing layout or application state. */
+.motion-enabled {
+  --storefront-motion-ease: cubic-bezier(.22, 1, .36, 1);
+  --storefront-motion-short: 180ms;
+}
+
+/* Decorative elements settle once instead of moving while people read. */
+.marquee-track,
+.hero-medallion {
+  animation: none;
+}
+
+.marquee-track {
+  transform: none;
+}
+
+.motion-enabled .hero-copy.motion-enter > :is(.kicker, h1, .hero-description, .hero-actions, .hero-trust) {
+  animation: storefront-copy-in 540ms var(--storefront-motion-ease) backwards;
+}
+
+.motion-enabled .hero-copy.motion-enter > h1 {
+  animation-delay: 45ms;
+}
+
+.motion-enabled .hero-copy.motion-enter > .hero-description {
+  animation-delay: 90ms;
+}
+
+.motion-enabled .hero-copy.motion-enter > .hero-actions {
+  animation-delay: 145ms;
+}
+
+.motion-enabled .hero-copy.motion-enter > .hero-trust {
+  animation-delay: 200ms;
+}
+
+.motion-enabled .hero-art.motion-enter > .hero-ring {
+  animation: storefront-ring-in 850ms var(--storefront-motion-ease) backwards;
+}
+
+.motion-enabled .hero-art.motion-enter > .ring-small {
+  animation-delay: 80ms;
+}
+
+.motion-enabled .hero-art.motion-enter > .hero-medallion {
+  animation: storefront-medallion-in 780ms var(--storefront-motion-ease) 100ms backwards;
+}
+
+.motion-enabled .hero-art.motion-enter > .hero-note {
+  animation: storefront-copy-in 540ms var(--storefront-motion-ease) 220ms backwards;
+}
+
+.motion-enabled .hero-art.motion-enter > .note-right {
+  animation-delay: 290ms;
+}
+
+@keyframes storefront-copy-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes storefront-ring-in {
+  from { opacity: 0; transform: scale(.92); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes storefront-medallion-in {
+  from { opacity: 0; transform: translateY(14px) scale(.95); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Preserve the original image framing on each screen size. */
+.motion-enabled .product-image {
+  --product-image-rest: translateY(14px) scale(1.18);
+  --product-image-hover: translateY(14px) scale(1.205);
+}
+
+.motion-enabled .product-image img {
+  transform: var(--product-image-rest);
+  transition: transform 480ms var(--storefront-motion-ease);
+}
+
+.motion-enabled .product-card {
+  transition: transform 320ms var(--storefront-motion-ease),
+    box-shadow 320ms ease, border-color 220ms ease;
+}
+
+.motion-enabled .product-card:focus-within {
+  border-color: rgba(104, 27, 27, .3);
+  box-shadow: 0 18px 44px rgba(54, 27, 18, .09);
+}
+
+.motion-enabled :is(.button, .nav-icon, .floating-button, .checkout-button, .checkout-submit,
+  .add-button, .quantity button, .cart-remove, .cart-header button, .chat-header button,
+  .checkout-panel-head button, .chat-input-row button, .mobile-menu-close) {
+  transition: transform var(--storefront-motion-short) var(--storefront-motion-ease),
+    box-shadow 220ms ease, background-color 220ms ease, border-color 220ms ease,
+    color 180ms ease, opacity 180ms ease;
+}
+
+.motion-enabled :is(.button, .nav-icon, .floating-button, .checkout-button, .checkout-submit,
+  .add-button, .quantity button, .cart-remove, .cart-header button, .chat-header button,
+  .checkout-panel-head button, .chat-input-row button, .mobile-menu-close):focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+}
+
+.motion-enabled .add-button i {
+  transition: transform var(--storefront-motion-short) var(--storefront-motion-ease);
+}
+
+/* Reset legacy hover motion so touch devices do not retain a raised state. */
+.motion-enabled :is(.button:hover, .floating-button:hover, .product-card:hover),
+.motion-enabled .add-button:hover i {
+  transform: none;
+}
+
+.motion-enabled .product-card:hover .product-image img {
+  transform: var(--product-image-rest);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .motion-enabled :is(.button, .floating-button):not(:disabled):hover {
+    transform: translateY(-2px);
+  }
+
+  .motion-enabled .nav-icon:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+
+  .motion-enabled .product-card:hover {
+    transform: translateY(-4px);
+  }
+
+  .motion-enabled .product-card:hover .product-image img {
+    transform: var(--product-image-hover);
+  }
+
+  .motion-enabled .add-button:not(:disabled):hover i {
+    transform: translateX(3px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .motion-enabled :is(.button, .nav-icon, .floating-button, .checkout-button, .checkout-submit,
+    .quantity button, .cart-header button, .chat-header button, .checkout-panel-head button,
+    .chat-input-row button, .mobile-menu-close):not(:disabled):active {
+    transform: scale(.975);
+    transition-duration: 90ms;
+  }
+}
+
+/* Existing open classes and visibility rules remain the source of truth. */
+.cart-remove {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 8px;
+  border-radius: 50%;
+}
+
+.motion-enabled .cart-overlay {
+  transition: opacity 240ms ease, visibility 240ms ease;
+}
+
+.motion-enabled .cart-drawer {
+  transition: transform 360ms var(--storefront-motion-ease);
+}
+
+.motion-enabled .checkout-modal {
+  transition: opacity 220ms ease, visibility 220ms ease;
+}
+
+.motion-enabled .checkout-panel {
+  transform: translateY(16px) scale(.99);
+  transition: transform 300ms var(--storefront-motion-ease);
+}
+
+.motion-enabled .checkout-modal.open .checkout-panel {
+  transform: none;
+}
+
+.motion-enabled .chat-box.open {
+  transform-origin: bottom right;
+  animation: storefront-panel-in 280ms var(--storefront-motion-ease) backwards;
+}
+
+.motion-enabled .mobile-menu.open {
+  animation: storefront-fade-in 220ms ease backwards;
+}
+
+.motion-enabled .mobile-menu.open nav a {
+  animation: storefront-copy-in 380ms var(--storefront-motion-ease) 35ms backwards;
+}
+
+.motion-enabled .mobile-menu.open nav a:nth-child(2) { animation-delay: 70ms; }
+.motion-enabled .mobile-menu.open nav a:nth-child(3) { animation-delay: 105ms; }
+.motion-enabled .mobile-menu.open nav a:nth-child(4) { animation-delay: 140ms; }
+
+.motion-enabled .toast {
+  transition: opacity 200ms ease, transform 240ms var(--storefront-motion-ease);
+}
+
+@keyframes storefront-panel-in {
+  from { opacity: 0; transform: translateY(10px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes storefront-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 700px) {
+  .menu-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .menu-grid > :is(.product-card, .menu-loading) {
+    grid-column: 1 / -1;
+  }
+
+  .instagram-section h2 {
+    font-size: clamp(2rem, 10vw, 3.5rem);
+    overflow-wrap: anywhere;
+  }
+
+  .motion-enabled .product-image {
+    --product-image-rest: translateY(10px) scale(1.13);
+    --product-image-hover: translateY(10px) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-enabled :is(.hero-copy, .hero-art).motion-enter > *,
+  .motion-enabled .mobile-menu.open,
+  .motion-enabled .mobile-menu.open nav a,
+  .motion-enabled .chat-box.open {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .motion-enabled .checkout-panel {
+    transform: none;
+  }
+
+  .motion-enabled :is(.cart-overlay, .cart-drawer, .checkout-modal, .checkout-panel,
+    .toast, .product-card, .product-image img, .add-button i, .button, .nav-icon,
+    .floating-button, .checkout-button, .checkout-submit, .add-button, .quantity button,
+    .cart-remove, .cart-header button, .chat-header button, .checkout-panel-head button,
+    .chat-input-row button, .mobile-menu-close) {
+    transition: none;
+  }
+}
+
+@media print {
+  .motion-enabled :is(.hero-copy, .hero-art).motion-enter > *,
+  .motion-enabled .mobile-menu.open nav a,
+  .motion-enabled .chat-box.open,
+  .motion-enabled .checkout-panel {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+}

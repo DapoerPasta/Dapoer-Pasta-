@@ -58,6 +58,7 @@ function renderMenu(){
   const root=$("#menu-grid"); root.replaceChildren();
   state.menu.forEach((p,i)=>{
     const card=document.createElement("article"); card.className="product-card reveal show";
+    card.setAttribute("data-motion-key",`product:${p.id}`);
     const media=document.createElement("div"); media.className="product-image";
     const img=document.createElement("img"); img.src=p.image; img.alt=p.name; img.loading="lazy"; img.decoding="async";
     const badge=document.createElement("span"); badge.className="product-badge"; badge.textContent=p.badge;
@@ -80,6 +81,7 @@ function renderMenu(){
     const mark=document.createElement("span"); mark.className="small-mark"; mark.textContent="DP";
     action.append(add,mark); body.append(idx,title,desc,stock,action); card.append(media,body); root.append(card);
   });
+  window.DapoerMotion?.reveal(root);
 }
 
 function addToCart(id){
@@ -241,4 +243,11 @@ async function sendChat(e){
 }
 function addChatMessage(text,className){const el=document.createElement("div");el.className=`chat-message ${className}`;el.textContent=text;$("#chat-messages").append(el);el.scrollIntoView({behavior:"smooth",block:"end"});return el}
 function showToast(message){$("#toast-message").textContent=message;$("#toast").classList.add("show");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>$("#toast").classList.remove("show"),2300)}
-function observeReveal(){const obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("show");obs.unobserve(e.target)}}),{threshold:.1});document.querySelectorAll(".reveal").forEach(el=>obs.observe(el))}
+function observeReveal(){
+  if(window.DapoerMotion){window.DapoerMotion.reveal();return}
+  if(typeof IntersectionObserver!=="function"){
+    document.querySelectorAll(".reveal").forEach(el=>el.classList.add("show"));return;
+  }
+  const obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add("show");obs.unobserve(e.target)}}),{threshold:.1});
+  document.querySelectorAll(".reveal").forEach(el=>obs.observe(el));
+}
