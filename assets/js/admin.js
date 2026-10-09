@@ -51,6 +51,12 @@ async function init(){
 
 function bind(){
   $("#login-form").addEventListener("submit",login);
+  const passwordToggle=$("#toggle-admin-password");
+  if(passwordToggle){
+    passwordToggle.hidden=false;
+    setPasswordVisibility(false);
+    passwordToggle.addEventListener("click",()=>setPasswordVisibility($("#admin-password").type==="password",true));
+  }
   $("#logout-button").addEventListener("click",logout);
   $("#refresh-orders").addEventListener("click",()=>loadOrders(false));
   $("#enable-notifications").addEventListener("click",enableNotifications);
@@ -66,6 +72,24 @@ function bind(){
   $("#load-more-orders").addEventListener("click",()=>loadOrders(false,true));
   document.addEventListener("dapoer:admin-session-expired",showLogin);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&$("#dashboard-view")&&!$("#dashboard-view").hidden)loadOrders(true)});
+}
+
+function setPasswordVisibility(visible,restoreFocus=false){
+  const password=$("#admin-password"),button=$("#toggle-admin-password");
+  if(!password||!button)return;
+  const start=password.selectionStart,end=password.selectionEnd,direction=password.selectionDirection;
+  password.type=visible?"text":"password";
+  const label=visible?"Sembunyikan password":"Tampilkan password";
+  button.setAttribute("aria-label",label);
+  button.setAttribute("aria-pressed",String(visible));
+  button.title=label;
+  const eye=$("#admin-password-eye"),eyeOff=$("#admin-password-eye-off");
+  if(eye)eye.hidden=visible;
+  if(eyeOff)eyeOff.hidden=!visible;
+  if(restoreFocus){
+    password.focus({preventScroll:true});
+    if(typeof start==="number"&&typeof end==="number")password.setSelectionRange(start,end,direction||"none");
+  }
 }
 
 function updateDateControls(now=new Date()){
@@ -126,6 +150,7 @@ async function checkSession(){
 }
 
 function showLogin(){
+  setPasswordVisibility(false);
   stopPolling();
   cancelOrderRequest();
   state.orders=[];
@@ -141,6 +166,7 @@ function showLogin(){
   signalAdminEvent("dapoer:admin-session",{authenticated:false});
 }
 function showDashboard(){
+  setPasswordVisibility(false);
   $("#login-view").hidden=true;$("#dashboard-view").hidden=false;
   window.DapoerAdminAuthenticated=true;
   signalAdminEvent("dapoer:admin-session",{authenticated:true});
@@ -149,6 +175,9 @@ function showDashboard(){
 async function login(e){
   e.preventDefault();
   const button=$("#login-button");
+  const passwordToggle=$("#toggle-admin-password");
+  setPasswordVisibility(false);
+  if(passwordToggle)passwordToggle.disabled=true;
   button.disabled=true;
   button.textContent="Memeriksa akun…";
   $("#login-message").textContent="";
@@ -159,7 +188,7 @@ async function login(e){
     $("#admin-password").value="";
     await checkSession();
   }catch(err){$("#login-message").textContent=err.message||"Login gagal."}
-  finally{button.disabled=false;button.textContent="Masuk ke Dashboard"}
+  finally{button.disabled=false;button.textContent="Masuk ke Dashboard";if(passwordToggle)passwordToggle.disabled=false}
 }
 
 async function logout(){
