@@ -3,6 +3,7 @@
   const PERIOD_LABELS = { daily: "Harian", weekly: "Mingguan", monthly: "Bulanan", yearly: "Tahunan" };
   const CATEGORIES = { bahan_baku: "Bahan baku", kemasan: "Kemasan", operasional: "Operasional", transportasi: "Transportasi", pemasaran: "Pemasaran", lainnya: "Lainnya" };
   const MAX_AMOUNT = 1000000000000;
+  const EXPORT_FORMATS = { pdf: "PDF", xlsx: "Excel", ods: "ODS", csv: "CSV", json: "JSON", txt: "teks" };
   const state = { authenticated: false, initialized: false, period: "monthly", date: todayWib(), followingToday: true, report: null, request: null, generation: 0, timer: null, expensePage: 1, saving: null, editing: null, exporting: null, refreshQueued: false };
   const $ = selector => document.querySelector(selector);
   const rupiah = value => `Rp ${Number(value).toLocaleString("id-ID")}`;
@@ -38,7 +39,8 @@
     $("#finance-next").addEventListener("click", () => movePeriod(1));
     $("#finance-today").addEventListener("click", () => changeDate(todayWib()));
     $("#finance-refresh").addEventListener("click", () => loadReport(false));
-    $("#finance-export").addEventListener("click", exportCsv);
+    if (!Object.hasOwn(EXPORT_FORMATS, $("#finance-export-format").value)) $("#finance-export-format").value = "pdf";
+    $("#finance-export").addEventListener("click", exportSelected);
     $("#finance-add-expense").addEventListener("click", () => openExpenseEditor());
     $("#finance-expense-prev").addEventListener("click", () => changeExpensePage(state.expensePage - 1));
     $("#finance-expense-next").addEventListener("click", () => changeExpensePage(state.expensePage + 1));
@@ -168,7 +170,8 @@
     $("#finance-refresh").disabled = !state.authenticated || busy || !!state.request || !!state.exporting;
     $("#finance-refresh").textContent = state.request ? "↻ Memuat…" : "↻ Refresh";
     $("#finance-export").disabled = !state.authenticated || !state.report || busy || !!state.request || !!state.exporting;
-    $("#finance-export").textContent = state.exporting ? "Menyiapkan CSV…" : "↓ Unduh laporan CSV";
+    $("#finance-export-format").disabled = $("#finance-export").disabled;
+    $("#finance-export").textContent = state.exporting ? `Menyiapkan ${EXPORT_FORMATS[state.exporting.format]}…` : "↓ Unduh laporan";
     $("#finance-add-expense").disabled = !state.authenticated || busy || !!state.exporting;
     $("#finance-report").setAttribute("aria-busy", String(busy || !!state.request));
     const paging = state.report?.expensePagination;
@@ -463,13 +466,15 @@
     }
   }
 
-  function csvCell(value) {
+  function spreadsheetText(value) {
     let text = String(value ?? "");
     if (typeof value === "string" && /^[\s\uFEFF]*[=+\-@]/.test(text)) text = "'" + text;
-    return '"' + text.replace(/"/g, '""') + '"';
+    return text;
   }
 
-  function csvRows(report) {
+  function csvCell(value) { return '"' + spreadsheetText(value).replace(/"/g, '""') + '"'; }
+
+  function reportRows(report) {
     const summary = report.summary;
     const rows = [ ["Laporan Keuangan Dapoer Pasta"], ["Periode", PERIOD_LABELS[state.period], report.period.startDate, report.period.endDate, "WIB"], ["Basis", "Penjualan selesai menurut tanggal pesanan dibuat, bukan konfirmasi pembayaran; saldo hanya dikurangi pengeluaran tercatat."], [], ["Ringkasan", "Jumlah (Rp)", "Jumlah catatan"], ["Penjualan selesai", summary.completedSales, summary.completedCount], ["Pesanan belum selesai", summary.pendingValue, summary.pendingCount], ["Pengeluaran tercatat", summary.expenseTotal, summary.expenseCount], ["Saldo tercatat", summary.recordedBalance], ["Dibatalkan (di luar penjualan)", summary.cancelledValue, summary.cancelledCount], [], ["Tanggal WIB", "Pesanan selesai", "Penjualan selesai (Rp)", "Belum selesai (Rp)", "Pengeluaran (Rp)", "Saldo tercatat (Rp)"] ];
     report.buckets.forEach(bucket => rows.push([bucket.date, bucket.completedCount, bucket.completedSales, bucket.pendingValue, bucket.expenseTotal, bucket.recordedBalance]));
@@ -480,28 +485,50 @@
     rows.push([], ["Pembanding", report.previousPeriod?.startDate || "", report.previousPeriod?.endDate || ""], ["Ukuran", "Periode ini (Rp)", "Periode sebelumnya (Rp)", "Selisih (Rp)", "Perubahan (%)"]);
     [["Penjualan selesai", "completedSales"], ["Pengeluaran tercatat", "expenseTotal"], ["Saldo tercatat", "recordedBalance"]].forEach(([label, key]) => rows.push([label, summary[key], report.previousSummary?.[key] ?? "", report.comparison?.[key]?.difference ?? "", report.comparison?.[key]?.percent ?? "Belum ada pembanding"]));
     rows.push([], ["Cakupan", "Seluruh transaksi periode pilihan; rincian catatan pengeluaran tersedia di dashboard."], ["Tanggal unduhan WIB", todayWib()]);
-    return "\uFEFF" + rows.map(row => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
+    return rows;
   }
 
-  async function exportCsv() {
+  function csvRows(report) { return "\uFEFF" + reportRows(report).map(row => row.map(csvCell).join(",")).join("\r\n") + "\r\n"; }
+
+  function exportSelected() { return exportReport($("#finance-export-format").value); }
+  function exportCsv() { return exportReport("csv"); }
+
+  async function createReportFile(report, format, signal) {
+    if (["pdf", "xlsx", "ods"].includes(format)) {
+      if (!window.DapoerFinanceFiles?.build) throw new Error("Komponen unduhan belum dimuat. Muat ulang halaman lalu coba lagi.");
+      return window.DapoerFinanceFiles.build(report, { format, periodLabel: PERIOD_LABELS[state.period], generatedDate: todayWib(), signal });
+    }
+    if (format === "csv") return { blob: new Blob([csvRows(report)], { type: "text/csv;charset=utf-8" }), extension: "csv" };
+    if (format === "txt") return { blob: new Blob([reportRows(report).map(row => row.map(value => spreadsheetText(value).replace(/[\t\r\n]/g, " ")).join("\t")).join("\r\n") + "\r\n"], { type: "text/plain;charset=utf-8" }), extension: "txt" };
+    const { period, previousPeriod, summary, previousSummary, comparison, buckets, paymentMethods, expenseCategories, basis } = report;
+    const data = { schemaVersion: 1, title: "Laporan Keuangan Dapoer Pasta", generatedDate: todayWib(), scope: "Agregat seluruh periode; rincian catatan pengeluaran tersedia di dashboard.", period, previousPeriod, summary, previousSummary, comparison, buckets, paymentMethods, expenseCategories, basis };
+    return { blob: new Blob([JSON.stringify(data, null, 2) + "\n"], { type: "application/json;charset=utf-8" }), extension: "json" };
+  }
+
+  async function exportReport(format) {
     if (!state.authenticated || !state.report || state.request || state.saving || state.exporting) return;
-    const token = { controller: new AbortController(), generation: state.generation };
+    if (!Object.hasOwn(EXPORT_FORMATS, format)) { message("Pilih format unduhan yang tersedia.", true); return; }
+    const token = { controller: new AbortController(), generation: state.generation, format };
     state.exporting = token; updateControls();
     try {
       const response = await fetch(query(1, 10), { headers: { Accept: "application/json" }, cache: "no-store", signal: token.controller.signal });
       const report = await response.json();
       if (state.exporting !== token || token.generation !== state.generation || !state.authenticated) return;
       if (response.status === 401) { sessionExpired(); return; }
-      if (!response.ok) throw new Error(report.error || "CSV belum dapat disiapkan.");
+      if (!response.ok) throw new Error(report.error || "Laporan belum dapat disiapkan.");
       if (!validReport(report)) throw new Error("Data ekspor belum lengkap. Refresh laporan dahulu.");
       if (state.exporting !== token || !state.authenticated || token.generation !== state.generation) return;
-      const url = URL.createObjectURL(new Blob([csvRows(report)], { type: "text/csv;charset=utf-8" }));
-      const link = document.createElement("a"); link.href = url; link.download = `laporan-keuangan-${state.period}-${report.period.startDate}-${report.period.endDate}.csv`;
-      document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(url);
-      message("Laporan CSV seluruh periode berhasil diunduh.");
+      const file = await createReportFile(report, format, token.controller.signal);
+      if (state.exporting !== token || !state.authenticated || token.generation !== state.generation || token.controller.signal.aborted) return;
+      if (!(file?.blob instanceof Blob) || file.extension !== format) throw new Error("Format file belum dapat dibuat. Coba unduh lagi.");
+      const url = URL.createObjectURL(file.blob);
+      const link = document.createElement("a"); link.href = url; link.download = `laporan-keuangan-${state.period}-${report.period.startDate}-${report.period.endDate}.${file.extension}`;
+      document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      message(`Laporan ${EXPORT_FORMATS[format]} seluruh periode berhasil diunduh.`);
     } catch (error) {
       if (state.exporting !== token || error.name === "AbortError") return;
-      message(error.message || "CSV belum dapat disiapkan. Coba kembali.", true);
+      message(error.message || "Laporan belum dapat disiapkan. Coba kembali.", true);
     } finally { if (state.exporting === token) { state.exporting = null; updateControls(); } }
   }
 })();

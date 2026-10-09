@@ -193,10 +193,17 @@ mingguan (Senin–Minggu), bulanan, atau tahunan, beserta tanggal acuannya.
 Semua periode memakai WIB. Ringkasan, grafik, perbandingan periode sebelumnya,
 dan rincian metode pembayaran menghitung seluruh pesanan dalam periode,
 termasuk data yang belum dimuat pada daftar riwayat pesanan.
-Tombol **Unduh laporan CSV** mengunduh ringkasan, rincian per tanggal/bulan,
+Pilih format **PDF, Excel (.xlsx), OpenDocument (.ods), CSV, JSON, atau teks (.txt)**
+lalu klik **Unduh laporan**. File Excel dan ODS dapat dibuka atau diimpor ke
+Google Sheets. PDF memiliki tabel dengan judul berulang dan nomor halaman;
+spreadsheet memakai beberapa lembar dengan angka yang bisa dihitung kembali.
+Unduhan mencakup ringkasan, rincian per tanggal/bulan,
 metode pembayaran, kategori biaya, dan perbandingan seluruh periode dari
 satu snapshot data. Rincian catatan pengeluaran tersedia melalui tabel
 dashboard dengan halaman berikutnya.
+Komponen pembuat PDF dan spreadsheet disimpan lokal dan dimuat saat dibutuhkan.
+Semua format memakai data terbaru dan membatalkan unduhan jika sesi admin atau
+periode berubah sebelum file selesai disiapkan.
 
 **Penjualan selesai** menjumlahkan pesanan berstatus `selesai` berdasarkan
 tanggal pesanan dibuat. Angka ini tidak memverifikasi pembayaran bank;

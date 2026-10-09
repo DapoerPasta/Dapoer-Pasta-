@@ -4,11 +4,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-function financeDashboard(fetch = async () => { throw new Error("Unexpected request"); }) {
+function financeDashboard(fetch = async () => { throw new Error("Unexpected request"); }, options = {}) {
   const nodes = new Map();
   const listeners = new Map();
   const events = [];
   const downloads = [];
+  const downloadedFiles = [];
   const intervals = new Map();
   let timer = 0;
   let timestamp = Date.parse("2026-10-05T17:30:00Z");
@@ -44,7 +45,10 @@ function financeDashboard(fetch = async () => { throw new Error("Unexpected requ
       close() { this.open = false; },
       focus() { this.focused = true; },
       select() { this.selected = true; },
-      click() { this.dispatchEvent({ type: "click" }); },
+      click() {
+        if (this.tagName === "A" && this.download) downloadedFiles.push({ name: this.download, href: this.href });
+        this.dispatchEvent({ type: "click" });
+      },
       reset() {},
       set innerHTML(value) { throw new Error("Finance data must be rendered using text nodes"); }
     };
@@ -75,7 +79,7 @@ function financeDashboard(fetch = async () => { throw new Error("Unexpected requ
     static revokeObjectURL() {}
   }
   const context = vm.createContext({
-    document, window: { confirm: () => true }, fetch, CustomEvent, AbortController,
+    document, window: { confirm: () => true, DapoerFinanceFiles: options.files }, fetch, CustomEvent, AbortController,
     Date: ClockDate, Intl, URLSearchParams, URL: DownloadUrl, Blob, TextEncoder,
     crypto: { randomUUID: () => "13d58532-0e7b-4571-a731-3c9b1b8b9834" },
     confirm: () => true,
@@ -84,11 +88,11 @@ function financeDashboard(fetch = async () => { throw new Error("Unexpected requ
     setTimeout(handler) { handler(); return ++timer; }, clearTimeout() {}
   });
   const source = fs.readFileSync(path.join(__dirname, "../assets/js/admin-finance.js"), "utf8")
-    .replace(/\}\)\(\);\s*$/, `globalThis.financeApi={state,init,setAuthenticated,loadReport,selectPeriod,changeDate,openExpenseEditor,closeExpenseEditor,saveExpense,deleteExpense,exportCsv};})();`);
+    .replace(/\}\)\(\);\s*$/, `globalThis.financeApi={state,init,setAuthenticated,loadReport,selectPeriod,changeDate,openExpenseEditor,closeExpenseEditor,saveExpense,deleteExpense,exportCsv,exportSelected,exportReport};})();`);
   vm.runInContext(source, context);
   context.financeApi.init();
   return {
-    ...context.financeApi, document, events, intervals, downloads,
+    ...context.financeApi, document, events, intervals, downloads, downloadedFiles,
     element: selector => document.querySelector(selector),
     clock(value) { timestamp = Date.parse(value); },
     confirm(value) { context.window.confirm = context.confirm = () => value; }
@@ -97,8 +101,8 @@ function financeDashboard(fetch = async () => { throw new Error("Unexpected requ
 
 const response = (data, status = 200) => ({ ok: status >= 200 && status < 300, status, async json() { return data; } });
 async function flush() { await new Promise(resolve => setImmediate(resolve)); }
-async function authenticatedDashboard(fetch) {
-  const ui = financeDashboard(fetch);
+async function authenticatedDashboard(fetch, options) {
+  const ui = financeDashboard(fetch, options);
   ui.setAuthenticated(true);
   await flush();
   return ui;
@@ -833,4 +837,251 @@ test("an export response arriving after logout cannot download private financial
   await pending;
   assert.equal(ui.downloads.length, 0);
   assert.equal(ui.state.report, null);
+});
+
+test("all download formats remain private and the selector starts with PDF before login", async () => {
+  let requests = 0;
+  let builds = 0;
+  const ui = financeDashboard(async () => { requests++; return response(report()); }, {
+    files: { async build() { builds++; return { blob: new Blob(["private"]), extension: "pdf" }; } }
+  });
+  assert.equal(ui.element("#finance-export-format").value, "pdf");
+  assert.equal(ui.element("#finance-export-format").disabled, true);
+  for (const format of ["pdf", "xlsx", "ods", "csv", "json", "txt"]) await ui.exportReport(format);
+  ui.element("#finance-export").click();
+  await flush();
+  assert.equal(requests, 0);
+  assert.equal(builds, 0);
+  assert.equal(ui.downloads.length, 0);
+});
+
+test("the format selector downloads PDF, Excel, and ODS from a fresh WIB snapshot", async () => {
+  let reads = 0;
+  const builds = [];
+  const blobs = [];
+  const ui = await authenticatedDashboard(async (url, options) => {
+    assert.equal(options.cache, "no-store");
+    const summary = { ...report().summary, completedSales: 100000 + ++reads };
+    return response(reportForUrl(url, { summary, buckets: [{ date: "2026-10-06", ...summary }] }));
+  }, {
+    files: { async build(snapshot, options) {
+      builds.push({ snapshot, options });
+      const blob = new Blob([`${options.format}:${snapshot.summary.completedSales}`]);
+      blobs.push(blob);
+      return { blob, extension: options.format };
+    } }
+  });
+  assert.equal(ui.element("#finance-export-format").value, "pdf");
+  const dashboardSales = ui.state.report.summary.completedSales;
+  for (const [index, format] of ["pdf", "xlsx", "ods"].entries()) {
+    setField(ui, "#finance-export-format", format);
+    ui.element("#finance-export").click();
+    await flush();
+    const built = builds[index];
+    assert.equal(built.options.format, format);
+    assert.equal(built.options.periodLabel, "Bulanan");
+    assert.equal(built.options.generatedDate, "2026-10-06", "UTC evening downloads use the next WIB date");
+    assert.equal(built.options.signal.aborted, false);
+    assert.equal(built.snapshot.period.timeZone, "Asia/Jakarta");
+    assert.equal(built.snapshot.summary.completedSales, 100002 + index);
+    assert.notEqual(built.snapshot.summary.completedSales, dashboardSales);
+    assert.equal(ui.downloads[index], blobs[index]);
+    assert.equal(ui.downloadedFiles[index].name, `laporan-keuangan-monthly-2026-10-01-2026-10-31.${format}`);
+    assert.equal(ui.element("#finance-export-format").disabled, false);
+  }
+  assert.equal(reads, 4, "each file gets exactly one fresh aggregate request");
+  assert.equal(ui.state.report.summary.completedSales, dashboardSales);
+});
+
+test("a delayed file builder captures its selected format and prevents duplicate downloads", async () => {
+  let reads = 0;
+  let finishBuild;
+  const builds = [];
+  const ui = await authenticatedDashboard(async url => { reads++; return response(reportForUrl(url)); }, {
+    files: { build(snapshot, options) {
+      builds.push(options.format);
+      return new Promise(resolve => { finishBuild = resolve; });
+    } }
+  });
+  const pending = ui.exportSelected();
+  await flush();
+  assert.equal(ui.element("#finance-export-format").disabled, true);
+  assert.equal(ui.element("#finance-export").disabled, true);
+  assert.match(ui.element("#finance-export").textContent, /Menyiapkan PDF/);
+  setField(ui, "#finance-export-format", "xlsx");
+  ui.element("#finance-export").click();
+  await ui.exportSelected();
+  await ui.exportReport("ods");
+  assert.equal(reads, 2);
+  assert.deepEqual(builds, ["pdf"]);
+  finishBuild({ blob: new Blob(["finished PDF"]), extension: "pdf" });
+  await pending;
+  assert.equal(ui.downloads.length, 1);
+  assert.match(ui.downloadedFiles[0].name, /\.pdf$/);
+  assert.match(ui.element("#finance-message").textContent, /Laporan PDF/);
+  assert.equal(ui.element("#finance-export-format").value, "xlsx");
+  assert.equal(ui.element("#finance-export-format").disabled, false);
+});
+
+test("files finishing after logout, a period change, or an order refresh cannot download stale private data", async () => {
+  for (const invalidation of ["logout", "period", "order"]) {
+    let reads = 0;
+    let finishBuild;
+    let builderSignal;
+    const ui = await authenticatedDashboard(async url => {
+      const summary = { ...report().summary, completedSales: 100000 + ++reads };
+      return response(reportForUrl(url, { summary }));
+    }, {
+      files: { build(snapshot, options) {
+        builderSignal = options.signal;
+        return new Promise(resolve => { finishBuild = resolve; });
+      } }
+    });
+    const pending = ui.exportSelected();
+    await flush();
+    assert.equal(builderSignal.aborted, false);
+    if (invalidation === "logout") ui.document.dispatchEvent({ type: "dapoer:admin-session", detail: { authenticated: false } });
+    else if (invalidation === "period") ui.element('[data-finance-period="daily"]').click();
+    else ui.document.dispatchEvent({ type: "dapoer:stock-changed" });
+    assert.equal(builderSignal.aborted, true, `${invalidation} aborts the file builder`);
+    await flush();
+    finishBuild({ blob: new Blob(["stale private report"]), extension: "pdf" });
+    await pending;
+    assert.equal(ui.downloads.length, 0, `${invalidation} suppresses a late download even if the builder ignores abort`);
+    assert.equal(ui.state.exporting, null);
+    assert.doesNotMatch(ui.element("#finance-message").textContent, /berhasil diunduh/);
+    if (invalidation === "logout") {
+      assert.equal(ui.state.report, null);
+      assert.equal(ui.element("#finance-export-format").disabled, true);
+    } else {
+      assert.equal(ui.state.report.summary.completedSales, 100003);
+      assert.equal(ui.element("#finance-export-format").disabled, false);
+      assert.equal(ui.state.period, invalidation === "period" ? "daily" : "monthly");
+    }
+  }
+});
+
+test("builder failures leave the format controls usable for an explicit retry with fresh data", async () => {
+  let reads = 0;
+  let builds = 0;
+  const ui = await authenticatedDashboard(async url => {
+    const summary = { ...report().summary, completedSales: 100000 + ++reads };
+    return response(reportForUrl(url, { summary }));
+  }, {
+    files: { async build(snapshot) {
+      if (++builds === 1) throw new Error("PDF belum dapat disiapkan.");
+      return { blob: new Blob([String(snapshot.summary.completedSales)]), extension: "pdf" };
+    } }
+  });
+  ui.element("#finance-export").click();
+  await flush();
+  assert.equal(ui.downloads.length, 0);
+  assert.match(ui.element("#finance-message").textContent, /PDF belum dapat disiapkan/);
+  assert.equal(ui.element("#finance-message").classList.contains("error"), true);
+  assert.equal(ui.state.exporting, null);
+  assert.equal(ui.element("#finance-export-format").disabled, false);
+  assert.equal(ui.element("#finance-export").disabled, false);
+  ui.element("#finance-export").click();
+  await flush();
+  assert.equal(reads, 3);
+  assert.equal(builds, 2);
+  assert.equal(ui.downloads.length, 1);
+  assert.equal(await ui.downloads[0].text(), "100003");
+  assert.equal(ui.element("#finance-message").classList.contains("error"), false);
+});
+
+test("unavailable or malformed file builders never create mislabeled files and release the export controls", async () => {
+  for (const files of [undefined,
+    { async build() { return { blob: new Blob(["wrong type"]), extension: "xlsx" }; } },
+    { async build() { return { blob: "not a Blob", extension: "pdf" }; } }
+  ]) {
+    const ui = await authenticatedDashboard(async url => response(reportForUrl(url)), { files });
+    await ui.exportSelected();
+    assert.equal(ui.downloads.length, 0);
+    assert.equal(ui.state.exporting, null);
+    assert.equal(ui.element("#finance-message").classList.contains("error"), true);
+    assert.equal(ui.element("#finance-export-format").disabled, false);
+    assert.equal(ui.element("#finance-export").disabled, false);
+  }
+});
+
+test("unsupported selected formats are rejected before requesting private data or invoking the builder", async () => {
+  let reads = 0;
+  let builds = 0;
+  const ui = await authenticatedDashboard(async url => { reads++; return response(reportForUrl(url)); }, {
+    files: { async build() { builds++; throw new Error("must not build"); } }
+  });
+  for (const format of ["docx", "toString", "__proto__", ""]) {
+    setField(ui, "#finance-export-format", format);
+    await ui.exportSelected();
+  }
+  assert.equal(reads, 1);
+  assert.equal(builds, 0);
+  assert.equal(ui.downloads.length, 0);
+  assert.match(ui.element("#finance-message").textContent, /Pilih format unduhan yang tersedia/);
+});
+
+test("JSON preserves numeric full-period aggregates while excluding the paginated expense ledger and customer data", async () => {
+  const ui = await authenticatedDashboard(async url => response(paginatedExportReport(url, {
+    summary: { ...report().summary, completedSales: 1000000000000, expenseTotal: 1000000000001, expenseCount: 101, recordedBalance: -1 },
+    expenseCategories: [{ category: "bahan_baku", total: 1000000000001, count: 101 }],
+    customerName: "Private Customer", customerPhone: "081234567890",
+    orders: [{ customerName: "Private Customer", customerPhone: "081234567890" }]
+  })));
+  setField(ui, "#finance-export-format", "json");
+  ui.element("#finance-export").click();
+  await flush();
+  assert.equal(ui.downloads.length, 1);
+  assert.equal(ui.downloads[0].type, "application/json;charset=utf-8");
+  assert.match(ui.downloadedFiles[0].name, /\.json$/);
+  const text = await ui.downloads[0].text();
+  const data = JSON.parse(text);
+  assert.equal(data.schemaVersion, 1);
+  assert.equal(data.generatedDate, "2026-10-06");
+  assert.equal(data.summary.completedSales, 1000000000000);
+  assert.equal(data.summary.expenseTotal, 1000000000001);
+  assert.equal(data.summary.recordedBalance, -1);
+  assert.equal(typeof data.summary.completedSales, "number");
+  assert.equal(data.expenseCategories[0].count, 101);
+  assert.equal(data.period.timeZone, "Asia/Jakarta");
+  assert.deepEqual(data.buckets, JSON.parse(JSON.stringify(ui.state.report.buckets)));
+  for (const excluded of ["expenses", "expensePagination", "orders", "customerName", "customerPhone"]) assert.equal(Object.hasOwn(data, excluded), false);
+  assert.doesNotMatch(text, /Baris pengeluaran|Private Customer|081234567890/);
+  assert.match(data.scope, /seluruh periode/);
+});
+
+test("text downloads preserve every bucket and negative amounts while keeping spreadsheet labels safe and rows intact", async () => {
+  const summary = { ...report().summary, expenseTotal: 200000, expenseCount: 101, recordedBalance: -65000 };
+  const buckets = Array.from({ length: 31 }, (_, index) => ({
+    ...summary, date: `2026-10-${String(index + 1).padStart(2, "0")}`, recordedBalance: -(index + 1)
+  }));
+  const paymentMethods = ["=SUM(1,2)", " \t=SUM(1,\r\n2)", "\t+SUM(1,2)", "-2+3", "Cash\tTransfer\r\nWallet"]
+    .map(paymentMethod => ({ paymentMethod, completedSales: 135000, completedCount: 5, orderValue: 216000, orderCount: 8 }));
+  let reads = 0;
+  const ui = await authenticatedDashboard(async url => {
+    reads++;
+    return response(paginatedExportReport(url, { summary, buckets, paymentMethods }));
+  });
+  setField(ui, "#finance-export-format", "txt");
+  await ui.exportSelected();
+  assert.equal(reads, 2);
+  assert.equal(ui.downloads.length, 1);
+  assert.equal(ui.downloads[0].type, "text/plain;charset=utf-8");
+  assert.match(ui.downloadedFiles[0].name, /\.txt$/);
+  const text = await ui.downloads[0].text();
+  const lines = text.split("\r\n");
+  const dateRows = lines.filter(row => /^2026-10-\d\d\t/.test(row));
+  assert.equal(dateRows.length, 31);
+  assert.equal(dateRows[0].split("\t").at(-1), "-1");
+  assert.equal(dateRows.at(-1).split("\t").at(-1), "-31");
+  assert.match(text, /Saldo tercatat\t-65000/);
+  assert.match(text, /Pengeluaran tercatat\t200000\t101/);
+  assert.match(text, /Tanggal unduhan WIB\t2026-10-06/);
+  assert.doesNotMatch(text, /Baris pengeluaran/);
+  const paymentStart = lines.indexOf("Metode pembayaran\tPesanan selesai\tPenjualan selesai (Rp)\tNilai pesanan aktif (Rp)") + 1;
+  assert.ok(paymentStart > 0);
+  const paymentRows = lines.slice(paymentStart, paymentStart + paymentMethods.length).map(row => row.split("\t"));
+  assert.deepEqual(paymentRows.map(row => row[0]), ["'=SUM(1,2)", "'  =SUM(1,  2)", "' +SUM(1,2)", "'-2+3", "Cash Transfer  Wallet"]);
+  assert.ok(paymentRows.every(row => row.length === 4 && row[1] === "5" && row[2] === "135000" && row[3] === "216000"));
+  assert.ok(lines.every(line => !/[\r\n]/.test(line)), "untrusted label controls cannot introduce extra rows");
 });

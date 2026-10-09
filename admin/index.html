@@ -12,11 +12,12 @@
   <link rel="stylesheet" href="/assets/css/admin.css?v=20261005-tracklink">
   <link rel="stylesheet" href="/assets/css/admin-history.css">
   <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261008-manage-stock">
-  <link rel="stylesheet" href="/assets/css/admin-finance.css?v=20261009-finance">
+  <link rel="stylesheet" href="/assets/css/admin-finance.css?v=20261009-export">
   <script src="/assets/js/admin.js?v=20261007-stock" defer></script>
   <script src="/assets/js/admin-history-loader.js" defer></script>
   <script src="/assets/js/admin-stock.js?v=20261008-manage-stock" defer></script>
-  <script src="/assets/js/admin-finance.js?v=20261009-finance" defer></script>
+  <script src="/assets/js/finance-export-files.js?v=20261009-export" defer></script>
+  <script src="/assets/js/admin-finance.js?v=20261009-export" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
 </head>
@@ -155,7 +156,7 @@
         <section class="finance-section" id="finance" aria-labelledby="finance-heading">
           <div class="finance-head">
             <div><p class="eyebrow">Catatan usaha</p><h2 id="finance-heading">Laporan Keuangan</h2><p>Penjualan, pengeluaran, dan saldo tercatat dalam satu tempat.</p></div>
-            <div class="finance-head-actions"><button id="finance-refresh" type="button">↻ Refresh</button><button id="finance-export" type="button" disabled>↓ Unduh laporan CSV</button></div>
+            <div class="finance-head-actions"><button id="finance-refresh" type="button">↻ Refresh</button><label class="finance-export-format" for="finance-export-format"><span>Format unduhan</span><select id="finance-export-format" disabled><option value="pdf">PDF (.pdf)</option><option value="xlsx">Excel / Sheets (.xlsx)</option><option value="ods">OpenDocument (.ods)</option><option value="csv">CSV (.csv)</option><option value="json">Data JSON (.json)</option><option value="txt">Teks (.txt)</option></select></label><button id="finance-export" type="button" disabled>↓ Unduh laporan</button></div>
           </div>
           <div class="finance-period-toolbar">
             <div class="finance-period-buttons" role="group" aria-label="Jenis periode laporan">

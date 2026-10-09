@@ -1,0 +1,40 @@
+{
+  "libraries": {
+    "exceljs": {
+      "version": "4.4.0",
+      "source": "https://registry.npmjs.org/exceljs/-/exceljs-4.4.0.tgz"
+    },
+    "fflate": {
+      "version": "0.8.3",
+      "source": "https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz"
+    },
+    "jspdf": {
+      "version": "4.2.1",
+      "source": "https://registry.npmjs.org/jspdf/-/jspdf-4.2.1.tgz"
+    },
+    "jspdf-autotable": {
+      "version": "5.0.8",
+      "source": "https://registry.npmjs.org/jspdf-autotable/-/jspdf-autotable-5.0.8.tgz"
+    },
+    "OpenSans": {
+      "source": "https://www.opensans.com/",
+      "license": "Apache-2.0",
+      "sourcePackage": "Debian fonts-open-sans"
+    }
+  },
+  "sha256": {
+    "exceljs-4.4.0.min.js": "7e49da68588e250dbb8bba190d2caa8ab3787cc0284bda1d8b2f805c4df742c9",
+    "LICENSE-exceljs.txt": "2ed526b7e7c7681dc2347995b5036ddf73dc27d0539cdea59b6d4a72b63a57a0",
+    "LICENSE-fflate.txt": "0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551",
+    "LICENSE-jspdf.txt": "dc388ec35ff463288cdde3588a36fd4ed12a45deff053243b37309acc9ef583b",
+    "LICENSE-jspdf-autotable.txt": "99a374e0385cf714d2faae5f6e02ec79217c6bcecec39bdb9e102091471b960a",
+    "OpenSans-Regular.ttf": "e64e508b2aa2880f907e470c4550980ec4c0694d103a43f36150ac3f93189bee",
+    "OpenSans-Bold.ttf": "5894a3649b213cf5b2d673b6e7a871815fd1d120fa68a463592f27db14eae323",
+    "LICENSE-OpenSans.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "NOTICE-OpenSans.txt": "94d4b78643f99d7cfa872145b38da578299f401405ca5cba66a5c95bf13933b0",
+    "jspdf-4.2.1.umd.min.js": "e6551fcdc32f09d6853b2c5126d18d01d9447e0da618a41a11ebeee0f6c20d54",
+    "jspdf-autotable-5.0.8.min.js": "a65dff2c6a8296b16aff24e69f7683cd7dbaed4a4ec26b507d6840ee27d54649",
+    "fflate-0.8.3.min.js": "462ef8041fc970e3615a20a9dd2b2e3047a073b2da729ef4f02b634bba8b7b83",
+    "LICENSE-bundled-dependencies.txt": "61e702e18bdd0e8e534585623a690ab9de8251db4cca5bb69045a2300d3c20fe"
+  }
+}
