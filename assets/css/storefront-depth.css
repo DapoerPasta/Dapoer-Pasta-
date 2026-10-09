@@ -12,8 +12,9 @@
 
 .hero-scene::before,
 .hero-scene::after,
-.hero-scene .hero-medallion::before,
-.hero-scene .hero-medallion::after,
+.hero-coin::before,
+.hero-coin-face::before,
+.hero-coin-face::after,
 .product-image::before {
   content: "";
   position: absolute;
@@ -60,37 +61,102 @@
   transform-style: preserve-3d;
   isolation: auto;
   backdrop-filter: none;
-  border-color: rgba(239, 207, 148, .7);
+  border: none;
   color: #f5dfaf;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Spin a separate coin so its entrance and the scene's pointer tilt stay independent. */
+.hero-coin {
+  --coin-face-depth: 10px;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg);
+}
+
+/* The side wall closes the rim at the edge-on point of the rotation. */
+.hero-coin::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: calc(var(--coin-face-depth) * 2);
+  border: 1px solid #cf9f58;
+  border-radius: var(--coin-face-depth);
+  background: linear-gradient(90deg, #79502a, #e5ba70 27%, #f3d99e 49%, #b87d39 76%, #69401f);
+  transform: translateX(-50%) rotateY(90deg);
+}
+
+.hero-coin-face,
+.hero-coin-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.hero-coin-face {
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  border: 1px solid rgba(239, 207, 148, .7);
   background: radial-gradient(circle at 27% 19%, rgba(255, 239, 195, .2), transparent 49%),
     linear-gradient(145deg, #792d27, #45100e 61%, #230605);
   box-shadow: inset 0 2px 1px rgba(255, 244, 212, .21),
-    inset 0 -5px 12px rgba(17, 2, 2, .28),
-    6px 9px 0 -1px #582014, 8px 11px 0 -1px #ba8847,
-    12px 19px 0 -2px #2f0907, 18px 28px 38px rgba(10, 1, 1, .37);
+    inset 0 -5px 12px rgba(17, 2, 2, .28);
 }
 
-.hero-scene .hero-medallion::before {
+.hero-coin-face-front {
+  transform: translateZ(var(--coin-face-depth));
+}
+
+.hero-coin-face-back {
+  transform: rotateY(180deg) translateZ(var(--coin-face-depth));
+}
+
+/* Thin gold disks make a physical rim visible when the coin turns edge-on. */
+.hero-coin-edge {
+  border: 1px solid #d2aa62;
+  background: linear-gradient(100deg, #694324, #ce9d52 28%, #f0d092 49%, #b4803d 72%, #59331c);
+}
+
+.hero-coin-edge:nth-child(1) { transform: translateZ(calc(var(--coin-face-depth) * -.8)); }
+.hero-coin-edge:nth-child(2) { transform: translateZ(calc(var(--coin-face-depth) * -.4)); }
+.hero-coin-edge:nth-child(3) { transform: translateZ(0); }
+.hero-coin-edge:nth-child(4) { transform: translateZ(calc(var(--coin-face-depth) * .4)); }
+.hero-coin-edge:nth-child(5) { transform: translateZ(calc(var(--coin-face-depth) * .8)); }
+
+.hero-coin-face::before {
   inset: 9px;
   border: 1px solid rgba(239, 208, 148, .35);
   border-radius: inherit;
   box-shadow: inset 0 1px 0 rgba(255, 242, 204, .08);
-  transform: translateZ(2px);
 }
 
-.hero-scene .hero-medallion::after {
+.hero-coin-face::after {
   inset: 16px;
   border-radius: inherit;
   background: linear-gradient(140deg, rgba(255, 242, 207, .14), transparent 44%, rgba(255, 239, 195, .025) 73%, transparent);
-  transform: translateZ(3px);
 }
 
-.hero-scene .hero-medallion span {
+.hero-coin-face span {
   position: relative;
   z-index: 1;
   line-height: 1;
-  transform: translateZ(13px);
   text-shadow: 0 2px 0 rgba(22, 3, 2, .4), 0 -1px 0 rgba(255, 249, 224, .26);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-coin {
+    animation: storefront-coin-spin 22s linear infinite;
+  }
+}
+
+@keyframes storefront-coin-spin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
 }
 
 .hero-scene .hero-note {
@@ -156,31 +222,39 @@
     transform: perspective(1100px) rotateX(2deg) rotateY(-4deg);
   }
 
-  .hero-scene .hero-medallion {
-    box-shadow: inset 0 2px 1px rgba(255, 244, 212, .21),
-      inset 0 -4px 10px rgba(17, 2, 2, .28),
-      4px 6px 0 -1px #582014, 6px 8px 0 -1px #ba8847,
-      9px 13px 0 -2px #2f0907, 12px 20px 28px rgba(10, 1, 1, .32);
+  .hero-coin {
+    --coin-face-depth: 8px;
   }
 
-  .hero-scene .hero-medallion::before { inset: 7px; }
-  .hero-scene .hero-medallion::after { inset: 12px; }
+  .hero-coin-face {
+    box-shadow: inset 0 2px 1px rgba(255, 244, 212, .21),
+      inset 0 -4px 10px rgba(17, 2, 2, .28);
+  }
+
+  .hero-coin-face::before { inset: 7px; }
+  .hero-coin-face::after { inset: 12px; }
 
   .hero-scene .hero-note {
     box-shadow: 0 2px 0 rgba(255, 255, 255, .2), 5px 9px 19px rgba(13, 2, 2, .2);
   }
 
   .hero-scene .note-left {
-    --hero-depth-transform: translateZ(75px) rotateZ(-3deg);
+    /* Keep labels outside the coin's vertical footprint throughout its rotation. */
+    --hero-depth-transform: translateZ(180px) rotateZ(-3deg);
+    left: 24px;
+    bottom: 20px;
   }
 
   .hero-scene .note-right {
-    --hero-depth-transform: translateZ(85px) rotateZ(2deg);
+    --hero-depth-transform: translateZ(190px) rotateZ(2deg);
+    right: 24px;
+    top: 20px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .hero-scene,
+  .hero-coin,
   .product-depth-plane,
   .product-image::before {
     animation: none !important;
@@ -188,12 +262,13 @@
     will-change: auto !important;
   }
 
+  .hero-coin { transform: rotateY(0deg) !important; }
   .product-depth-plane { transform: none !important; }
 }
 
 @media print {
   .hero-scene,
-  .hero-scene :is(.hero-ring, .hero-medallion, .hero-medallion span, .hero-note),
+  .hero-scene :is(.hero-ring, .hero-medallion, .hero-coin, .hero-coin-face-front, .hero-note),
   .product-depth-plane {
     animation: none !important;
     transition: none !important;
@@ -203,9 +278,15 @@
 
   .hero-scene::before,
   .hero-scene::after,
-  .hero-scene .hero-medallion::before,
-  .hero-scene .hero-medallion::after,
+  .hero-coin::before,
+  .hero-coin-face::before,
+  .hero-coin-face::after,
   .product-image::before {
+    display: none;
+  }
+
+  .hero-coin-face-back,
+  .hero-coin-edge {
     display: none;
   }
 }

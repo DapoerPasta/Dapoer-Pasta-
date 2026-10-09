@@ -12,9 +12,11 @@
   <link rel="stylesheet" href="/assets/css/admin.css?v=20261005-tracklink">
   <link rel="stylesheet" href="/assets/css/admin-history.css">
   <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261008-manage-stock">
+  <link rel="stylesheet" href="/assets/css/admin-finance.css?v=20261009-finance">
   <script src="/assets/js/admin.js?v=20261007-stock" defer></script>
   <script src="/assets/js/admin-history-loader.js" defer></script>
   <script src="/assets/js/admin-stock.js?v=20261008-manage-stock" defer></script>
+  <script src="/assets/js/admin-finance.js?v=20261009-finance" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
 </head>
@@ -55,6 +57,7 @@
           <a class="active" href="#overview"><span>⌂</span> Overview</a>
           <a href="#orders"><span>▤</span> Pesanan</a>
           <a href="#stock"><span>▦</span> Stok Menu</a>
+          <a href="#finance"><span>▥</span> Keuangan</a>
           <a href="/" target="_blank" rel="noopener"><span>↗</span> Lihat Website</a>
         </nav>
 
@@ -145,6 +148,47 @@
               <p id="stock-edit-warning" class="stock-editor-warning" hidden>Pelanggan tidak dapat memesan menu ini sampai stok diisi kembali. Pesanan yang sudah tersimpan tetap ada.</p>
               <p id="stock-edit-message" class="stock-editor-message" role="status" aria-live="polite"></p>
               <div class="stock-editor-actions"><button id="stock-edit-cancel" type="button">Batal</button><button id="stock-edit-save" type="submit">Simpan stok</button></div>
+            </form>
+          </dialog>
+        </section>
+
+        <section class="finance-section" id="finance" aria-labelledby="finance-heading">
+          <div class="finance-head">
+            <div><p class="eyebrow">Catatan usaha</p><h2 id="finance-heading">Laporan Keuangan</h2><p>Penjualan, pengeluaran, dan saldo tercatat dalam satu tempat.</p></div>
+            <div class="finance-head-actions"><button id="finance-refresh" type="button">↻ Refresh</button><button id="finance-export" type="button" disabled>↓ Unduh laporan CSV</button></div>
+          </div>
+          <div class="finance-period-toolbar">
+            <div class="finance-period-buttons" role="group" aria-label="Jenis periode laporan">
+              <button data-finance-period="daily" type="button" aria-pressed="false">Harian</button><button data-finance-period="weekly" type="button" aria-pressed="false">Mingguan</button><button data-finance-period="monthly" type="button" aria-pressed="true">Bulanan</button><button data-finance-period="yearly" type="button" aria-pressed="false">Tahunan</button>
+            </div>
+            <div class="finance-date-controls"><button id="finance-prev" type="button" aria-label="Periode sebelumnya">←</button><label class="finance-date-label" for="finance-date"><span>Tanggal acuan · WIB</span><input id="finance-date" type="date" min="2000-01-01" max="2100-12-31" required></label><button id="finance-next" type="button" aria-label="Periode berikutnya">→</button><button id="finance-today" type="button" aria-pressed="true">Hari ini</button></div>
+          </div>
+          <div class="finance-period-caption"><h3 id="finance-period-label">Memuat periode…</h3><span id="finance-last-updated">Waktu Indonesia Barat</span></div>
+          <p id="finance-message" class="finance-message" role="status" aria-live="polite"></p>
+          <div id="finance-report-state" class="finance-empty">Laporan akan dimuat setelah login.</div>
+          <div id="finance-report" hidden aria-busy="false">
+            <div id="finance-summary" class="finance-summary">
+              <article class="finance-kpi"><span>Penjualan selesai</span><strong id="finance-completed-sales">—</strong><small id="finance-completed-count">—</small><p id="finance-sales-comparison"></p></article>
+              <article class="finance-kpi"><span>Pesanan belum selesai</span><strong id="finance-pending-sales">—</strong><small id="finance-pending-count">—</small><p>Belum dihitung sebagai penjualan selesai</p></article>
+              <article class="finance-kpi"><span>Pengeluaran tercatat</span><strong id="finance-expenses-total">—</strong><small id="finance-expense-count">—</small><p id="finance-expenses-comparison"></p></article>
+              <article class="finance-kpi finance-kpi-balance"><span>Saldo tercatat</span><strong id="finance-balance">—</strong><small>Penjualan selesai − pengeluaran</small><p id="finance-balance-comparison"></p></article>
+            </div>
+            <p class="finance-basis" id="finance-basis">Penjualan mengikuti tanggal pesanan dibuat dan status selesai; bukan konfirmasi pembayaran. Saldo hanya mencakup pengeluaran yang dicatat.</p>
+            <div class="finance-analysis-grid">
+              <figure class="finance-chart-card"><div class="finance-card-head"><div><p class="eyebrow">Perjalanan usaha</p><h3>Penjualan &amp; pengeluaran</h3></div><div class="finance-chart-legend"><span>Penjualan selesai</span><span>Pengeluaran</span></div></div><div id="finance-chart" class="finance-chart"></div><figcaption id="finance-chart-caption">Ringkasan per tanggal dalam periode pilihan.</figcaption></figure>
+              <section class="finance-category-card" aria-labelledby="finance-category-heading"><div class="finance-card-head"><div><p class="eyebrow">Alokasi biaya</p><h3 id="finance-category-heading">Pengeluaran per kategori</h3></div></div><div id="finance-category-list" class="finance-category-list"></div></section>
+            </div>
+            <section class="finance-detail-card" aria-labelledby="finance-breakdown-heading"><div class="finance-card-head"><div><p class="eyebrow">Rincian periode</p><h3 id="finance-breakdown-heading">Ringkasan penjualan</h3></div><p id="finance-orders-note"></p></div><div class="finance-table-scroll"><table class="finance-table"><caption class="finance-sr-only">Rincian keuangan dalam periode pilihan, waktu WIB</caption><thead><tr><th scope="col">Tanggal</th><th scope="col">Selesai</th><th scope="col">Penjualan selesai</th><th scope="col">Belum selesai</th><th scope="col">Pengeluaran</th><th scope="col">Saldo tercatat</th></tr></thead><tbody id="finance-breakdown-body"></tbody></table></div></section>
+            <section class="finance-detail-card" aria-labelledby="finance-payment-heading"><div class="finance-card-head"><div><p class="eyebrow">Pilihan pelanggan</p><h3 id="finance-payment-heading">Metode pembayaran</h3></div><p>Metode yang dipilih saat memesan</p></div><div class="finance-table-scroll"><table class="finance-table"><caption class="finance-sr-only">Nilai pesanan menurut metode pembayaran</caption><thead><tr><th scope="col">Metode</th><th scope="col">Pesanan selesai</th><th scope="col">Penjualan selesai</th><th scope="col">Nilai pesanan aktif</th></tr></thead><tbody id="finance-payment-body"></tbody></table></div></section>
+            <section class="finance-detail-card finance-expense-card" aria-labelledby="finance-expense-heading"><div class="finance-card-head"><div><p class="eyebrow">Pembukuan sederhana</p><h3 id="finance-expense-heading">Catatan pengeluaran</h3><p>Catat biaya bahan, kemasan, dan operasional usaha.</p></div><button id="finance-add-expense" class="finance-primary" type="button">+ Catat pengeluaran</button></div><div class="finance-table-scroll"><table class="finance-table finance-expense-table"><caption class="finance-sr-only">Pengeluaran dalam periode pilihan</caption><thead><tr><th scope="col">Tanggal</th><th scope="col">Kategori &amp; keterangan</th><th scope="col">Jumlah</th><th scope="col">Kelola</th></tr></thead><tbody id="finance-expense-body"></tbody></table></div><div class="finance-expense-pagination"><span id="finance-expense-page-label"></span><div><button id="finance-expense-prev" type="button">← Sebelumnya</button><button id="finance-expense-next" type="button">Berikutnya →</button></div></div></section>
+          </div>
+          <dialog id="expense-editor" class="expense-editor" aria-labelledby="expense-editor-title" aria-describedby="expense-editor-description">
+            <form id="expense-form" novalidate>
+              <div class="expense-editor-head"><div><p class="eyebrow">Catatan usaha</p><h2 id="expense-editor-title">Catat pengeluaran</h2></div><button id="expense-close" type="button" aria-label="Tutup catatan pengeluaran">×</button></div>
+              <p id="expense-editor-description">Catat biaya usaha agar saldo tercatat lebih lengkap.</p>
+              <div id="expense-fields" class="expense-fields"><label>Tanggal<input id="expense-date" type="date" min="2000-01-01" required></label><label>Kategori<select id="expense-category" required><option value="bahan_baku">Bahan baku</option><option value="kemasan">Kemasan</option><option value="operasional">Operasional</option><option value="transportasi">Transportasi</option><option value="pemasaran">Pemasaran</option><option value="lainnya">Lainnya</option></select></label><label class="expense-full">Jumlah pengeluaran<span class="expense-amount-input"><span>Rp</span><input id="expense-amount" type="number" min="1" max="1000000000000" step="1" inputmode="numeric" placeholder="Contoh: 150000" required></span></label><label class="expense-full">Keterangan<textarea id="expense-description" rows="3" maxlength="200" placeholder="Contoh: Bahan pasta untuk produksi hari ini" required></textarea></label></div>
+              <div id="expense-delete-warning" class="expense-delete-warning" hidden><strong id="expense-delete-summary"></strong><p>Catatan ini akan dihapus dari laporan. Pastikan pengeluaran memang salah atau tidak perlu dicatat.</p></div>
+              <p id="expense-message" class="expense-message" role="status" aria-live="polite"></p><div class="expense-editor-actions"><button id="expense-cancel" type="button">Batal</button><button id="expense-save" type="submit">Simpan pengeluaran</button></div>
             </form>
           </dialog>
         </section>

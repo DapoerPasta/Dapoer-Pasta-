@@ -14,6 +14,7 @@ Website Dapoer Pasta berjalan di Vercel dengan frontend statis, Vercel Functions
 - Checkout diteruskan ke WhatsApp
 - Dashboard private di `/admin/`
 - Riwayat pesanan per tanggal WIB, ringkasan harian, dan pemuatan halaman berikutnya
+- Laporan keuangan harian, mingguan, bulanan, dan tahunan dengan pencatatan pengeluaran
 - Status pesanan: baru, diproses, dikirim, selesai, dibatalkan
 - Chatbot Gemini via backend
 - Security headers melalui `vercel.json`
@@ -185,6 +186,38 @@ Halaman/API pesanan dan admin menggunakan cache privat tanpa penyimpanan dan tid
 
 Sesudah perubahan di-deploy ke **project Vercel yang sama**, URL situs tetap sama. Konfigurasi secret produksi, akses Neon, dan respons deployment perlu diverifikasi sebelum menganggap pengamanan sudah aktif. Pembatasan aplikasi tidak menggantikan perlindungan trafik di Vercel Firewall; aktifkan perlindungan tambahan di sana sesuai kebutuhan trafik dan anggaran.
 
+## Laporan Keuangan
+
+Di `/admin/`, buka **Laporan Keuangan** untuk memilih periode harian,
+mingguan (Senin–Minggu), bulanan, atau tahunan, beserta tanggal acuannya.
+Semua periode memakai WIB. Ringkasan, grafik, perbandingan periode sebelumnya,
+dan rincian metode pembayaran menghitung seluruh pesanan dalam periode,
+termasuk data yang belum dimuat pada daftar riwayat pesanan.
+Tombol **Unduh laporan CSV** mengunduh ringkasan, rincian per tanggal/bulan,
+metode pembayaran, kategori biaya, dan perbandingan seluruh periode dari
+satu snapshot data. Rincian catatan pengeluaran tersedia melalui tabel
+dashboard dengan halaman berikutnya.
+
+**Penjualan selesai** menjumlahkan pesanan berstatus `selesai` berdasarkan
+tanggal pesanan dibuat. Angka ini tidak memverifikasi pembayaran bank;
+nilai pesanan yang masih berjalan ditampilkan terpisah dan pesanan dibatalkan
+tidak masuk penjualan. **Saldo tercatat** adalah penjualan selesai dikurangi
+pengeluaran yang dicatat, sehingga bukan laba bersih maupun saldo rekening.
+
+Admin bisa menambah, mengedit, dan menghapus catatan pengeluaran dengan
+tanggal, kategori, keterangan, serta nominal rupiah bulat. Data tersimpan di
+tabel `finance_expenses` pada Neon yang sama, dibuat otomatis setelah sesi
+admin mengakses laporan. Penghapusan menandai catatan sebagai dihapus;
+pengulangan permintaan tambah tidak menggandakan pengeluaran, dan perubahan
+bersamaan ditolak agar catatan terbaru tidak tertimpa.
+
+Endpoint `GET /api/admin/finance` menerima `period=daily|weekly|monthly|yearly`,
+`date=YYYY-MM-DD`, `expensePage`, dan `expensePageSize` (maksimal 100).
+Endpoint yang sama menerima `POST`, `PATCH`, dan `DELETE` untuk catatan
+pengeluaran. Semua metode memerlukan sesi admin; perubahan juga memakai
+validasi JSON, asal permintaan, dan batas permintaan yang sama dengan admin.
+Tidak ada endpoint keuangan publik atau perubahan pada URL fitur yang sudah ada.
+
 ## Pengujian
 
 Animasi antarmuka memakai `assets/js/motion.js` dan stylesheet tambahan,
@@ -202,6 +235,9 @@ mengikuti mouse pada desktop. Gerak tidak aktif pada layar sentuh atau saat
 pengurangan gerakan dipilih. Efek kembali ke posisi semula saat pointer keluar,
 fokus keyboard, tab tidak aktif, atau halaman dicetak; kartu pengganti dari polling
 tetap mendukung efek tanpa mengubah harga, stok, maupun kontrol belanja.
+Medali DP memiliki dua sisi dan berputar 360° setiap 22 detik, terpisah dari
+gerak tilt scene. Cincin dan keterangan tetap terbaca; pengurangan gerakan
+menghentikan putaran dan tampilan cetak hanya menampilkan sisi depan.
 
 Jalankan `npm test`. Pengujian memakai fixture lokal dan database/API tiruan; tidak membuat pesanan produksi atau memanggil Gemini sungguhan. Suite mencakup sesi admin, asal permintaan, batas payload, counter lintas instance, perlindungan data nota, format URL yang harus tetap sama, batas tanggal WIB, ringkasan seluruh hari, paginasi, respons terlambat, dan pergantian hari otomatis.
 
