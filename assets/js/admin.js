@@ -384,7 +384,7 @@ function makeOrderCard(order){
   print.rel="noopener noreferrer";
   print.textContent="Cetak struk customer";
   print.setAttribute("aria-label",`Cetak struk ${queue?"antrean "+queue:order.id}`);
-  statusCell.append(print);
+  primary.append(print);
 
   if(order.tracking_token){
     const tracking=document.createElement("a");

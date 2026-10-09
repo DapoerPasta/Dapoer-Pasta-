@@ -9,11 +9,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/admin.css?v=20261009-thermal">
+  <link rel="stylesheet" href="/assets/css/admin.css?v=20261009-print-visible">
   <link rel="stylesheet" href="/assets/css/admin-history.css">
   <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261008-manage-stock">
   <link rel="stylesheet" href="/assets/css/admin-finance.css?v=20261009-export">
-  <script src="/assets/js/admin.js?v=20261009-thermal" defer></script>
+  <script src="/assets/js/admin.js?v=20261009-print-visible" defer></script>
   <script src="/assets/js/admin-history-loader.js" defer></script>
   <script src="/assets/js/admin-stock.js?v=20261008-manage-stock" defer></script>
   <script src="/assets/js/finance-export-files.js?v=20261009-export" defer></script>
@@ -224,6 +224,20 @@
             </div>
           </div>
 
+          <div class="order-receipt-toolbar" aria-label="Cetak struk customer">
+            <div>
+              <strong>Cetak struk customer</strong>
+              <p>Pilih tanggal berisi pesanan, lalu tekan <strong>Cetak struk customer</strong> di bawah nomor pesanan.</p>
+            </div>
+            <label for="admin-receipt-paper">Ukuran kertas
+              <select id="admin-receipt-paper">
+                <option value="80">Thermal 80 mm</option>
+                <option value="58">Thermal 58 mm</option>
+                <option value="a4">Nota standar A4</option>
+              </select>
+            </label>
+          </div>
+
           <div class="orders-toolbar">
             <label class="search-box">
               <span>⌕</span>
@@ -236,11 +250,6 @@
               <option value="dikirim">Dikirim</option>
               <option value="selesai">Selesai</option>
               <option value="dibatalkan">Dibatalkan</option>
-            </select>
-            <select id="admin-receipt-paper" aria-label="Ukuran kertas struk">
-              <option value="80">Struk thermal 80 mm</option>
-              <option value="58">Struk thermal 58 mm</option>
-              <option value="a4">Nota standar A4</option>
             </select>
           </div>
 
