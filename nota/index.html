@@ -10,20 +10,37 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/receipt.css?v=20261005">
+  <link rel="stylesheet" href="/assets/css/receipt.css?v=20261009-thermal">
   <link rel="stylesheet" href="/assets/css/receipt-privacy.css">
-  <script src="/assets/js/receipt.js?v=20261005" defer></script>
+  <link rel="stylesheet" href="/assets/css/receipt-thermal.css?v=20261009-thermal">
+  <script src="/assets/js/receipt-print-files.js?v=20261009-thermal" defer></script>
+  <script src="/assets/js/receipt.js?v=20261009-thermal" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
 </head>
-<body>
+<body data-receipt-ready="false" data-paper-size="80" data-customer-protected="true">
   <main class="receipt-shell">
     <div class="receipt-actions no-print">
       <a id="back-tracking" href="/track/">← Kembali ke Tracking</a>
-      <button id="print-receipt" type="button">Cetak / Simpan PDF</button>
+      <div class="receipt-print-controls">
+        <label for="receipt-paper-size">Ukuran kertas</label>
+        <select id="receipt-paper-size">
+          <option value="80">Thermal 80 mm</option>
+          <option value="58">Thermal 58 mm</option>
+          <option value="a4">Standar A4</option>
+        </select>
+        <button id="print-receipt" type="button" disabled>Cetak struk</button>
+        <button id="download-receipt-pdf" type="button" class="receipt-secondary" disabled>Unduh PDF</button>
+      </div>
     </div>
+    <div class="receipt-print-help no-print">
+      <p><strong>Cetak dari komputer atau HP.</strong> Pilih printer USB, Bluetooth, atau WiFi yang tersedia di menu cetak perangkat. Komputer memerlukan driver; Android memerlukan layanan cetak; iPhone/iPad memerlukan AirPrint atau aplikasi printer. Jika printer tidak muncul, unduh PDF lalu buka di aplikasi printer.</p>
+      <p id="receipt-paper-help">Gunakan kertas 80 mm, skala 100%, dan nonaktifkan header/footer pada menu cetak.</p>
+    </div>
+    <p id="receipt-print-message" class="receipt-print-message no-print" role="status" aria-live="polite" hidden></p>
 
     <section class="receipt-paper">
+      <div id="receipt-content" hidden>
       <header class="receipt-header">
         <div class="receipt-logo">DP</div>
         <div>
@@ -35,9 +52,17 @@
 
       <div class="divider"></div>
 
+      <section class="receipt-queue" aria-label="Nomor antrean">
+        <span>Nomor Antrean</span>
+        <strong id="receipt-queue-number">—</strong>
+        <small id="receipt-queue-date">—</small>
+      </section>
+
+      <div class="divider"></div>
+
       <section class="receipt-meta">
         <div><span>Order ID</span><strong id="receipt-id">—</strong></div>
-        <div><span>Pelanggan</span><strong id="receipt-customer">—</strong></div>
+        <div class="receipt-customer-row"><span>Pelanggan</span><strong id="receipt-customer">—</strong></div>
         <div><span>Tanggal Pesan</span><strong id="receipt-date">—</strong></div>
         <div><span>Status Order</span><strong id="receipt-status">—</strong></div>
       </section>
@@ -53,8 +78,9 @@
 
       <section class="receipt-summary">
         <div><span>Total Harga</span><strong id="receipt-total">Rp 0</strong></div>
-        <div><span>Pembayaran</span><strong id="receipt-method">—</strong></div>
+        <div><span>Metode Bayar</span><strong id="receipt-method">—</strong></div>
       </section>
+      <p class="receipt-payment-note">Metode pembayaran bukan konfirmasi pembayaran lunas.</p>
 
       <div class="divider"></div>
 
@@ -70,8 +96,9 @@
 
       <footer>
         <p>Terima kasih sudah memesan di Dapoer Pasta.</p>
-        <small>Simpan nota ini sebagai bukti transaksi dan referensi pesanan Anda.</small>
+        <small>Simpan nota ini sebagai ringkasan dan referensi pesanan Anda.</small>
       </footer>
+      </div>
 
       <div id="receipt-loading" class="receipt-loading">Memuat nota…</div>
       <div id="receipt-error" class="receipt-error" hidden></div>

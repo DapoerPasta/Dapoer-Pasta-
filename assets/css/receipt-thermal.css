@@ -1,0 +1,67 @@
+/* Thermal layout remains independent of printer drivers. The PDF download
+   uses a physical 58/80 mm page; the device print dialog selects the roll. */
+[hidden] { display: none !important; }
+.receipt-shell { width: min(720px, 94%); }
+.receipt-actions { flex-wrap: wrap; }
+.receipt-print-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.receipt-print-controls label { width: 100%; font-size: .72rem; font-weight: 700; color: var(--muted); }
+.receipt-print-controls select { min-height: 42px; padding: 8px 28px 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: white; font: inherit; font-size: .78rem; color: var(--ink); }
+.receipt-actions button { min-height: 42px; border-radius: 6px; cursor: pointer; }
+.receipt-actions .receipt-secondary { background: white; border: 1px solid var(--line); color: var(--wine); }
+.receipt-actions button:disabled { opacity: .5; cursor: wait; }
+.receipt-actions :is(a, button, select):focus-visible { outline: 3px solid #bd9b58; outline-offset: 3px; }
+.receipt-print-help { margin: 0 0 18px; padding: 14px 16px; border: 1px solid #ded4c6; border-radius: 10px; background: #fffaf3; color: #65584a; font-size: .74rem; line-height: 1.65; }
+.receipt-print-help p { margin: 0; }
+.receipt-print-help p + p { margin-top: 7px; }
+.receipt-print-message { font-size: .8rem; line-height: 1.6; color: var(--wine); }
+.receipt-paper { margin-inline: auto; overflow-wrap: anywhere; }
+body[data-receipt-ready="false"] .receipt-paper { min-height: 240px; }
+.receipt-queue { display: grid; gap: 5px; text-align: center; }
+.receipt-queue > span { font: 700 .76rem "DM Sans", sans-serif; text-transform: uppercase; letter-spacing: 1.8px; }
+.receipt-queue > strong { font: 700 2.3rem "DM Mono", monospace; line-height: 1.2; }
+.receipt-queue > small { font-size: .7rem; line-height: 1.5; }
+.receipt-payment-note { font-size: .66rem; line-height: 1.5; margin: 10px 0 0; }
+body:not([data-paper-size="a4"]) .receipt-paper { width: min(80mm, 100%); padding: 5mm 4mm; color: #000; }
+body[data-paper-size="58"] .receipt-paper { width: min(58mm, 100%); padding: 4mm 5mm; }
+body:not([data-paper-size="a4"]) .receipt-header { display: block; text-align: center; }
+body:not([data-paper-size="a4"]) .receipt-logo { display: none; }
+body:not([data-paper-size="a4"]) .receipt-header h1 { font-size: 1.1rem; }
+body:not([data-paper-size="a4"]) .receipt-header small { display: block; font-size: .62rem; line-height: 1.65; color: #000; }
+body:not([data-paper-size="a4"]) .divider { border-top: 1px dashed #000; margin: 3mm 0; }
+body:not([data-paper-size="a4"]) :is(.receipt-meta, .receipt-summary, .receipt-extra) > div { display: flex; justify-content: space-between; align-items: flex-start; gap: 3mm; font-size: .67rem; }
+body:not([data-paper-size="a4"]) :is(.receipt-meta, .receipt-summary, .receipt-extra) > div > span { flex: 0 0 29%; }
+body:not([data-paper-size="a4"]) :is(.receipt-meta, .receipt-summary, .receipt-extra) strong { min-width: 0; text-align: right; }
+body:not([data-paper-size="a4"]) .receipt-paper h2 { font-size: .7rem; }
+body:not([data-paper-size="a4"]) .receipt-item { display: block; font-size: .7rem; padding: 2mm 0; break-inside: avoid; }
+body:not([data-paper-size="a4"]) .receipt-item small { color: #000; font-size: .65rem; }
+body:not([data-paper-size="a4"]) .receipt-item strong { display: block; text-align: right; margin-top: 1mm; font-size: .7rem; white-space: normal; overflow-wrap: normal; }
+body:not([data-paper-size="a4"]) #receipt-total { font-weight: 700; }
+body:not([data-paper-size="a4"]) .receipt-summary > div:first-child { font-size: .78rem; }
+body:not([data-paper-size="a4"]) .receipt-summary > div:first-child { display: block; }
+body:not([data-paper-size="a4"]) .receipt-summary > div:first-child strong { display: block; margin-top: 1mm; overflow-wrap: normal; white-space: nowrap; }
+body:not([data-paper-size="a4"]) :is(.receipt-extra, .receipt-extra + .divider, .receipt-privacy) { display: none; }
+body:not([data-paper-size="a4"])[data-customer-protected="true"] .receipt-customer-row { display: none; }
+body:not([data-paper-size="a4"]) footer p { font-size: .72rem; line-height: 1.6; }
+body:not([data-paper-size="a4"]) footer small { font-size: .61rem; color: #000; }
+body[data-paper-size="a4"] .receipt-paper { max-width: 620px; }
+@media (max-width: 520px) {
+  .receipt-print-controls { display: grid; grid-template-columns: 1fr 1fr; }
+  .receipt-print-controls label { grid-column: 1 / -1; }
+  .receipt-print-controls select { grid-column: 1 / -1; width: 100%; }
+  .receipt-actions { gap: 12px; }
+  .receipt-actions a { padding: 7px 0; }
+}
+@page receiptThermal58 { size: auto; margin: 5mm; }
+@page receiptThermal80 { size: auto; margin: 4mm; }
+@page receiptStandard { size: A4 portrait; margin: 10mm; }
+@media print {
+  html, body { background: white !important; color: black !important; }
+  body[data-receipt-ready="false"] .receipt-shell { display: none !important; }
+  .receipt-shell { width: auto; margin: 0; padding: 0; }
+  .receipt-paper { margin: 0; box-shadow: none; }
+  body:not([data-paper-size="a4"]) .receipt-paper { page: receiptThermal80; width: 72mm; padding: 0; max-width: none; }
+  body[data-paper-size="58"] .receipt-paper { page: receiptThermal58; width: 48mm; }
+  body[data-paper-size="a4"] .receipt-paper { page: receiptStandard; width: 100%; max-width: none; padding: 0; }
+  .receipt-header, .receipt-queue, .receipt-summary, footer { break-inside: avoid; }
+  .receipt-loading, .receipt-error { display: none !important; }
+}

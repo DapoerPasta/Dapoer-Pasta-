@@ -1,9 +1,25 @@
 const { neon } = require("@neondatabase/serverless");
 const { TIME_ZONE, createHistoryOptions } = require("./order-history");
 const { PRODUCTS } = require("./catalog");
+const { ensureOrderQueueSchema, queueMetadata } = require("./order-queue");
 
 let schemaPromise;
 let schemaDatabaseUrl;
+
+async function runSchemaSetup(setup) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try { return await setup(); }
+    catch (error) {
+      // Concurrent cold instances can replace the same PostgreSQL function.
+      // Only retry PostgreSQL's transient lock/catalog errors; business errors
+      // and ordinary unique violations must keep their original semantics.
+      const retryable = ["40P01", "55P03", "40001"].includes(error?.code) ||
+        (error?.code === "XX000" && error?.message === "tuple concurrently updated");
+      if (!retryable || attempt === 3) throw error;
+      await new Promise(resolve => setTimeout(resolve, 25 * (attempt + 1)));
+    }
+  }
+}
 
 function getSql() {
   if (!process.env.DATABASE_URL) return null;
@@ -18,7 +34,7 @@ async function ensureSchema() {
     schemaDatabaseUrl = process.env.DATABASE_URL;
   }
   if (!schemaPromise) {
-    schemaPromise = (async () => {
+    schemaPromise = runSchemaSetup(async () => {
       await sql`
       CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
@@ -36,8 +52,22 @@ async function ensureSchema() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
-      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_token TEXT`;
-      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_reserved BOOLEAN NOT NULL DEFAULT FALSE`;
+      await sql`
+        DO $legacy_order_columns$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'orders'::regclass
+                         AND attname = 'tracking_token' AND NOT attisdropped) OR
+             NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'orders'::regclass
+                         AND attname = 'stock_reserved' AND NOT attisdropped) THEN
+            -- Existing columns need no ALTER lock on every cold start. For a
+            -- genuinely old schema, never queue a lock behind stock-first work.
+            LOCK TABLE orders IN ACCESS EXCLUSIVE MODE NOWAIT;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_token TEXT;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_reserved BOOLEAN NOT NULL DEFAULT FALSE;
+          END IF;
+        END;
+        $legacy_order_columns$
+      `;
       await sql`CREATE UNIQUE INDEX IF NOT EXISTS orders_tracking_token_idx ON orders(tracking_token) WHERE tracking_token IS NOT NULL`;
       await sql`CREATE INDEX IF NOT EXISTS orders_created_at_id_idx ON orders(created_at DESC, id DESC)`;
       await sql`
@@ -64,6 +94,9 @@ async function ensureSchema() {
           item RECORD;
           available INTEGER;
         BEGIN
+          -- Match the relation-before-inventory order used by queue migration.
+          -- The compatible lock is held through stock deduction and INSERT.
+          LOCK TABLE orders IN ROW EXCLUSIVE MODE;
           IF jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
             RAISE EXCEPTION 'INSUFFICIENT_STOCK';
           END IF;
@@ -88,6 +121,27 @@ async function ensureSchema() {
             p_items, p_total, 'baru', p_tracking_token, TRUE
           );
           RETURN TRUE;
+        END;
+        $function$
+      `;
+      await ensureOrderQueueSchema(sql);
+      // Return saved metadata in the same statement transaction. A second HTTP
+      // SELECT could fail after committing the order and cause a duplicate retry.
+      await sql`
+        CREATE OR REPLACE FUNCTION dapoer_save_order_with_queue(
+          p_id TEXT, p_name TEXT, p_phone TEXT, p_address TEXT, p_notes TEXT,
+          p_payment TEXT, p_items JSONB, p_total BIGINT, p_tracking_token TEXT
+        ) RETURNS JSONB LANGUAGE plpgsql AS $function$
+        DECLARE
+          saved JSONB;
+        BEGIN
+          PERFORM dapoer_save_order(p_id, p_name, p_phone, p_address, p_notes,
+                                   p_payment, p_items, p_total, p_tracking_token);
+          SELECT jsonb_build_object('queueNumber', queue_number, 'queueDate', queue_date,
+                                    'createdAt', created_at, 'updatedAt', updated_at)
+          INTO saved FROM orders WHERE id = p_id AND tracking_token = p_tracking_token;
+          IF saved IS NULL THEN RAISE EXCEPTION 'ORDER_SAVE_UNCONFIRMED'; END IF;
+          RETURN saved;
         END;
         $function$
       `;
@@ -123,7 +177,7 @@ async function ensureSchema() {
         END;
         $function$
       `;
-    })().catch(error => {
+    }).catch(error => {
       schemaPromise = undefined;
       throw error;
     });
@@ -149,14 +203,20 @@ async function saveOrder(order) {
   const sql = await ensureSchema();
   if (!sql) throw stockError("DATABASE_NOT_CONFIGURED");
   try {
-    await sql`
-    SELECT dapoer_save_order(
+    const rows = await sql`
+    SELECT dapoer_save_order_with_queue(
       ${order.id}, ${order.customer.name}, ${order.customer.phone},
       ${order.customer.address}, ${order.customer.notes},
       ${order.customer.paymentMethod}, ${JSON.stringify(order.items)}::jsonb,
       ${order.total}::bigint, ${order.trackingToken}
-    )
+    ) AS saved
   `;
+    const saved = rows[0]?.saved;
+    if (!saved) throw new Error("ORDER_SAVE_UNCONFIRMED");
+    Object.assign(order, queueMetadata(saved), {
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt
+    });
   } catch (error) {
     rethrowStockError(error);
   }
@@ -169,7 +229,7 @@ async function listOrders(limit = 100) {
   const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
   return sql`
     SELECT id, customer_name, customer_phone, address, notes,
-           payment_method, items, total, status, tracking_token, created_at, updated_at
+           payment_method, items, total, status, tracking_token, queue_number, queue_date, created_at, updated_at
     FROM orders
     ORDER BY created_at DESC
     LIMIT ${safeLimit}
@@ -192,7 +252,7 @@ async function listOrdersByDate(options = {}) {
       WHERE created_at >= ${start}::timestamptz AND created_at < ${end}::timestamptz
     ), page_orders AS (
       SELECT id, customer_name, customer_phone, address, notes,
-             payment_method, items, total, status, tracking_token, created_at, updated_at
+             payment_method, items, total, status, tracking_token, queue_number, queue_date, created_at, updated_at
       FROM orders
       WHERE created_at >= ${start}::timestamptz AND created_at < ${end}::timestamptz
       ORDER BY created_at DESC, id DESC
@@ -224,10 +284,21 @@ async function getPublicOrderStatus(id, trackingToken) {
   const sql = await ensureSchema();
   if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
   const rows = await sql`
-    SELECT id, customer_name, customer_phone, address, notes, items, total, status, payment_method, created_at, updated_at
+    SELECT id, customer_name, customer_phone, address, notes, items, total, status, payment_method, queue_number, queue_date, created_at, updated_at
     FROM orders
     WHERE id = ${id} AND tracking_token = ${trackingToken}
     LIMIT 1
+  `;
+  return rows[0] || null;
+}
+
+async function getOrderById(id) {
+  const sql = await ensureSchema();
+  if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
+  const rows = await sql`
+    SELECT id, customer_name, customer_phone, address, notes, items, total, status,
+           payment_method, queue_number, queue_date, created_at, updated_at
+    FROM orders WHERE id = ${id} LIMIT 1
   `;
   return rows[0] || null;
 }
@@ -243,4 +314,4 @@ async function updateOrderStatus(id, status) {
   }
 }
 
-module.exports = { getSql, ensureSchema, saveOrder, listOrders, listOrdersByDate, getPublicOrderStatus, updateOrderStatus };
+module.exports = { getSql, ensureSchema, saveOrder, listOrders, listOrdersByDate, getPublicOrderStatus, getOrderById, updateOrderStatus };

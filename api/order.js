@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 const { STORE, PRODUCTS } = require("./_lib/catalog");
 const { saveOrder } = require("./_lib/db");
 const { guardRequest } = require("./_lib/security");
+const { queueMetadata } = require("./_lib/order-queue");
 
 function normalizeItems(input) {
   if (!Array.isArray(input) || input.length < 1 || input.length > 20) throw new Error("INVALID_ITEMS");
@@ -60,6 +61,7 @@ function buildMessage(order, trackingUrl) {
     "Halo Admin Dapoer Pasta, saya mau pesan:",
     "",
     `No. Pesanan: *${order.id}*`,
+    order.queueLabel ? `No. Antrian: *${order.queueLabel}* (${order.queueDate} WIB)` : "",
     `Nama: *${order.customer.name}*`,
     `WhatsApp: ${order.customer.phone}`,
     `Alamat: ${order.customer.address}`,
@@ -145,7 +147,7 @@ module.exports = async function handler(req, res) {
   const whatsappUrl = `https://api.whatsapp.com/send?phone=${STORE.whatsapp}&text=${encodeURIComponent(message)}`;
 
   return res.status(200).json({
-    order: { id: order.id, items, total, customer },
+    order: { id: order.id, items, total, customer, ...queueMetadata(order) },
     persisted,
     whatsappUrl,
     trackingUrl

@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/track.css?v=20261005">
+  <link rel="stylesheet" href="/assets/css/track.css?v=20261009-queue">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="/assets/js/track.js?v=20261005-receipt" defer></script>
+  <script src="/assets/js/track.js?v=20261009-queue" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
 </head>
@@ -30,6 +30,7 @@
       <div id="track-loading" class="track-loading">Memuat status pesanan…</div>
 
       <div id="track-content" hidden>
+        <div class="track-queue" id="track-queue" hidden><div><span>Nomor antrean</span><strong id="track-queue-number">—</strong></div><p id="track-queue-date"></p></div>
         <div class="order-meta">
           <div><span>Nomor Pesanan</span><strong id="track-order-id">—</strong></div>
           <div><span>Total</span><strong id="track-total">Rp 0</strong></div>

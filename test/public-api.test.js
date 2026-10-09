@@ -52,12 +52,19 @@ function checkout() {
 
 test("checkout recalculates prices and preserves the existing tracking/WhatsApp link formats", async () => {
   let saved;
-  const handler = loadHandler("order", { saveOrder: async order => { saved = order; return true; } });
+  const handler = loadHandler("order", { saveOrder: async order => {
+    saved = order;
+    Object.assign(order, { queueNumber: 8, queueDate: "2026-10-09", queueLabel: "A008" });
+    return true;
+  } });
   const res = response();
   await handler(request(checkout()), res);
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.order.total, 74000);
   assert.equal(saved.total, 74000);
+  assert.equal(res.body.order.queueNumber, 8);
+  assert.equal(res.body.order.queueDate, "2026-10-09");
+  assert.equal(res.body.order.queueLabel, "A008");
   assert.match(saved.trackingToken, /^[a-f0-9]{48}$/);
   const tracking = new URL(res.body.trackingUrl);
   assert.equal(tracking.origin, "https://shop.example.test");
@@ -69,6 +76,7 @@ test("checkout recalculates prices and preserves the existing tracking/WhatsApp 
   assert.equal(whatsapp.origin, "https://api.whatsapp.com");
   assert.equal(whatsapp.pathname, "/send");
   assert.match(whatsapp.searchParams.get("text"), /TOTAL PESANAN: Rp 74\.000/);
+  assert.match(whatsapp.searchParams.get("text"), /No\. Antrian: \*A008\* \(2026-10-09 WIB\)/);
 });
 
 test("checkout cannot write orders from foreign origins, oversized bodies, or exhausted limits", async () => {

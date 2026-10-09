@@ -11,6 +11,8 @@ Website Dapoer Pasta berjalan di Vercel dengan frontend statis, Vercel Functions
 - Harga dan total dihitung ulang di backend
 - Pesanan disimpan ke Postgres
 - Nomor order unik
+- Nomor antrean harian WIB yang tersimpan pada setiap pesanan
+- Struk customer thermal 58/80 mm, nota A4, dan unduhan PDF
 - Checkout diteruskan ke WhatsApp
 - Dashboard private di `/admin/`
 - Riwayat pesanan per tanggal WIB, ringkasan harian, dan pemuatan halaman berikutnya
@@ -69,6 +71,7 @@ Project memakai `@neondatabase/serverless`. Tabel `orders` dibuat otomatis ketik
 
 Data order yang disimpan:
 - nomor order
+- nomor dan tanggal antrean WIB
 - nama customer
 - nomor WhatsApp
 - alamat
@@ -225,6 +228,50 @@ pengeluaran. Semua metode memerlukan sesi admin; perubahan juga memakai
 validasi JSON, asal permintaan, dan batas permintaan yang sama dengan admin.
 Tidak ada endpoint keuangan publik atau perubahan pada URL fitur yang sudah ada.
 
+## Nomor Antrean dan Struk Customer
+
+Di `/admin/`, buka **Pesanan**, pilih ukuran kertas **Thermal 58 mm**,
+**Thermal 80 mm**, atau **A4**, lalu pilih **Cetak struk customer** pada pesanan.
+Halaman nota menampilkan pratinjau sesuai ukuran pilihan. Klik **Cetak struk**
+untuk membuka menu cetak perangkat, atau **Unduh PDF** untuk menyimpan file
+dan membukanya di aplikasi printer. Membuka nota tidak langsung mencetak.
+
+Struk memuat nomor antrean besar, ID pesanan, tanggal WIB, status, rincian
+jumlah dan harga, total, serta metode pembayaran. Struk thermal untuk customer
+menampilkan nama hanya ketika dibuka oleh admin; nomor WhatsApp pelanggan,
+alamat, dan catatan tidak disertakan. Detail pengiriman tetap tersedia pada
+nota A4 admin. Metode pembayaran yang dipilih tidak berarti pembayaran sudah
+lunas. Cetak ulang tidak mengubah stok, status, atau nomor antrean.
+
+Komputer dapat mencetak melalui driver printer yang terpasang; Android memakai
+layanan cetak atau aplikasi printer; iPhone/iPad memakai AirPrint atau aplikasi
+printer yang mendukung. USB, Bluetooth, dan WiFi mengikuti dukungan printer,
+sistem operasi, dan aplikasi tersebut. Browser tidak menyediakan sambungan
+langsung universal ke semua printer Bluetooth/USB. Jika printer tidak muncul
+di menu cetak, gunakan PDF melalui aplikasi printer. Pilih ukuran kertas yang
+sesuai pada driver, skala 100%, dan nonaktifkan header/footer browser agar
+alamat halaman tidak tercetak. PDF thermal memakai lebar fisik 58/80 mm dan
+panjang mengikuti isi; pesanan sangat panjang dibagi menjadi beberapa halaman.
+
+Antrean dimulai dari **A001** setiap tanggal WIB (`Asia/Jakarta`). Nomor
+disimpan bersama pesanan dan pengurangan stok dalam satu transaksi, sehingga
+checkout bersamaan mendapat nomor berbeda dan checkout gagal tidak mengambil
+nomor. Pembatalan tetap mempertahankan nomornya. Pesanan lama diberi nomor
+berdasarkan urutan waktu dan ID pada tanggal aslinya, tanpa mengubah data
+pesanan atau persediaan. Nomor tampil di dashboard, tracking, nota, serta
+pesan checkout WhatsApp; pencarian admin menerima nomor seperti A001.
+
+Kolom `orders.queue_number` / `queue_date`, tabel `order_queue_counters`,
+indeks unik per hari, dan fungsi/trigger antrean dibuat otomatis di database
+yang sama. Fungsi `dapoer_save_order` tetap mengembalikan BOOLEAN untuk
+instance lama; `dapoer_save_order_with_queue` mengembalikan metadata yang
+tersimpan tanpa permintaan database kedua. `GET /api/receipt?id=...` tanpa
+token hanya tersedia dengan sesi admin yang valid, termasuk untuk pesanan
+lama tanpa token. Link publik tetap memerlukan token yang cocok dan API tidak
+mengirimkan identitas pelanggan tanpa sesi admin. Print/PDF memeriksa ulang
+nota; kesalahan akses membersihkan pratinjau dan menonaktifkan cetak/unduh.
+Tidak ada endpoint Vercel, kredensial, atau dependensi aplikasi baru.
+
 ## Pengujian
 
 Animasi antarmuka memakai `assets/js/motion.js` dan stylesheet tambahan,
@@ -262,3 +309,10 @@ node --test test/inventory-postgres.integration.cjs
 
 Pengujian integrasi membuat schema terpisah lalu menghapusnya; suite menolak
 host database nonlokal dan tidak disertakan pada `npm test`.
+
+Dengan variabel database lokal yang sama, jalankan
+`node --test test/order-queue-postgres.test.js test/finance-postgres.test.js`
+untuk menguji antrean dan laporan keuangan pada PostgreSQL nyata. Suite antrean
+mencakup checkout bersamaan, reset WIB, migrasi riwayat, kompatibilitas instance
+lama, pembatalan, dan rollback nomor bersama stok. `npm test` juga memeriksa
+akses nota admin/publik, validasi struk, PDF, dan pembatalan unduhan.

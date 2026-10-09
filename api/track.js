@@ -1,5 +1,6 @@
 const { getPublicOrderStatus } = require("./_lib/db");
 const { guardRequest } = require("./_lib/security");
+const { queueMetadata } = require("./_lib/order-queue");
 
 function privacyHeaders(res) {
   res.setHeader("Cache-Control", "private, no-store");
@@ -42,6 +43,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       order: {
         id: order.id,
+        ...queueMetadata(order),
         items: publicItems(order.items),
         total: Number(order.total),
         status: order.status,

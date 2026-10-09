@@ -1,7 +1,7 @@
 (()=>{
 const ORDER_TIME_ZONE="Asia/Jakarta";
 const ORDER_PAGE_SIZE=100;
-const state={orders:[],filter:"all",query:"",initialized:false,pollTimer:null,rolloverTimer:null,selectedDate:todayInWib(),followingToday:true,pageCount:1,pagination:null,summary:null,seenIds:new Set(),generation:0,request:null};
+const state={orders:[],filter:"all",query:"",receiptPaper:"80",initialized:false,pollTimer:null,rolloverTimer:null,selectedDate:todayInWib(),followingToday:true,pageCount:1,pagination:null,summary:null,seenIds:new Set(),generation:0,request:null};
 const $=s=>document.querySelector(s);
 const rupiah=v=>`Rp ${Number(v||0).toLocaleString("id-ID")}`;
 function signalAdminEvent(name,detail){
@@ -62,6 +62,11 @@ function bind(){
   $("#enable-notifications").addEventListener("click",enableNotifications);
   $("#status-filter").addEventListener("change",e=>{state.filter=e.target.value;renderOrders()});
   $("#order-search").addEventListener("input",e=>{state.query=e.target.value.trim().toLowerCase();renderOrders()});
+  const receiptPaper=$("#admin-receipt-paper");
+  if(receiptPaper)receiptPaper.addEventListener("change",()=>{
+    state.receiptPaper=["58","80","a4"].includes(receiptPaper.value)?receiptPaper.value:"80";
+    document.querySelectorAll(".thermal-print-link").forEach(link=>link.href=receiptLink(link.getAttribute("data-order-id")));
+  });
   $("#order-date").addEventListener("change",e=>{
     if(!validOrderDate(e.target.value)){e.target.value=state.selectedDate;return}
     selectOrderDate(e.target.value,false);
@@ -301,10 +306,13 @@ function filteredOrders(){
     const statusOk=state.filter==="all"||o.status===state.filter;
     if(!statusOk)return false;
     if(!state.query)return true;
-    const haystack=[o.id,o.customer_name,o.customer_phone,o.address,o.payment_method,o.status].filter(Boolean).join(" ").toLowerCase();
+    const haystack=[o.id,orderQueueLabel(o.queue_number),o.queue_number,o.customer_name,o.customer_phone,o.address,o.payment_method,o.status].filter(Boolean).join(" ").toLowerCase();
     return haystack.includes(state.query);
   });
 }
+
+function orderQueueLabel(number){return Number.isSafeInteger(number)&&number>0?`A${String(number).padStart(3,"0")}`:""}
+function receiptLink(id){return `/nota/?id=${encodeURIComponent(id)}&paper=${state.receiptPaper}`}
 
 function renderOrders(){
   const root=$("#orders-list");
@@ -334,6 +342,8 @@ function makeOrderCard(order){
   const time=document.createElement("div");time.className="order-time";
   time.textContent=new Date(order.created_at).toLocaleString("id-ID",{timeZone:ORDER_TIME_ZONE,dateStyle:"medium",timeStyle:"short"})+" WIB";
   primary.append(id,time);
+  const queue=orderQueueLabel(order.queue_number);
+  if(queue){const badge=document.createElement("div");badge.className="order-queue";badge.textContent=`Antrean ${queue}`;primary.append(badge)}
 
   const customer=document.createElement("div");customer.className="customer-cell";
   const name=document.createElement("div");name.className="customer-name";name.textContent=order.customer_name||"—";
@@ -366,6 +376,15 @@ function makeOrderCard(order){
   const button=document.createElement("button");button.type="button";button.textContent="Simpan";
   button.addEventListener("click",()=>changeStatus(order.id,select.value,button));
   controls.append(select,button);statusCell.append(badge,controls);
+  const print=document.createElement("a");
+  print.className="thermal-print-link";
+  print.setAttribute("data-order-id",order.id);
+  print.href=receiptLink(order.id);
+  print.target="_blank";
+  print.rel="noopener noreferrer";
+  print.textContent="Cetak struk customer";
+  print.setAttribute("aria-label",`Cetak struk ${queue?"antrean "+queue:order.id}`);
+  statusCell.append(print);
 
   if(order.tracking_token){
     const tracking=document.createElement("a");

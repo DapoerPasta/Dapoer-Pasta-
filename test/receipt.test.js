@@ -19,6 +19,8 @@ const savedOrder = {
   status: "baru",
   payment_method: "OVO",
   tracking_token: query.token,
+  queue_number: 12,
+  queue_date: "2026-10-06",
   created_at: "2026-10-06T00:00:00.000Z",
   updated_at: "2026-10-06T00:00:00.000Z"
 };
@@ -33,8 +35,14 @@ function handlerFor(endpoint, options = {}) {
         calls.database.push({ id, token });
         if (options.error) throw options.error;
         return options.order === undefined ? savedOrder : options.order;
+      },
+      async getOrderById(id) {
+        calls.database.push({ id, adminOnly: true });
+        if (options.error) throw options.error;
+        return options.order === undefined ? savedOrder : options.order;
       }
     },
+    "./_lib/order-queue": require("../api/_lib/order-queue"),
     "./_lib/auth": {
       verifySession(req) {
         calls.auth.push(req);
@@ -102,10 +110,13 @@ test("existing token receipt exposes items and status without customer data", as
   assertPrivateHeaders(res);
   assert.equal(res.headers.vary, "Cookie");
   assertNoCustomerData(res.body.order);
-  assert.deepEqual(Object.keys(res.body.order).sort(), ["id", "items", "total", "status", "paymentMethod", "createdAt", "updatedAt", "customerDataProtected"].sort());
+  assert.deepEqual(Object.keys(res.body.order).sort(), ["id", "items", "total", "status", "paymentMethod", "createdAt", "updatedAt", "customerDataProtected", "queueNumber", "queueDate", "queueLabel"].sort());
   assert.equal(res.body.order.customerDataProtected, true);
   assert.equal(res.body.order.total, 74000);
   assert.equal(res.body.order.status, "baru");
+  assert.equal(res.body.order.queueNumber, 12);
+  assert.equal(res.body.order.queueDate, "2026-10-06");
+  assert.equal(res.body.order.queueLabel, "A012");
   assert.deepEqual(res.body.order.items, [{ id: "pasta", name: "Pasta", price: 37000, quantity: 2, subtotal: 74000 }]);
   assert.deepEqual(calls.database, [query]);
   assert.deepEqual(calls.guard, [{ scope: "receipt", methods: ["GET"] }]);
@@ -132,19 +143,60 @@ test("an invalid session does not reveal receipt customer details", async () => 
   assertNoCustomerData(res.body.order);
 });
 
+test("an authenticated admin can print legacy orders using only their id", async () => {
+  const { res, calls } = await invoke("receipt", { order: { ...savedOrder, tracking_token: null } }, {
+    query: { id: query.id }, headers: { cookie: "test_admin=valid" }
+  });
+  assert.equal(res.statusCode, 200);
+  assertPrivateHeaders(res);
+  assert.equal(res.headers.vary, "Cookie");
+  assert.equal(res.body.order.customerDataProtected, false);
+  assert.equal(res.body.order.customerName, savedOrder.customer_name);
+  assert.equal(res.body.order.queueLabel, "A012");
+  assert.deepEqual(calls.database, [{ id: query.id, adminOnly: true }]);
+  assert.equal(calls.auth.length, 1);
+});
+
+test("id-only receipts require a valid session before lookup or rate-limit queries", async () => {
+  for (const id of [query.id, "DP-NOT-FOUND"]) {
+    for (const headers of [{}, { cookie: "test_admin=forged" }]) {
+      const { res, calls } = await invoke("receipt", {}, { query: { id }, headers });
+      assert.equal(res.statusCode, 401);
+      assertPrivateHeaders(res);
+      assert.equal(res.headers.vary, "Cookie");
+      assert.deepEqual(calls.database, []);
+      assert.deepEqual(calls.guard, []);
+      assert(!Object.hasOwn(res.body, "order"));
+    }
+  }
+});
+
+test("a private id-only not-found receipt returns no customer data", async () => {
+  const { res, calls } = await invoke("receipt", { order: null }, {
+    query: { id: query.id }, headers: { cookie: "test_admin=valid" }
+  });
+  assert.equal(res.statusCode, 404);
+  assertPrivateHeaders(res);
+  assert(!Object.hasOwn(res.body, "order"));
+  assert.deepEqual(calls.database, [{ id: query.id, adminOnly: true }]);
+});
+
 test("tracking uses a public allowlist even for an authenticated admin", async () => {
   const { res, calls } = await invoke("track", {}, { headers: { cookie: "test_admin=valid" } });
   assert.equal(res.statusCode, 200);
   assertPrivateHeaders(res);
   assertNoCustomerData(res.body.order);
-  assert.deepEqual(Object.keys(res.body.order).sort(), ["id", "items", "total", "status", "paymentMethod", "createdAt", "updatedAt"].sort());
+  assert.deepEqual(Object.keys(res.body.order).sort(), ["id", "items", "total", "status", "paymentMethod", "createdAt", "updatedAt", "queueNumber", "queueDate", "queueLabel"].sort());
+  assert.equal(res.body.order.queueLabel, "A012");
   assert.deepEqual(res.body.order.items, [{ id: "pasta", name: "Pasta", price: 37000, quantity: 2, subtotal: 74000 }]);
   assert.deepEqual(calls.guard, [{ scope: "track", methods: ["GET"] }]);
 });
 
 for (const endpoint of ["receipt", "track"]) {
   test(`${endpoint}: missing or short token is rejected before database/limiter access`, async () => {
-    for (const invalidQuery of [{ id: query.id }, { ...query, token: "short" }, { token: query.token }, { ...query, token: [query.token] }, { ...query, id: [query.id] }]) {
+    const invalidQueries = [{ ...query, token: "short" }, { token: query.token }, { ...query, token: [query.token] }, { ...query, id: [query.id] }];
+    if (endpoint === "track") invalidQueries.push({ id: query.id });
+    for (const invalidQuery of invalidQueries) {
       const { res, calls } = await invoke(endpoint, {}, { query: invalidQuery });
       assert.equal(res.statusCode, 400);
       assertPrivateHeaders(res);

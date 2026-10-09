@@ -29,9 +29,14 @@ function render(order){
   $("#track-error").hidden=true;
   $("#track-content").hidden=false;
   $("#track-order-id").textContent=order.id;
+  const queue=Number.isSafeInteger(order.queueNumber)&&order.queueNumber>0?`A${String(order.queueNumber).padStart(3,"0")}`:"";
+  $("#track-queue").hidden=!queue;
+  $("#track-queue-number").textContent=queue||"—";
+  const queueDate=typeof order.queueDate==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(order.queueDate)?new Date(`${order.queueDate}T00:00:00Z`):null;
+  $("#track-queue-date").textContent=queueDate&&Number.isFinite(queueDate.getTime())?queueDate.toLocaleDateString("id-ID",{timeZone:"UTC",day:"numeric",month:"long",year:"numeric"})+" · WIB":"";
   $("#track-total").textContent=rupiah(order.total);
   $("#track-status").textContent=order.status;
-  $("#track-updated").textContent=`Diperbarui ${new Date(order.updatedAt).toLocaleString("id-ID")}`;
+  $("#track-updated").textContent=`Diperbarui ${new Date(order.updatedAt).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})} WIB`;
 
   const params=new URLSearchParams(location.search);
   const id=params.get("id")||"";
