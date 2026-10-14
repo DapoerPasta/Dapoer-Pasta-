@@ -288,9 +288,9 @@ dan meminta pemeriksaan ulang jika harga berubah sebelum konfirmasi.
 
 Halaman sukses menyediakan tombol **Konfirmasi di WhatsApp**, **Lacak pesanan**,
 dan **Lihat struk**. Pembukaan WhatsApp dilakukan dengan klik langsung agar
-tetap bekerja setelah koneksi lambat. Beranda menyediakan **Pesanan terakhir**.
-Metadata/URL tracking disimpan di browser; pesan WhatsApp dan data checkout
-yang belum mendapat konfirmasi hanya disimpan dalam sesi tab, dengan cadangan
+tetap bekerja setelah koneksi lambat. Beranda memakai satu tombol gold
+**Pilih Menu & Pesan**; fitur Pesanan terakhir tidak digunakan. Pesan WhatsApp
+dan data checkout yang belum mendapat konfirmasi hanya disimpan dalam sesi tab, dengan cadangan
 memori jika penyimpanan tidak tersedia. Pesan WhatsApp tidak dikirim melalui
 API tracking publik. Jika tab ditutup saat hasil belum pasti, periksa pesanan
 yang sudah tercatat atau hubungi admin sebelum memesan ulang. Perubahan baru

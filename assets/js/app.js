@@ -7,11 +7,11 @@ function cleanText(value,max){return typeof value==="string"?value.replace(/[\u0
 document.addEventListener("DOMContentLoaded",init);
 
 async function init(){
-  bindUI();observeReveal();renderCart();renderLastOrder();restoreIntentNotice();
+  bindUI();observeReveal();renderCart();restoreIntentNotice();
   await loadMenu();
   setInterval(()=>{if(!document.hidden)loadMenu()},15000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadMenu()});
-  window.addEventListener("storage",event=>{if(event.key==="dapoer-pasta-cart"&&!state.checkoutBusy){state.cart=loadCart();reconcileCart();renderCart()}if(event.key==="dapoer-last-order-v1")renderLastOrder()});
+  window.addEventListener("storage",event=>{if(event.key==="dapoer-pasta-cart"&&!state.checkoutBusy){state.cart=loadCart();reconcileCart();renderCart()}});
 }
 function bindUI(){
   window.addEventListener("load",()=>setTimeout(()=>$("#preloader")?.classList.add("hide"),350));
@@ -263,7 +263,7 @@ async function postCheckout(intent,snapshot,cartBefore,customerBefore){
       clearIntent(intent.requestId);await loadMenu();toggleCart(true);showToast(data.error||"Stok tidak mencukupi. Sesuaikan jumlah di keranjang.");return;
     }
     if(res.status===409&&data.code==="REQUEST_CONFLICT"){
-      restoreIntentNotice();checkoutNotice("Nomor permintaan ini sudah digunakan. Periksa pesanan terakhir atau hubungi WhatsApp admin sebelum membuat pesanan baru. Data di keranjang tetap disimpan.");if($("#checkout-contact-link"))$("#checkout-contact-link").hidden=false;showToast(data.error||"Periksa pesanan terakhir atau hubungi admin sebelum memesan lagi.");return;
+      restoreIntentNotice();checkoutNotice("Nomor permintaan ini sudah digunakan. Hubungi WhatsApp admin untuk memeriksa pesanan yang sudah tersimpan sebelum membuat pesanan baru. Data di keranjang tetap disimpan.");if($("#checkout-contact-link"))$("#checkout-contact-link").hidden=false;showToast(data.error||"Hubungi admin untuk memeriksa pesanan sebelum memesan lagi.");return;
     }
     if(res.status>=400&&res.status<500&&res.status!==429)clearIntent(intent.requestId);
     else restoreIntentNotice();
@@ -277,7 +277,7 @@ async function postCheckout(intent,snapshot,cartBefore,customerBefore){
   const unchanged=JSON.stringify(sortedItems(state.cart))===cartBefore&&JSON.stringify(sortedItems(state.cart))===JSON.stringify(sortedItems(intent.payload.items));
   if(unchanged){state.cart=[];persistCart();renderCart()}
   if(JSON.stringify(customerBefore)===JSON.stringify(intent.payload.customer)&&JSON.stringify(customerSnapshot())===JSON.stringify(customerBefore))$("#checkout-form")?.reset();
-  showCheckoutSuccess(record,whatsapp,data.order.total,!unchanged);renderLastOrder();loadMenu();
+  showCheckoutSuccess(record,whatsapp,data.order.total,!unchanged);loadMenu();
 }
 function showCheckoutSuccess(record,whatsapp,total,cartPreserved){
   state.success=record;checkoutNotice(cartPreserved?"Perubahan terbaru di keranjang tetap disimpan untuk pesanan berikutnya.":"");
@@ -287,7 +287,6 @@ function showCheckoutSuccess(record,whatsapp,total,cartPreserved){
   $("#checkout-whatsapp-link").href=whatsapp;$("#checkout-tracking-link").href=record.trackingUrl;$("#checkout-receipt-link").href=record.receiptUrl;
   toggleCheckout(true);showToast(`Pesanan ${record.id} tersimpan.`);
 }
-function renderLastOrder(){const record=window.DapoerOrderRecovery?.getLastOrder(),link=$("#last-order-link");if(!link)return;link.hidden=!record;if(record){link.href=record.trackingUrl;link.setAttribute("referrerpolicy","no-referrer")}}
 async function sendChat(e){
   e.preventDefault();const input=$("#chat-input"),message=input.value.trim();if(!message)return;
   addChatMessage(message,"user-message");input.value="";const pending=addChatMessage("Concierge sedang menyiapkan jawaban…","bot-message");

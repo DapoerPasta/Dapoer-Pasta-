@@ -17,7 +17,7 @@ function customer(fetch,{local=new Map(),session=new Map(),failStorage=false}={}
   const window={location,crypto:webcrypto,open(...args){opened.push(args)},addEventListener(){}};
   const context=vm.createContext({window,document,fetch,URL,TextEncoder,Uint8Array,AbortController,localStorage:storage(local,failStorage),sessionStorage:storage(session,failStorage),setTimeout:()=>1,clearTimeout(){},setInterval:()=>1});
   vm.runInContext(fs.readFileSync(path.join(__dirname,"../assets/js/order-recovery.js"),"utf8"),context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname,"../assets/js/app.js"),"utf8")+"\nglobalThis.api={state,loadMenu,addToCart,updateQuantity,renderCart,submitCheckout,retryPendingCheckout,renderLastOrder,loadIntent};",context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname,"../assets/js/app.js"),"utf8")+"\nglobalThis.api={state,loadMenu,addToCart,updateQuantity,renderCart,submitCheckout,retryPendingCheckout,loadIntent};",context);
   const ui={...context.api,element:document.querySelector,opened,location,local,session,recovery:window.DapoerOrderRecovery};
   ui.fill=(name="Customer")=>{for(const[key,value]of Object.entries({name,phone:"081234567890",address:"Jalan contoh 123",payment:"DANA",notes:""}))ui.element(`#checkout-${key}`).value=value};
   ui.submit=()=>ui.submitCheckout({preventDefault(){}});return ui;
@@ -45,12 +45,12 @@ test("lost response retries identical body and UUID even after stock and price c
   assert.ok(!JSON.stringify([...ui.local.values()]).includes("Jalan contoh"));
 });
 
-test("reload can recover an uncertain checkout from session storage and exposes last order",async()=>{
+test("reload can recover an uncertain checkout from session storage",async()=>{
   const local=new Map(),session=new Map(),sent=[];const first=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[product()]});sent.push(JSON.parse(options.body));throw new Error("lost")},{local,session});
   await first.loadMenu();first.addToCart(ID);first.fill();await first.submit();
   const second=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[product(0)]});sent.push(JSON.parse(options.body));return success(sent.at(-1))},{local,session});await second.loadMenu();await second.retryPendingCheckout();
-  assert.deepEqual(sent[1],sent[0]);assert.equal(second.state.cart.length,0);assert.equal(second.element("#last-order-link").hidden,false);
-  const third=customer(async()=>reply({products:[product()]}),{local,session});third.renderLastOrder();assert.equal(third.element("#last-order-link").href,second.element("#last-order-link").href);
+  assert.deepEqual(sent[1],sent[0]);assert.equal(second.state.cart.length,0);assert.equal(second.element("#checkout-success").hidden,false);
+  assert.match(second.element("#checkout-tracking-link").href,/^\/track\//);
 });
 
 test("duplicate submit is locked and pending cart and customer edits survive success",async()=>{
@@ -89,15 +89,11 @@ test("backend PRICE_CHANGED updates total and creates a new UUID only on confirm
 });
 
 test("blocked storage keeps cart and intent in memory without losing recovery or checkout success",async()=>{
-  let posts=0;const sent=[];const ui=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[product()]});const payload=JSON.parse(options.body);sent.push(payload);if(++posts===1)throw new Error("lost");return success(payload)},{failStorage:true});await ui.loadMenu();ui.addToCart(ID);ui.fill();await ui.submit();await ui.submit();assert.deepEqual(sent[1],sent[0]);assert.equal(ui.state.cart.length,0);assert.equal(ui.recovery.getLastOrder().id,"DP-TEST-001");
+  let posts=0;const sent=[];const ui=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[product()]});const payload=JSON.parse(options.body);sent.push(payload);if(++posts===1)throw new Error("lost");return success(payload)},{failStorage:true});await ui.loadMenu();ui.addToCart(ID);ui.fill();await ui.submit();await ui.submit();assert.deepEqual(sent[1],sent[0]);assert.equal(ui.state.cart.length,0);assert.equal(ui.state.success.id,"DP-TEST-001");
 });
 
 test("REQUEST_CONFLICT preserves the unknown request and blocks blind creation of another order",async()=>{
-  const sent=[];const ui=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[product()]});sent.push(JSON.parse(options.body));return reply({code:"REQUEST_CONFLICT",error:"Permintaan sudah digunakan"},409)});await ui.loadMenu();ui.addToCart(ID);ui.fill();await ui.submit();const id=ui.loadIntent().requestId;assert.match(ui.element("#checkout-notice").textContent,/hubungi WhatsApp admin/);ui.fill("Changed Customer");await ui.submit();assert.equal(sent.length,1);assert.equal(ui.loadIntent().requestId,id);assert.equal(ui.state.cart[0].quantity,1);
-});
-
-test("last order link refreshes when another tab writes newer valid order metadata",()=>{
-  const ui=customer(async()=>{});ui.recovery.remember({order:{id:"DP-FIRST-001"},trackingUrl:`/track/?id=DP-FIRST-001&token=${TOKEN}`,whatsappUrl:"https://api.whatsapp.com/send?phone=6285175391181"});ui.renderLastOrder();ui.local.set("dapoer-last-order-v1",JSON.stringify({id:"DP-SECOND-002",trackingUrl:`/track/?id=DP-SECOND-002&token=${TOKEN}`}));ui.renderLastOrder();assert.match(ui.element("#last-order-link").href,/DP-SECOND-002/);
+  const sent=[];const ui=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[product()]});sent.push(JSON.parse(options.body));return reply({code:"REQUEST_CONFLICT",error:"Permintaan sudah digunakan"},409)});await ui.loadMenu();ui.addToCart(ID);ui.fill();await ui.submit();const id=ui.loadIntent().requestId;assert.match(ui.element("#checkout-notice").textContent,/hubungi WhatsApp admin/i);ui.fill("Changed Customer");await ui.submit();assert.equal(sent.length,1);assert.equal(ui.loadIntent().requestId,id);assert.equal(ui.state.cart[0].quantity,1);
 });
 
 test("recovery rejects malicious URLs, mismatched identifiers, duplicate tokens and permanent PII",()=>{
