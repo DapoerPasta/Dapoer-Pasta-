@@ -187,6 +187,9 @@ function createRequestGuard({
       const bodyError = validJsonBody(req, options);
       if (bodyError) return reject(res, bodyError.status, bodyError.message);
     }
+    // Logout must be able to revoke the browser cookie during a database
+    // outage. Method, origin and payload protections above still apply.
+    if (options.skipRateLimit === true) return true;
     try {
       const scope = options.scope || "api";
       const policy = { limit: 60, windowSeconds: 60, ...DEFAULT_POLICIES[scope], ...options };

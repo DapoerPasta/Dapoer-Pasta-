@@ -57,6 +57,7 @@ body[data-paper-size="a4"] .receipt-paper { max-width: 620px; }
 @media print {
   html, body { background: white !important; color: black !important; }
   body[data-receipt-ready="false"] .receipt-shell { display: none !important; }
+  body[data-customer-protected="false"]:not([data-private-print-authorized="true"]) .receipt-shell { display: none !important; }
   .receipt-shell { width: auto; margin: 0; padding: 0; }
   .receipt-paper { margin: 0; box-shadow: none; }
   body:not([data-paper-size="a4"]) .receipt-paper { page: receiptThermal80; width: 72mm; padding: 0; max-width: none; }

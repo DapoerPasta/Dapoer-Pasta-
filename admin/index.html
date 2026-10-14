@@ -9,13 +9,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/admin.css?v=20261009-print-visible">
+  <link rel="stylesheet" href="/assets/css/admin.css?v=20261014-reliable">
   <link rel="stylesheet" href="/assets/css/admin-history.css">
-  <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261008-manage-stock">
+  <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261014-reliable">
   <link rel="stylesheet" href="/assets/css/admin-finance.css?v=20261009-export">
-  <script src="/assets/js/admin.js?v=20261009-print-visible" defer></script>
+  <script src="/assets/js/admin-session.js?v=20261014-reliable" defer></script>
+  <script src="/assets/js/admin.js?v=20261014-reliable" defer></script>
   <script src="/assets/js/admin-history-loader.js" defer></script>
-  <script src="/assets/js/admin-stock.js?v=20261008-manage-stock" defer></script>
+  <script src="/assets/js/admin-stock.js?v=20261014-reliable" defer></script>
   <script src="/assets/js/finance-export-files.js?v=20261009-export" defer></script>
   <script src="/assets/js/admin-finance.js?v=20261009-export" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
@@ -89,11 +90,12 @@
             <p class="topbar-subtitle">Pantau pesanan harian, buka riwayat, dan atur stok yang terlihat oleh customer.</p>
           </div>
           <div class="topbar-actions">
-            <div class="live-pill"><span></span> Live monitoring aktif</div>
+            <div id="orders-live-state" class="live-pill connecting" role="status" aria-live="polite"><span aria-hidden="true"></span><strong id="orders-live-label">Menghubungkan…</strong></div>
             <button id="enable-notifications" type="button">🔔 Aktifkan notifikasi</button>
             <button id="refresh-orders" type="button">↻ Refresh data</button>
           </div>
         </header>
+        <p id="admin-session-message" class="admin-session-message" role="alert" hidden></p>
 
         <section id="overview" class="stats-grid" aria-label="Ringkasan pesanan">
           <article class="stat-card">
@@ -266,6 +268,15 @@
           </div>
         </section>
       </div>
+      <dialog id="order-cancel-dialog" class="order-cancel-dialog" aria-labelledby="order-cancel-title" aria-describedby="order-cancel-description">
+        <form method="dialog">
+          <p class="eyebrow">Konfirmasi pembatalan</p>
+          <h2 id="order-cancel-title">Batalkan pesanan?</h2>
+          <p id="order-cancel-description"></p>
+          <p class="order-cancel-note">Stok yang dipesan akan dikembalikan. Pesanan yang dibatalkan tidak dapat diaktifkan kembali.</p>
+          <div class="order-cancel-actions"><button id="order-cancel-back" type="button">Tetap simpan pesanan</button><button id="order-cancel-confirm" type="button">Ya, batalkan pesanan</button></div>
+        </form>
+      </dialog>
       <div class="admin-notification" id="admin-notification" role="status" aria-live="polite">
         <strong id="notification-title">Pesanan baru masuk</strong>
         <span id="notification-text"></span>

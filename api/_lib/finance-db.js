@@ -20,20 +20,29 @@ async function ensureFinanceSchema() {
   }
   if (!expenseSchemaPromise) {
     expenseSchemaPromise = (async () => {
+      // IF NOT EXISTS alone does not serialize PostgreSQL catalog changes:
+      // separate cold instances can race while creating a table's row type.
+      // Keep the table and index in one transaction, protected across instances.
       await sql`
-        CREATE TABLE IF NOT EXISTS finance_expenses (
-          id UUID PRIMARY KEY,
-          expense_date DATE NOT NULL,
-          category TEXT NOT NULL CHECK (category IN ('bahan_baku', 'kemasan', 'operasional', 'transportasi', 'pemasaran', 'lainnya')),
-          description TEXT NOT NULL CHECK (char_length(description) BETWEEN 1 AND 200),
-          amount BIGINT NOT NULL CHECK (amount BETWEEN 1 AND 1000000000000),
-          created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-          updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
-          deleted_at TIMESTAMPTZ,
-          original_payload JSONB NOT NULL
-        )
+        DO $finance_schema$
+        BEGIN
+          PERFORM pg_advisory_xact_lock(1885433957, 114);
+          CREATE TABLE IF NOT EXISTS finance_expenses (
+            id UUID PRIMARY KEY,
+            expense_date DATE NOT NULL,
+            category TEXT NOT NULL CHECK (category IN ('bahan_baku', 'kemasan', 'operasional', 'transportasi', 'pemasaran', 'lainnya')),
+            description TEXT NOT NULL CHECK (char_length(description) BETWEEN 1 AND 200),
+            amount BIGINT NOT NULL CHECK (amount BETWEEN 1 AND 1000000000000),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+            deleted_at TIMESTAMPTZ,
+            original_payload JSONB NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS finance_expenses_date_id_idx
+            ON finance_expenses(expense_date DESC, id DESC) WHERE deleted_at IS NULL;
+        END;
+        $finance_schema$
       `;
-      await sql`CREATE INDEX IF NOT EXISTS finance_expenses_date_id_idx ON finance_expenses(expense_date DESC, id DESC) WHERE deleted_at IS NULL`;
     })().catch(error => {
       expenseSchemaPromise = undefined;
       throw error;

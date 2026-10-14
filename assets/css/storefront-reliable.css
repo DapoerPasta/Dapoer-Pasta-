@@ -1,0 +1,29 @@
+/* Checkout, recovery and accessibility refinements. */
+[hidden]{display:none!important}
+.last-order-link{display:inline-flex;align-items:center;gap:10px;margin-top:22px;color:#efd39d;font-size:.82rem;text-decoration:underline;text-underline-offset:5px}
+.product-depth-plane picture{display:block;width:100%;height:100%}
+.checkout-notice{margin:22px 28px 0;padding:14px 16px;border:1px solid #ead3a5;border-radius:12px;background:#fff7e7;color:#644617;font-size:.85rem;line-height:1.6}
+.checkout-contact-link{display:inline-flex;align-items:center;min-height:44px;margin:8px 28px 0;color:var(--burgundy);font-size:.82rem;font-weight:700;text-decoration:underline;text-underline-offset:4px}
+.checkout-success{padding:30px;text-align:center}
+.checkout-success-mark{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;margin:0 auto 20px;background:#e5f4eb;color:#167143;font-size:1.4rem}
+.checkout-success .eyebrow{margin-bottom:8px}
+.checkout-success h3{font:600 2.3rem "Cormorant Garamond",serif;color:var(--burgundy);margin-bottom:10px}
+.checkout-success p{font-size:.86rem;line-height:1.7;color:#705e52;max-width:510px;margin:12px auto}
+.checkout-success-queue{display:inline-block;padding:12px 22px;margin:8px auto;border:1px solid #e5d5b7;border-radius:14px;background:#fbf4e7;color:var(--burgundy);font-size:1rem;font-weight:700}
+.checkout-success-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px auto 0;max-width:520px}
+.checkout-success-actions .button{justify-content:center;min-height:48px;letter-spacing:.2px;text-transform:none;text-align:center}
+.success-whatsapp{grid-column:1/-1;background:#167143;color:white;border:1px solid #167143}
+.success-secondary{background:#fff;color:var(--burgundy);border:1px solid #decebb}
+.checkout-done,.checkout-retry{border:0;border-radius:10px;padding:14px 18px;min-height:44px;background:#f2e8d9;color:var(--burgundy);font-weight:700;cursor:pointer}
+.checkout-done{margin-top:20px}
+.checkout-retry{grid-column:1/-1}
+.cart-remove,.quantity button{min-width:40px;min-height:40px}
+.cart-header button,.chat-header button{min-width:44px;min-height:44px}
+.chat-box{max-height:calc(100dvh - 180px)}
+.chat-messages{min-height:80px;flex:1;overflow-y:auto;overscroll-behavior:contain}
+.chat-header,.chat-input-row{flex-shrink:0}
+.checkout-panel{max-height:calc(100dvh - 44px);overscroll-behavior:contain}
+.cart-items{overscroll-behavior:contain}
+.checkout-success-actions a:focus-visible,.checkout-done:focus-visible,.checkout-retry:focus-visible,.last-order-link:focus-visible,.quantity button:focus-visible,.cart-remove:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+@media(max-width:700px){.checkout-panel{max-height:calc(100dvh - 24px)}.checkout-success{padding:24px 20px}.checkout-success h3{font-size:2rem}.checkout-notice{margin:18px 20px 0}.chat-box{max-height:calc(100dvh - 165px)}.checkout-success-actions{grid-template-columns:1fr}.success-whatsapp{grid-column:auto}.last-order-link{justify-content:center}}
+@media(max-height:560px){.chat-box{bottom:14px;right:80px;max-height:calc(100dvh - 28px)}.chat-header{padding:12px}.chat-messages{height:170px}.checkout-panel-head{padding:14px 20px}.checkout-panel-head h2{font-size:1.7rem}}

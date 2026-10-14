@@ -4,14 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#2a0808">
   <title>Status Pesanan | Dapoer Pasta</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/track.css?v=20261009-queue">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="/assets/js/track.js?v=20261009-queue" defer></script>
+  <link rel="stylesheet" href="/assets/css/track.css?v=20261014-reliable">
+  <script id="track-qr-library" src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous" referrerpolicy="no-referrer" async></script>
+  <script src="/assets/js/order-recovery.js?v=20261014-reliable" defer></script>
+  <script src="/assets/js/track.js?v=20261014-reliable" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
 </head>
@@ -28,6 +30,7 @@
       <p class="track-intro">Halaman ini memperbarui status pesanan secara otomatis.</p>
 
       <div id="track-loading" class="track-loading">Memuat status pesanan…</div>
+      <p id="track-sync" class="track-sync" role="status" aria-live="polite" hidden></p>
 
       <div id="track-content" hidden>
         <div class="track-queue" id="track-queue" hidden><div><span>Nomor antrean</span><strong id="track-queue-number">—</strong></div><p id="track-queue-date"></p></div>
@@ -41,6 +44,11 @@
           <strong id="track-status">Baru</strong>
           <small id="track-updated">—</small>
         </div>
+
+        <section id="track-whatsapp-recovery" class="track-whatsapp-recovery" hidden>
+          <div><strong>Lanjutkan konfirmasi pesanan</strong><p>Jika WhatsApp belum terbuka, kirim ringkasan pesanan yang sudah tersimpan melalui tombol ini.</p></div>
+          <a id="track-whatsapp-link" class="receipt-button" target="_blank" rel="noopener noreferrer">Lanjut konfirmasi WhatsApp</a>
+        </section>
 
         <div class="timeline" aria-label="Progress pesanan">
           <div class="step" data-status="baru"><span>1</span><div><strong>Pesanan diterima</strong><small>Order masuk ke sistem Dapoer Pasta</small></div></div>
@@ -57,17 +65,18 @@
         <section class="receipt-card">
           <div>
             <p class="eyebrow">Nota Digital</p>
-            <h2>Scan QR untuk membuka nota</h2>
-            <p>QR ini terhubung ke nota pesanan Anda dan dapat dipakai sebagai referensi transaksi.</p>
+            <h2 id="receipt-qr-title">Buka nota pesanan</h2>
+            <p id="receipt-qr-help">Lihat ringkasan dan status pesanan Anda melalui tombol nota di bawah.</p>
             <a id="receipt-link" class="receipt-button" href="#">Lihat Nota Lengkap</a>
           </div>
-          <div id="receipt-qr" class="receipt-qr" aria-label="QR code nota pesanan"></div>
+          <div id="receipt-qr" class="receipt-qr" aria-label="QR code nota pesanan" hidden></div>
         </section>
 
         <div id="cancelled-note" class="cancelled-note" hidden>Pesanan ini dibatalkan. Hubungi admin Dapoer Pasta jika membutuhkan bantuan.</div>
       </div>
 
       <div id="track-error" class="track-error" hidden></div>
+      <button id="track-retry" class="track-retry" type="button" hidden>Coba perbarui status</button>
     </section>
 
     <p class="track-help">Butuh bantuan? <a href="https://api.whatsapp.com/send/?phone=6285175391181" target="_blank" rel="noopener noreferrer">Hubungi WhatsApp Dapoer Pasta</a></p>

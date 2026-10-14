@@ -2,6 +2,8 @@ const { neon } = require("@neondatabase/serverless");
 const { TIME_ZONE, createHistoryOptions } = require("./order-history");
 const { PRODUCTS } = require("./catalog");
 const { ensureOrderQueueSchema, queueMetadata } = require("./order-queue");
+const { ensureOperationsSchema, rethrowOperationError, requestId, expectedTotal,
+  orderFingerprint, validateExpectedStatus } = require("./operations");
 
 let schemaPromise;
 let schemaDatabaseUrl;
@@ -155,9 +157,22 @@ async function ensureSchema() {
         BEGIN
           SELECT * INTO current_order FROM orders WHERE id = p_id FOR UPDATE;
           IF NOT FOUND THEN RETURN NULL; END IF;
-          IF current_order.status = 'dibatalkan' AND current_order.stock_reserved
-             AND p_status <> 'dibatalkan' THEN
-            RAISE EXCEPTION 'ORDER_CANCELLED';
+          IF p_status IS NULL OR p_status NOT IN ('baru','diproses','dikirim','selesai','dibatalkan') OR
+             current_order.status NOT IN ('baru','diproses','dikirim','selesai','dibatalkan') THEN
+            RAISE EXCEPTION 'INVALID_STATUS_TRANSITION';
+          END IF;
+          IF current_order.status = p_status THEN
+            RETURN jsonb_build_object('id',current_order.id,'status',current_order.status,
+              'updated_at',current_order.updated_at,'updatedAt',current_order.updated_at);
+          END IF;
+          IF current_order.status = 'dibatalkan' THEN RAISE EXCEPTION 'ORDER_CANCELLED'; END IF;
+          IF p_status = 'dibatalkan' AND current_order.status NOT IN ('baru','diproses') THEN
+            RAISE EXCEPTION 'CANCELLATION_NOT_ALLOWED';
+          END IF;
+          IF p_status <> 'dibatalkan' AND
+            array_position(ARRAY['baru','diproses','dikirim','selesai'],p_status) <=
+            array_position(ARRAY['baru','diproses','dikirim','selesai'],current_order.status) THEN
+            RAISE EXCEPTION 'INVALID_STATUS_TRANSITION';
           END IF;
           IF p_status = 'dibatalkan' AND current_order.status <> 'dibatalkan'
              AND current_order.stock_reserved THEN
@@ -171,12 +186,14 @@ async function ensureSchema() {
               WHERE product_id = item.id;
             END LOOP;
           END IF;
-          UPDATE orders SET status = p_status, updated_at = NOW() WHERE id = p_id
-          RETURNING jsonb_build_object('id', id, 'status', status, 'updated_at', updated_at) INTO result;
+          UPDATE orders SET status = p_status,
+            updated_at = GREATEST(clock_timestamp(),current_order.updated_at + INTERVAL '1 microsecond') WHERE id = p_id
+          RETURNING jsonb_build_object('id',id,'status',status,'updated_at',updated_at,'updatedAt',updated_at) INTO result;
           RETURN result;
         END;
         $function$
       `;
+      await ensureOperationsSchema(sql);
     }).catch(error => {
       schemaPromise = undefined;
       throw error;
@@ -193,17 +210,25 @@ function stockError(code) {
 }
 
 function rethrowStockError(error) {
-  if (["INSUFFICIENT_STOCK", "ORDER_CANCELLED"].includes(error?.message)) {
-    throw stockError(error.message);
-  }
-  throw error;
+  rethrowOperationError(error);
 }
 
 async function saveOrder(order) {
+  const operationId = requestId(order.requestId === null ? undefined : order.requestId);
+  const displayedTotal = expectedTotal(order.expectedTotal === null ? undefined : order.expectedTotal);
+  const intentFingerprint = orderFingerprint({ ...order, expectedTotal: displayedTotal });
   const sql = await ensureSchema();
   if (!sql) throw stockError("DATABASE_NOT_CONFIGURED");
   try {
-    const rows = await sql`
+    const rows = operationId || displayedTotal !== null ? await sql`
+    SELECT dapoer_save_order_once(
+      ${order.id}, ${order.customer.name}, ${order.customer.phone},
+      ${order.customer.address}, ${order.customer.notes},
+      ${order.customer.paymentMethod}, ${JSON.stringify(order.items)}::jsonb,
+      ${order.total}::bigint, ${order.trackingToken},
+      ${operationId}::uuid, ${intentFingerprint}, ${displayedTotal}::bigint
+    ) AS saved
+    ` : await sql`
     SELECT dapoer_save_order_with_queue(
       ${order.id}, ${order.customer.name}, ${order.customer.phone},
       ${order.customer.address}, ${order.customer.notes},
@@ -213,6 +238,7 @@ async function saveOrder(order) {
   `;
     const saved = rows[0]?.saved;
     if (!saved) throw new Error("ORDER_SAVE_UNCONFIRMED");
+    if (saved.id) Object.assign(order, saved);
     Object.assign(order, queueMetadata(saved), {
       createdAt: saved.createdAt,
       updatedAt: saved.updatedAt
@@ -303,11 +329,14 @@ async function getOrderById(id) {
   return rows[0] || null;
 }
 
-async function updateOrderStatus(id, status) {
+async function updateOrderStatus(id, status, options = {}) {
+  const observed = validateExpectedStatus(options);
   const sql = await ensureSchema();
   if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
   try {
-    const rows = await sql`SELECT dapoer_update_order_status(${id}, ${status}) AS "order"`;
+    const rows = observed ? await sql`SELECT dapoer_update_order_status_checked(${id}, ${status},
+      ${observed.expectedStatus}, ${observed.expectedUpdatedAt}::timestamptz) AS "order"` :
+      await sql`SELECT dapoer_update_order_status(${id}, ${status}) AS "order"`;
     return rows[0]?.order || null;
   } catch (error) {
     rethrowStockError(error);

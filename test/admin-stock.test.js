@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-function stockDashboard(fetch = async () => { throw new Error("Unexpected request"); }) {
+function stockDashboard(fetch = async () => { throw new Error("Unexpected request"); }, storage = new Map()) {
   const nodes = new Map();
   const events = [];
   const listeners = new Map();
@@ -45,7 +45,9 @@ function stockDashboard(fetch = async () => { throw new Error("Unexpected reques
   };
   class CustomEvent { constructor(type, options = {}) { this.type = type; this.detail = options.detail; } }
   const context = vm.createContext({
-    document, window: {}, fetch, CustomEvent, AbortController, Date, Intl,
+    document, window: {}, fetch, CustomEvent, AbortController, Date, Intl, crypto: require("node:crypto").webcrypto,
+    sessionStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
+    setTimeout: () => 1, clearTimeout() {},
     setInterval(handler) { const id = ++timer; intervals.set(id, handler); return id; },
     clearInterval(id) { intervals.delete(id); }
   });
@@ -53,7 +55,7 @@ function stockDashboard(fetch = async () => { throw new Error("Unexpected reques
     .replace(/\}\)\(\);\s*$/, `globalThis.stockApi={state,init,setAuthenticated,loadStock,openEditor,selectAction,saveStock,closeEditor};})();`);
   vm.runInContext(source, context);
   context.stockApi.init();
-  return { ...context.stockApi, document, events, intervals, element: selector => document.querySelector(selector) };
+  return { ...context.stockApi, document, events, intervals, storage, element: selector => document.querySelector(selector) };
 }
 
 const product = (stock = 8) => ({ id: "pasta", name: "Pasta brulee", price: 27000, stock });
@@ -156,7 +158,7 @@ test("add and subtract send deltas and display authoritative saved quantities", 
   enterQuantity(ui, 2);
   assert.equal(ui.element("#stock-edit-after").textContent, "8 unit");
   await ui.saveStock();
-  assert.deepEqual(writes, [{ id: "pasta", delta: 3 }, { id: "pasta", delta: -2 }]);
+  assert.deepEqual(writes.map(({ requestId, ...payload }) => { assert.match(requestId, /^[0-9a-f-]{36}$/i); return payload; }), [{ id: "pasta", delta: 3 }, { id: "pasta", delta: -2 }]);
   assert.equal(ui.state.rows.get("pasta").count.textContent, "7 unit");
 });
 
@@ -218,7 +220,7 @@ test("menus without configured stock can initialize it through add only", async 
   }
   enterQuantity(ui, 3);
   await ui.saveStock();
-  assert.deepEqual(writes, [{ id: "pasta", delta: 3 }]);
+  assert.deepEqual(writes.map(({ requestId, ...payload }) => { assert.match(requestId, /^[0-9a-f-]{36}$/i); return payload; }), [{ id: "pasta", delta: 3 }]);
   assert.equal(row.count.textContent, "3 unit");
 });
 
@@ -238,7 +240,7 @@ test("setting an exact count uses the reviewed snapshot and the form submit hand
   ui.element("#stock-edit-form").dispatchEvent({ type: "submit", preventDefault() { prevented = true; } });
   await flush();
   assert.equal(prevented, true);
-  assert.deepEqual(writes, [{ id: "pasta", stock: 7, expectedStock: 8 }]);
+  assert.deepEqual(writes.map(({ requestId, ...payload }) => { assert.match(requestId, /^[0-9a-f-]{36}$/i); return payload; }), [{ id: "pasta", stock: 7, expectedStock: 8 }]);
   assert.equal(ui.state.rows.get("pasta").count.textContent, "6 unit");
   assert.equal(ui.state.editing, null);
   assert.equal(ui.element("#stock-editor").open, false);
@@ -277,7 +279,7 @@ test("absolute edits accept zero and the supported maximum stock", async () => {
     await ui.saveStock();
     assert.equal(ui.state.products.get("pasta").stock, quantity);
   }
-  assert.deepEqual(writes, [
+  assert.deepEqual(writes.map(({ requestId, ...payload }) => { assert.match(requestId, /^[0-9a-f-]{36}$/i); return payload; }), [
     { id: "pasta", stock: 0, expectedStock: 8 },
     { id: "pasta", stock: 1000000, expectedStock: 0 }
   ]);
@@ -303,7 +305,7 @@ test("clearing stock requires confirmation, supports cancel, and keeps the menu 
   assert.equal(writes.length, 0);
   ui.openEditor("pasta", "clear");
   await ui.saveStock();
-  assert.deepEqual(writes, [{ id: "pasta", stock: 0, expectedStock: 8 }]);
+  assert.deepEqual(writes.map(({ requestId, ...payload }) => { assert.match(requestId, /^[0-9a-f-]{36}$/i); return payload; }), [{ id: "pasta", stock: 0, expectedStock: 8 }]);
   assert.equal(ui.state.rows.get("pasta"), row);
   assert.equal(row.count.textContent, "0 unit");
   assert.equal(row.status.textContent, "Habis");
@@ -363,7 +365,7 @@ test("a stale absolute edit preserves input and requires reviewing fresh stock b
   assert.equal(ui.element("#stock-edit-quantity").value, "5");
   enterQuantity(ui, 4);
   await ui.saveStock();
-  assert.deepEqual(writes, [
+  assert.deepEqual(writes.map(({ requestId, ...payload }) => { assert.match(requestId, /^[0-9a-f-]{36}$/i); return payload; }), [
     { id: "pasta", stock: 4, expectedStock: 8 },
     { id: "pasta", stock: 4, expectedStock: 5 }
   ]);
@@ -394,7 +396,7 @@ test("a reduction conflict refreshes live stock, keeps the input, and permits a 
   enterQuantity(ui, 1);
   assert.equal(ui.element("#stock-edit-save").disabled, false);
   await ui.saveStock();
-  assert.deepEqual(writes, [{ id: "pasta", delta: -2 }, { id: "pasta", delta: -1 }]);
+  assert.deepEqual(writes.map(({ requestId, ...payload }) => { assert.match(requestId, /^[0-9a-f-]{36}$/i); return payload; }), [{ id: "pasta", delta: -2 }, { id: "pasta", delta: -1 }]);
   assert.equal(ui.state.products.get("pasta").stock, 0);
   assert.equal(ui.element("#stock-editor").open, false);
 });
@@ -450,11 +452,12 @@ test("native dialog cancellation closes normally but cannot dismiss a pending sa
 });
 
 test("failed stock saves preserve input and allow an explicit retry", async () => {
-  let writes = 0;
+  let writes = 0, stock = 8;
   const ui = await authenticatedDashboard(async (url, options) => {
-    if (options.method !== "PATCH") return response({ products: [product()] });
+    if (options.method !== "PATCH") return response({ products: [product(stock)] });
     if (++writes === 1) throw new Error("Koneksi terputus");
-    return response({ product: product(3) });
+    stock = 3;
+    return response({ product: product(stock) });
   });
   ui.openEditor("pasta", "set");
   enterQuantity(ui, 3);
@@ -463,7 +466,8 @@ test("failed stock saves preserve input and allow an explicit retry", async () =
   assert.equal(ui.element("#stock-edit-quantity").value, "3");
   assert.equal(ui.state.editing.expectedStock, 8);
   assert.equal(ui.element("#stock-edit-save").disabled, false);
-  assert.match(ui.element("#stock-edit-message").textContent, /Koneksi terputus/);
+  assert.match(ui.element("#stock-edit-message").textContent, /belum terkonfirmasi/);
+  assert.equal(ui.element("#stock-edit-quantity").disabled, true);
   await ui.saveStock();
   assert.equal(writes, 2);
   assert.equal(ui.state.editing, null);
@@ -536,4 +540,67 @@ test("expired read and save sessions close the modal and return to the existing 
     assert.equal(ui.intervals.size, 0);
     assert.equal(ui.events[0].type, "dapoer:admin-session-expired");
   }
+});
+
+test("ambiguous stock save locks the action and reuses its request ID after closing and reopening", async () => {
+  let stock = 8;
+  const writes = [];
+  const ui = await authenticatedDashboard(async (url, options) => {
+    if (options.method !== "PATCH") return response({ products: [product(stock)] });
+    writes.push(JSON.parse(options.body));
+    if (writes.length === 1) { stock = 11; throw new Error("Response lost after commit"); }
+    return response({ product: product(stock) });
+  });
+  ui.openEditor("pasta");
+  enterQuantity(ui, 3);
+  await ui.saveStock();
+  const pending = ui.state.editing.mutation;
+  assert.match(pending.payload.requestId, /^[0-9a-f-]{36}$/i);
+  ui.selectAction("subtract");
+  assert.equal(ui.state.editing.action, "add");
+  assert.equal(ui.element("#stock-edit-quantity").disabled, true);
+  ui.closeEditor();
+  await ui.loadStock(true);
+  ui.openEditor("pasta", "subtract");
+  assert.equal(ui.state.editing.mutation, pending);
+  assert.equal(ui.element("#stock-edit-quantity").value, "3");
+  assert.equal(ui.element("#stock-edit-before").textContent, "8 unit");
+  assert.equal(ui.element("#stock-edit-after").textContent, "11 unit");
+  await ui.saveStock();
+  assert.deepEqual(writes[1], writes[0]);
+  assert.equal(ui.state.products.get("pasta").stock, 11);
+  assert.equal(ui.state.pending.size, 0);
+});
+
+test("unknown stock responses survive page reload and reuse the exact stored payload", async () => {
+  const storage = new Map();
+  const writes = [];
+  const fetch = async (url, options) => {
+    if (options.method !== "PATCH") return response({ products: [product(11)] });
+    writes.push(JSON.parse(options.body));
+    return response({ error: "Database temporarily unavailable" }, 503);
+  };
+  const first = stockDashboard(fetch, storage);first.setAuthenticated(true);await flush();
+  first.openEditor("pasta");enterQuantity(first, 4);await first.saveStock();
+  assert.equal(first.state.pending.size, 1);
+  const second = stockDashboard(fetch, storage);second.setAuthenticated(true);await flush();
+  second.openEditor("pasta", "clear");
+  assert.equal(second.state.editing.action, "add");
+  await second.saveStock();
+  assert.deepEqual(writes[1], writes[0]);
+  assert.equal(second.state.pending.size, 1);
+});
+
+test("a changed-payload request conflict keeps the stock action locked and cannot generate a new key", async () => {
+  const writes = [];
+  const ui = await authenticatedDashboard(async (url, options) => {
+    if (options.method !== "PATCH") return response({ products: [product()] });
+    writes.push(JSON.parse(options.body));
+    return response({ code: "REQUEST_CONFLICT", error: "Mismatch" }, 409);
+  });
+  ui.openEditor("pasta");enterQuantity(ui, 2);await ui.saveStock();
+  assert.equal(ui.state.editing.conflicted, true);
+  assert.equal(ui.state.pending.size, 1);
+  ui.closeEditor();ui.openEditor("pasta");await ui.saveStock();
+  assert.deepEqual(writes[1], writes[0]);
 });

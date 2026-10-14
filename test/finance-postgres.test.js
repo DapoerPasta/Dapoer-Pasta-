@@ -6,6 +6,7 @@
 const { describe, test, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
+const fs = require("node:fs");
 const Module = require("node:module");
 
 const databaseUrl = process.env.STOCK_TEST_DATABASE_URL;
@@ -30,6 +31,19 @@ function requireThroughPostgres(sql) {
   };
   try { return require(financePath); }
   finally { Module._load = originalLoad; }
+}
+
+function coldFinanceInstance(sql) {
+  const financePath = require.resolve("../api/_lib/finance-db");
+  const instance = new Module(financePath, module);
+  instance.filename = financePath;
+  instance.paths = Module._nodeModulePaths(require("node:path").dirname(financePath));
+  const originalRequire = instance.require.bind(instance);
+  // Each instance has its own schema promise, as separate serverless workers
+  // do. Isolate the finance migration from the orders/inventory migration.
+  instance.require = name => name === "./db" ? { ensureSchema: async () => sql } : originalRequire(name);
+  instance._compile(fs.readFileSync(financePath, "utf8"), financePath);
+  return instance.exports;
 }
 
 async function addOrder({ total = 37000, status = "selesai", payment = "DANA", createdAt = "2026-01-02T05:00:00Z" } = {}) {
@@ -63,7 +77,7 @@ describe("real PostgreSQL financial reports and expense concurrency", { skip: !d
   });
 
   beforeEach(async () => {
-    await pool.query("TRUNCATE orders, finance_expenses");
+    await pool.query("TRUNCATE orders, finance_expenses CASCADE");
   });
 
   after(async () => {
@@ -76,6 +90,82 @@ describe("real PostgreSQL financial reports and expense concurrency", { skip: !d
     else process.env.DATABASE_URL = previousDatabaseUrl;
     delete require.cache[require.resolve("../api/_lib/db")];
     delete require.cache[require.resolve("../api/_lib/finance-db")];
+  });
+
+  test("six independent cold instances can initialize a fresh finance table and index together", async () => {
+    for (let round = 1; round <= 3; round++) {
+      const raceSchema = `${schema}_race_${round}`;
+      const clients = [];
+      await adminPool.query(`CREATE SCHEMA ${raceSchema}`);
+      try {
+        let waiting = 0;
+        let release;
+        const ready = new Promise(resolve => { release = resolve; });
+        for (let index = 0; index < 6; index++) {
+          const client = await pool.connect();
+          await client.query(`SET search_path TO ${raceSchema}`);
+          clients.push(client);
+        }
+        const instances = clients.map(client => coldFinanceInstance(async (parts, ...values) => {
+          const text = parts.reduce((result, part, index) => result + (index ? `$${index}` : "") + part, "");
+          if (text.includes("CREATE TABLE IF NOT EXISTS finance_expenses")) {
+            if (++waiting === clients.length) release();
+            await ready;
+          }
+          return (await client.query(text, values)).rows;
+        }));
+        const results = await Promise.allSettled(instances.map(instance => instance.ensureFinanceSchema()));
+        assert.deepEqual(results.map(result => result.status), Array(6).fill("fulfilled"),
+          results.filter(result => result.status === "rejected").map(result => result.reason.message).join("; "));
+        const relations = await clients[0].query(`SELECT tablename, indexname FROM pg_indexes
+          WHERE schemaname = $1 AND tablename = 'finance_expenses' ORDER BY indexname`, [raceSchema]);
+        assert.deepEqual(relations.rows.map(row => row.indexname), ["finance_expenses_date_id_idx", "finance_expenses_pkey"]);
+        // A retried business write still resolves to one expense; the schema
+        // lock must not hide UUID reuse conflicts or duplicate create records.
+        const input = newExpense();
+        const creates = await Promise.all(instances.map(instance => instance.createExpense(input)));
+        assert.equal(creates.filter(result => result.created).length, 1);
+        assert.equal((await clients[0].query("SELECT COUNT(*)::int AS count FROM finance_expenses")).rows[0].count, 1);
+        await assert.rejects(() => instances[0].createExpense({ ...input, amount: input.amount + 1 }),
+          error => error.code === "EXPENSE_CONFLICT");
+      } finally {
+        for (const client of clients) {
+          try { await client.query(`SET search_path TO ${schema}`); }
+          finally { client.release(); }
+        }
+        await adminPool.query(`DROP SCHEMA IF EXISTS ${raceSchema} CASCADE`);
+      }
+    }
+  });
+
+  test("failed finance index creation rolls back the table and the next request can retry setup", async () => {
+    const retrySchema = `${schema}_retry`;
+    let client;
+    await adminPool.query(`CREATE SCHEMA ${retrySchema}`);
+    try {
+      client = await pool.connect();
+      await client.query(`SET search_path TO ${retrySchema}`);
+      let failIndex = true;
+      const instance = coldFinanceInstance(async (parts, ...values) => {
+        let text = parts.reduce((result, part, index) => result + (index ? `$${index}` : "") + part, "");
+        if (failIndex && text.includes("finance_expenses_date_id_idx")) {
+          failIndex = false;
+          text = text.replace("ON finance_expenses(expense_date DESC, id DESC)", "ON finance_expenses(missing_column)");
+        }
+        return (await client.query(text, values)).rows;
+      });
+      await assert.rejects(() => instance.ensureFinanceSchema(), error => error.code === "42703");
+      assert.equal((await client.query("SELECT to_regclass('finance_expenses') AS relation")).rows[0].relation, null);
+      await instance.ensureFinanceSchema();
+      assert.equal((await client.query("SELECT COUNT(*)::int AS count FROM pg_indexes WHERE schemaname = $1 AND tablename = 'finance_expenses'", [retrySchema])).rows[0].count, 2);
+      assert.equal((await instance.createExpense(newExpense())).created, true);
+    } finally {
+      if (client) {
+        try { await client.query(`SET search_path TO ${schema}`); }
+        finally { client.release(); }
+      }
+      await adminPool.query(`DROP SCHEMA IF EXISTS ${retrySchema} CASCADE`);
+    }
   });
 
   test("empty reports include all calendar buckets, zero totals and adjacent previous periods", async () => {

@@ -3,6 +3,7 @@ const { STORE, PRODUCTS } = require("./_lib/catalog");
 const { saveOrder } = require("./_lib/db");
 const { guardRequest } = require("./_lib/security");
 const { queueMetadata } = require("./_lib/order-queue");
+const { requestId, expectedTotal } = require("./_lib/operations");
 
 function normalizeItems(input) {
   if (!Array.isArray(input) || input.length < 1 || input.length > 20) throw new Error("INVALID_ITEMS");
@@ -96,10 +97,17 @@ module.exports = async function handler(req, res) {
 
   let items;
   let customer;
+  let operationId;
+  let displayedTotal;
   try {
+    operationId = requestId(req.body?.requestId);
+    displayedTotal = expectedTotal(req.body?.expectedTotal);
     items = normalizeItems(req.body?.items);
     customer = normalizeCustomer(req.body?.customer);
-  } catch {
+  } catch (error) {
+    if (["INVALID_REQUEST_ID", "INVALID_EXPECTED_TOTAL"].includes(error?.code)) {
+      return res.status(400).json({ code: error.code, error: "Data konfirmasi checkout tidak valid. Muat ulang halaman dan coba lagi." });
+    }
     return res.status(400).json({ error: "Data checkout belum lengkap atau tidak valid." });
   }
 
@@ -114,13 +122,21 @@ module.exports = async function handler(req, res) {
     trackingToken,
     customer,
     items,
-    total
+    total,
+    requestId: operationId,
+    expectedTotal: displayedTotal
   };
 
   let persisted = false;
   try {
     persisted = await saveOrder(order);
   } catch (error) {
+    if (error.code === "REQUEST_CONFLICT") {
+      return res.status(409).json({ code: error.code, error: "Permintaan ini sudah digunakan untuk pesanan berbeda. Periksa pesanan sebelumnya sebelum membuat pesanan baru." });
+    }
+    if (error.code === "PRICE_CHANGED") {
+      return res.status(409).json({ code: error.code, error: "Harga menu berubah. Periksa total terbaru dan konfirmasi ulang sebelum memesan.", items, total });
+    }
     if (error.code === "INSUFFICIENT_STOCK") {
       return res.status(409).json({
         code: "INSUFFICIENT_STOCK",
@@ -147,7 +163,7 @@ module.exports = async function handler(req, res) {
   const whatsappUrl = `https://api.whatsapp.com/send?phone=${STORE.whatsapp}&text=${encodeURIComponent(message)}`;
 
   return res.status(200).json({
-    order: { id: order.id, items, total, customer, ...queueMetadata(order) },
+    order: { id: order.id, items: order.items, total: order.total, customer: order.customer, ...queueMetadata(order) },
     persisted,
     whatsappUrl,
     trackingUrl

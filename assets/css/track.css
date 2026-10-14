@@ -2,3 +2,13 @@
 .receipt-card{margin-top:24px;padding:22px;border:1px solid var(--border);background:#fff;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center}.receipt-card h2{margin:5px 0 7px;font:600 1.6rem "Cormorant Garamond",serif;color:var(--wine)}.receipt-card p:not(.eyebrow){margin:0;color:var(--muted);font-size:.76rem;line-height:1.55}.receipt-button{display:inline-block;margin-top:15px;padding:11px 14px;background:var(--wine);color:white;text-decoration:none;font-size:.72rem;font-weight:800}.receipt-qr{width:184px;height:184px;padding:8px;border:1px solid var(--border);background:white;display:grid;place-items:center}.receipt-qr img,.receipt-qr canvas{max-width:100%;height:auto!important}@media(max-width:600px){.receipt-card{grid-template-columns:1fr}.receipt-qr{margin:auto}}
 
 .track-queue{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:14px;padding:18px 21px;border:1px solid #deca9f;background:#f8f0df}.track-queue span{display:block;color:var(--muted);font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:1.4px}.track-queue strong{display:block;margin-top:4px;color:var(--burgundy);font:700 2.5rem/1 "Cormorant Garamond",serif;overflow-wrap:anywhere}.track-queue p{margin:0;color:var(--muted);font-size:.76rem;text-align:right;line-height:1.6}.track-queue[hidden]{display:none!important}@media(max-width:420px){.track-queue{padding:16px;gap:12px}.track-queue p{font-size:.67rem}}
+
+[hidden]{display:none!important}
+.track-sync{padding:14px 16px;border:1px solid #ead4a7;background:#fff5dc;color:#72551e;font-size:.8rem;line-height:1.6}
+.track-retry{margin-top:16px;min-height:44px;padding:11px 16px;border:1px solid var(--border);border-radius:6px;background:white;color:var(--burgundy);font:700 .8rem "DM Sans",sans-serif;cursor:pointer}
+.track-retry:disabled{opacity:.55;cursor:wait}
+.track-whatsapp-recovery{margin-top:16px;padding:18px;border:1px solid #c3ddcf;background:#f2faf5;border-radius:8px}
+.track-whatsapp-recovery strong{display:block;color:#245b3e;font-size:.9rem}
+.track-whatsapp-recovery p{margin:7px 0 0;font-size:.78rem;line-height:1.6;color:#41664f}
+.track-whatsapp-recovery .receipt-button{background:#246443;min-height:44px;display:inline-flex;align-items:center;border-radius:6px}
+:is(.track-retry,.receipt-button):focus-visible{outline:3px solid var(--gold);outline-offset:3px}

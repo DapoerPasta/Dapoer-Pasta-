@@ -11,15 +11,26 @@ function dashboard(fetch = async () => { throw new Error("Unexpected fetch"); })
     static now() { return timestamp; }
   }
   const elements = new Map();
-  const node = () => ({
-    children: [], textContent: "", value: "", hidden: false, disabled: false,
-    classList: { add() {}, remove() {}, toggle() {} },
-    append(...children) { this.children.push(...children); },
-    replaceChildren(...children) { this.children = children; },
-    addEventListener() {}, setAttribute(name, value) { this[name] = value; }
-  });
-  const document = {
-    readyState: "loading", hidden: false, addEventListener() {},
+  const listeners = new Map();
+  let document;
+  const node = (tag = "div") => {
+    const classes = new Set(), handlers = new Map();
+    return {
+      tagName: tag.toUpperCase(),children: [], textContent: "", value: "", hidden: false, disabled: false, open: false,
+      classList: { add(name) { classes.add(name); }, remove(name) { classes.delete(name); }, toggle(name, value) { if(value)classes.add(name);else classes.delete(name); }, contains(name) { return classes.has(name); } },
+      append(...children) { children.forEach(child=>{child.remove();child.parent=this;this.children.push(child)}); },
+      insertBefore(child, reference) { child.remove();child.parent=this;const index=reference?this.children.indexOf(reference):-1;if(index<0)this.children.push(child);else this.children.splice(index,0,child); },
+      replaceChildren(...children) { this.children.forEach(child=>child.parent=null);this.children=[];this.append(...children); },
+      remove() { if(this.parent){this.parent.children=this.parent.children.filter(child=>child!==this);this.parent=null;} },
+      addEventListener(name, listener) { handlers.set(name, listener); },dispatchEvent(event) { return handlers.get(event.type)?.(event); },
+      setAttribute(name, value) { this[name] = value; }, getAttribute(name) { return this[name] || null; },
+      focus() { document.activeElement=this; },showModal() { this.open=true; },close() { this.open=false; }
+    };
+  };
+  document = {
+    readyState: "loading", hidden: false,
+    addEventListener(name, listener) { listeners.set(name, listener); },dispatchEvent(event) { listeners.get(event.type)?.(event); },
+    querySelectorAll() { return []; },
     querySelector(selector) {
       if (!elements.has(selector)) elements.set(selector, node());
       return elements.get(selector);
@@ -28,7 +39,7 @@ function dashboard(fetch = async () => { throw new Error("Unexpected fetch"); })
   };
   const notifications = [];
   const context = vm.createContext({
-    document, window: {}, Date: ClockDate, Intl, AbortController, URLSearchParams,
+    document, window: {}, CustomEvent: class {constructor(type,options={}){this.type=type;this.detail=options.detail}}, Date: ClockDate, Intl, AbortController, URLSearchParams,
     fetch, setTimeout: () => 1, clearTimeout() {},
     setInterval: () => 1, clearInterval() {}, alert() {}
   });
@@ -37,19 +48,19 @@ function dashboard(fetch = async () => { throw new Error("Unexpected fetch"); })
     notifyNewOrders=orders=>globalThis.recordNotification(orders);
     globalThis.dashboardApi={state,todayInWib,validOrderDate,shiftOrderDate,
       millisecondsToWibMidnight,mergeOrders,syncToday,selectOrderDate,loadOrders,
-      filteredOrders,showLogin,hasMoreOrders,changeStatus};
+      filteredOrders,showLogin,showDashboard,hasMoreOrders,changeStatus,chooseStatus,renderOrders,checkSession,logout,bind,finishCancellation};
   })();`);
   context.recordNotification = orders => notifications.push(Array.from(orders, order => order.id));
   vm.runInContext(source, context);
   return {
-    ...context.dashboardApi, elements, notifications,
+    ...context.dashboardApi, elements, notifications, document, window:context.window,
     clock(value) { timestamp = Date.parse(value); },
     element(selector) { return document.querySelector(selector); }
   };
 }
 
 function order(id, createdAt = "2026-10-06T04:00:00Z", status = "baru", total = 12000) {
-  return { id, created_at: createdAt, status, total, items: [], customer_name: "Customer" };
+  return { id, created_at: createdAt, updated_at: createdAt, status, total, items: [], customer_name: "Customer" };
 }
 
 function page(date, orders, number = 1, total = orders.length, summary = {}) {
@@ -250,4 +261,169 @@ test("a successful status save invalidates a poll with an older status snapshot"
   assert.equal(ui.state.summary.newOrders, 0);
   assert.equal(ui.element("#stat-new").textContent, 0);
   assert.equal(ui.notifications.length, 0);
+});
+
+test("polling preserves the exact status draft, DOM node and focused control", async () => {
+  let current = order("one");
+  const ui = dashboard(async () => response(page("2026-10-06", [current])));
+  await ui.loadOrders();
+  const row = ui.state.cards.get("one");
+  row.select.value = "dikirim";
+  ui.chooseStatus("one", "dikirim");
+  row.select.focus();
+  await ui.loadOrders(true);
+  assert.equal(ui.state.cards.get("one"), row);
+  assert.equal(ui.element("#orders-list").children[0], row.card);
+  assert.equal(ui.document.activeElement, row.select);
+  assert.equal(row.select.value, "dikirim");
+  assert.equal(row.button.disabled, false);
+  assert.equal(ui.state.drafts.get("one").expectedUpdatedAt, current.updated_at);
+});
+
+test("in-flight status saves remain disabled through polling and cannot duplicate", async () => {
+  let finish;
+  const writes = [];
+  const ui = dashboard(async (url, options) => {
+    if (url === "/api/admin/status") {
+      writes.push(JSON.parse(options.body));
+      return new Promise(resolve => { finish = resolve; });
+    }
+    return response(page("2026-10-06", [order("one")]));
+  });
+  await ui.loadOrders();
+  const row = ui.state.cards.get("one");
+  ui.chooseStatus("one", "diproses");
+  const save = ui.changeStatus("one", "diproses", row.button);
+  await ui.loadOrders(true);
+  assert.equal(row.button.disabled, true);
+  assert.equal(row.select.disabled, true);
+  await ui.changeStatus("one", "dikirim", row.button);
+  assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0], { id: "one", status: "diproses", expectedStatus: "baru", expectedUpdatedAt: "2026-10-06T04:00:00Z" });
+  finish(response({ order: { ...order("one"), status: "diproses", updated_at: "2026-10-06T05:00:00.000123Z" } }));
+  await save;
+  assert.equal(ui.state.pendingStatuses.size, 0);
+});
+
+test("a changed status version requires review while preserving the unsaved selection", async () => {
+  let current = order("one");
+  const ui = dashboard(async () => response(page("2026-10-06", [current])));
+  await ui.loadOrders();
+  const row = ui.state.cards.get("one");
+  ui.chooseStatus("one", "selesai");
+  current = { ...current, status: "diproses", updated_at: "2026-10-06T05:00:00.000001Z" };
+  await ui.loadOrders(true);
+  assert.equal(row.select.value, "selesai");
+  assert.equal(row.button.disabled, true);
+  assert.equal(row.review.hidden, false);
+  row.review.dispatchEvent({ type: "click" });
+  assert.equal(ui.state.drafts.has("one"), false);
+  assert.equal(row.select.value, "diproses");
+});
+
+test("an ambiguous status failure retries the identical CAS action even after server state changes", async () => {
+  let current = order("one");
+  const writes = [];
+  const ui = dashboard(async (url, options) => {
+    if (url === "/api/admin/status") {
+      writes.push(JSON.parse(options.body));
+      current = { ...current, status: "diproses", updated_at: "2026-10-06T05:00:00.000002Z" };
+      if (writes.length === 1) throw new Error("Connection reset after commit");
+      return response({ order: current });
+    }
+    return response(page("2026-10-06", [current]));
+  });
+  await ui.loadOrders();
+  const row = ui.state.cards.get("one");
+  ui.chooseStatus("one", "diproses");
+  await ui.changeStatus("one", "diproses", row.button);
+  await ui.loadOrders(true);
+  assert.equal(row.select.disabled, true);
+  assert.equal(row.button.disabled, false);
+  assert.equal(ui.state.drafts.get("one").uncertain, true);
+  await ui.changeStatus("one", "diproses", row.button);
+  assert.deepEqual(writes[1], writes[0]);
+  assert.equal(ui.state.drafts.size, 0);
+});
+
+test("status controls prohibit backwards changes and cancellation after shipping", async () => {
+  const ui = dashboard(async () => response(page("2026-10-06", [order("one", undefined, "dikirim"), order("two", undefined, "selesai")])));
+  await ui.loadOrders();
+  const shipped = ui.state.cards.get("one"), completed = ui.state.cards.get("two");
+  for (const value of ["baru", "diproses", "dibatalkan"]) assert.equal(shipped.select.children.find(option => option.value === value).disabled, true);
+  assert.equal(shipped.select.children.find(option => option.value === "selesai").disabled, false);
+  assert.equal(completed.select.disabled, true);
+  assert.equal(completed.button.disabled, true);
+});
+
+test("cancellation requires the explicit dialog confirmation before any request", async () => {
+  const writes = [];
+  const ui = dashboard(async (url, options) => {
+    if (url === "/api/admin/status") { writes.push(JSON.parse(options.body)); return response({ order: { ...order("one"), status: "dibatalkan" } }); }
+    return response(page("2026-10-06", [order("one")]));
+  });
+  await ui.loadOrders();
+  const row = ui.state.cards.get("one");
+  ui.chooseStatus("one", "dibatalkan");
+  const cancel = ui.changeStatus("one", "dibatalkan", row.button);
+  assert.equal(ui.element("#order-cancel-dialog").open, true);
+  assert.equal(writes.length, 0);
+  ui.finishCancellation(false);
+  await cancel;
+  assert.equal(writes.length, 0);
+  const confirmed = ui.changeStatus("one", "dibatalkan", row.button);
+  ui.finishCancellation(true);
+  await confirmed;
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].expectedStatus, "baru");
+});
+
+test("failed logout keeps dashboard and private rows until a successful retry", async () => {
+  let calls = 0, broadcasts = 0;
+  const ui = dashboard(async () => { if (++calls === 1) throw new Error("Offline"); return response({ ok: true }); });
+  ui.window.DapoerAdminSession = { notifyLogout() { broadcasts++; } };
+  ui.showDashboard();
+  ui.state.orders = [order("private")];
+  await ui.logout();
+  assert.equal(ui.element("#dashboard-view").hidden, false);
+  assert.equal(ui.state.orders.length, 1);
+  assert.equal(broadcasts, 0);
+  assert.match(ui.element("#admin-session-message").textContent, /Sesi Anda masih aktif/);
+  assert.equal(ui.element("#logout-button").disabled, false);
+  await ui.logout();
+  assert.equal(ui.element("#dashboard-view").hidden, true);
+  assert.equal(ui.state.orders.length, 0);
+  assert.equal(broadcasts, 1);
+});
+
+test("silent polling failures keep private rows while showing connectivity degradation and recovery", async () => {
+  let fail = false;
+  const ui = dashboard(async () => { if (fail) throw new Error("Offline"); return response(page("2026-10-06", [order("one")])); });
+  await ui.loadOrders();
+  const card = ui.state.cards.get("one").card;
+  fail = true;
+  await ui.loadOrders(true);
+  assert.equal(ui.element("#orders-list").children[0], card);
+  assert.equal(ui.element("#orders-live-state").classList.contains("delayed"), true);
+  assert.match(ui.element("#orders-live-label").textContent, /terganggu/);
+  fail = false;
+  await ui.loadOrders(true);
+  assert.equal(ui.element("#orders-live-state").classList.contains("delayed"), false);
+  assert.match(ui.element("#orders-live-label").textContent, /tersambung/);
+});
+
+test("a session check started before cross-tab logout cannot reopen the dashboard", async () => {
+  let finish;let reads=0;
+  const ui = dashboard(async url => {
+    if(url === "/api/admin/session")return new Promise(resolve=>{finish=resolve});
+    reads++;return response(page("2026-10-06", [order("private")]));
+  });
+  ui.showDashboard();
+  const pending = ui.checkSession();
+  ui.showLogin();
+  finish(response({email:"admin@example.test"}));
+  await pending;
+  assert.equal(ui.element("#dashboard-view").hidden,true);
+  assert.equal(reads,0);
+  assert.equal(ui.state.orders.length,0);
 });

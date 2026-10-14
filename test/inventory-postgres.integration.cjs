@@ -34,7 +34,7 @@ async function stock(product = firstProduct) {
 }
 
 async function reset() {
-  await pool.query("TRUNCATE orders");
+  await pool.query("TRUNCATE orders CASCADE");
   await pool.query("UPDATE inventory SET stock = 0");
 }
 

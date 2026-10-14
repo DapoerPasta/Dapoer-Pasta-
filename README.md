@@ -119,9 +119,12 @@ Stok berkurang ketika pesanan **berhasil disimpan**, sebelum pelanggan membuka
 WhatsApp. Pengurangan semua produk dan penyimpanan pesanan dilakukan dalam
 satu transaksi PostgreSQL dengan kunci baris, sehingga checkout bersamaan
 tidak menjual stok yang sama dan kegagalan tidak mengurangi sebagian stok.
-Jika pelanggan tidak melanjutkan konfirmasi, admin dapat membatalkan pesanan:
-stok kembali tepat satu kali. Pesanan baru yang sudah dibatalkan tidak dapat
-dibuka kembali; buat pesanan baru agar stok diperiksa ulang. Pesanan lama yang
+Jika pelanggan tidak melanjutkan konfirmasi, admin dapat membatalkan pesanan
+berstatus **baru** atau **diproses**: stok kembali tepat satu kali. Pesanan
+yang sudah dikirim atau selesai tidak dapat dibatalkan melalui perubahan
+status ini, agar barang yang sudah keluar tidak otomatis menjadi persediaan.
+Pesanan yang sudah dibatalkan tidak dapat dibuka kembali; buat pesanan baru
+agar stok diperiksa ulang. Pesanan lama yang
 dibuat sebelum fitur ini tidak mengurangi atau mengembalikan stok.
 
 Endpoint Vercel `GET /api/menu` menyertakan `stock` untuk setiap produk.
@@ -271,6 +274,73 @@ lama tanpa token. Link publik tetap memerlukan token yang cocok dan API tidak
 mengirimkan identitas pelanggan tanpa sesi admin. Print/PDF memeriksa ulang
 nota; kesalahan akses membersihkan pratinjau dan menonaktifkan cetak/unduh.
 Tidak ada endpoint Vercel, kredensial, atau dependensi aplikasi baru.
+
+## Pemulihan Koneksi dan Alur Operasional
+
+Checkout memakai satu `requestId` UUID untuk satu pesanan. Jika respons hilang,
+gunakan **Periksa kembali pesanan sebelumnya**; permintaan memakai data dan ID
+yang sama serta mengembalikan pesanan, harga, tracking, dan antrean yang sudah
+tersimpan. Penyimpanan hasil dan pengurangan stok berada dalam transaksi yang
+sama. UUID dengan isi berbeda ditolak dengan `409 REQUEST_CONFLICT`; harga yang
+berbeda dari `expectedTotal` ditolak dengan `409 PRICE_CHANGED` sebelum stok
+atau pesanan berubah. Frontend memperbarui harga keranjang dari menu terbaru
+dan meminta pemeriksaan ulang jika harga berubah sebelum konfirmasi.
+
+Halaman sukses menyediakan tombol **Konfirmasi di WhatsApp**, **Lacak pesanan**,
+dan **Lihat struk**. Pembukaan WhatsApp dilakukan dengan klik langsung agar
+tetap bekerja setelah koneksi lambat. Beranda menyediakan **Pesanan terakhir**.
+Metadata/URL tracking disimpan di browser; pesan WhatsApp dan data checkout
+yang belum mendapat konfirmasi hanya disimpan dalam sesi tab, dengan cadangan
+memori jika penyimpanan tidak tersedia. Pesan WhatsApp tidak dikirim melalui
+API tracking publik. Jika tab ditutup saat hasil belum pasti, periksa pesanan
+yang sudah tercatat atau hubungi admin sebelum memesan ulang. Perubahan baru
+di keranjang dan formulir saat penyimpanan berlangsung tetap dipertahankan.
+
+Semua tindakan stok dari dashboard juga memakai UUID yang dipertahankan saat
+hasil koneksi belum pasti. Percobaan ulang memeriksa hasil tindakan yang sama,
+kemudian memuat persediaan terbaru. Mengubah isi tindakan dengan UUID yang
+sudah terpakai ditolak. API lama tanpa `requestId` tetap diterima untuk
+kompatibilitas, tetapi tidak dapat mengidentifikasi percobaan ulang; gunakan
+versi website terbaru untuk perlindungan ini.
+
+Perubahan status hanya boleh maju; admin dapat melewati tahap antara bila
+pesanan memang sudah sampai tahap berikutnya. Sebelum membatalkan pesanan
+baru/diproses, dashboard meminta konfirmasi. Penyimpanan mengirim
+`expectedStatus` dan `expectedUpdatedAt` persis dari data yang dibaca. Perubahan
+bersamaan menerima `409 ORDER_CONFLICT` agar status dari tab lama tidak
+menimpa status baru. Permintaan ulang transisi yang baru saja berhasil
+mengembalikan hasil yang sama. Pilihan status, fokus, dan tombol penyimpanan
+yang masih berjalan dipertahankan selama refresh otomatis.
+
+Dashboard menampilkan keadaan koneksi dan waktu pembaruan terakhir. Gangguan
+refresh tidak menghilangkan pesanan yang sudah dibaca atau menyatakan koneksi
+masih aktif. Tombol **Keluar** tersedia di HP maupun komputer; dashboard baru
+menyatakan sesi berakhir setelah logout berhasil. Endpoint logout tetap
+memeriksa metode, asal permintaan, dan payload, tetapi tidak memerlukan database
+pembatas trafik untuk menghapus cookie.
+
+Logout diteruskan ke tab admin/nota lain melalui BroadcastChannel dan event
+penyimpanan browser. Nota privat membersihkan identitas pelanggan ketika tab
+ditinggalkan dan memeriksa akses kembali saat aktif. Gunakan tombol **Cetak
+struk** untuk nota admin: pencetakan bawaan browser yang belum memvalidasi akses
+tidak menampilkan data privat. Nota publik dan PDF thermal tetap mengikuti
+proteksi identitas pelanggan yang sama.
+
+Foto menu mempunyai varian WebP 720 dan 1200 piksel serta fallback PNG asli.
+Kelima varian 720 piksel total sekitar 424 kB dan varian 1200 piksel sekitar
+886 kB, dibanding PNG asli sekitar 8 MB. Browser memilih ukuran berdasarkan
+layar, dan lazy loading tetap aktif. Refresh menu/keranjang mempertahankan
+elemen dan fokus; dialog mendukung Tab/Escape, serta chat menyesuaikan layar
+pendek/mendatar. Tabel/indeks pengeluaran pertama kali dibuat dalam satu
+transaksi terkunci agar beberapa instance cloud tidak bertabrakan.
+
+Tabel tambahan `operation_requests` menyimpan hasil tindakan sekali saja dan
+`order_status_transitions` menyimpan transisi terakhir untuk pemeriksaan/retry.
+Keduanya dibuat otomatis di Neon yang sama, tanpa endpoint atau secret baru.
+Role database memerlukan izin membuat tabel/fungsi serta membaca/menulis data
+tersebut. Pengujian transaksi tambahan menggunakan database lokal khusus:
+`node --test test/integrity-postgres.test.js` dengan variabel pengujian stok
+yang dijelaskan di bawah.
 
 ## Pengujian
 

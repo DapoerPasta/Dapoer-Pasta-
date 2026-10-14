@@ -1,6 +1,7 @@
 const { verifySession } = require("../_lib/auth");
 const { guardRequest } = require("../_lib/security");
 const { listInventory, adjustStock, setStock, validateStockAdjustment, validateStockSet } = require("../_lib/inventory");
+const { requestId } = require("../_lib/operations");
 
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "private, no-store");
@@ -9,6 +10,7 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") return res.status(200).json({ products: await listInventory() });
     const id = typeof req.body?.id === "string" ? req.body.id.trim() : "";
+    const operationId = requestId(req.body?.requestId);
     const hasDelta = Object.prototype.hasOwnProperty.call(req.body || {}, "delta");
     const hasStock = Object.prototype.hasOwnProperty.call(req.body || {}, "stock");
     if (hasDelta && hasStock) {
@@ -17,14 +19,20 @@ module.exports = async function handler(req, res) {
     let product;
     if (hasStock) {
       validateStockSet(id, req.body.stock, req.body.expectedStock);
-      product = await setStock(id, req.body.stock, req.body.expectedStock);
+      product = await setStock(id, req.body.stock, req.body.expectedStock, operationId || undefined);
     } else {
       const delta = req.body?.delta;
       validateStockAdjustment(id, delta);
-      product = await adjustStock(id, delta);
+      product = await adjustStock(id, delta, operationId || undefined);
     }
     return res.status(200).json({ product });
   } catch (error) {
+    if (error?.code === "INVALID_REQUEST_ID") {
+      return res.status(400).json({ code: error.code, error: "Identitas pembaruan stok tidak valid. Muat ulang halaman." });
+    }
+    if (error?.code === "REQUEST_CONFLICT") {
+      return res.status(409).json({ code: error.code, error: "Permintaan ini sudah digunakan untuk perubahan stok berbeda. Muat ulang stok dan periksa pembaruan sebelumnya." });
+    }
     if (error?.code === "INVALID_STOCK_SET") {
       return res.status(400).json({ code: error.code, error: "Pilih produk, jumlah stok akhir, dan stok saat ini yang valid (0–1.000.000)." });
     }

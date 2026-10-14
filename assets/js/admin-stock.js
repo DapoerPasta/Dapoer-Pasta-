@@ -2,7 +2,8 @@
   const POLL_INTERVAL = 10000;
   const MAX_STOCK = 1000000;
   const ACTIONS = ["add", "subtract", "set", "clear"];
-  const state = { authenticated: false, products: new Map(), rows: new Map(), timer: null, request: null, generation: 0, saving: null, editing: null, initialized: false };
+  const PENDING_KEY = "dapoer-admin-stock-pending-v1";
+  const state = { pending: new Map(), authenticated: false, products: new Map(), rows: new Map(), timer: null, request: null, generation: 0, saving: null, editing: null, initialized: false };
   const $ = selector => document.querySelector(selector);
   const rupiah = value => `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
   const units = value => value === null ? "—" : `${value.toLocaleString("id-ID")} unit`;
@@ -12,6 +13,7 @@
 
   function init() {
     if (!$("#stock-list")) return;
+    restorePending();
     $("#refresh-stock").addEventListener("click", () => loadStock(false));
     $("#stock-edit-form").addEventListener("submit", event => { event.preventDefault(); saveStock(); });
     $("#stock-edit-quantity").addEventListener("input", updateEditor);
@@ -25,6 +27,26 @@
     if (window.DapoerAdminAuthenticated) setAuthenticated(true);
   }
 
+  function restorePending() {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(PENDING_KEY) || "[]");
+      if (!Array.isArray(stored)) return;
+      stored.forEach(entry => {
+        if (!entry || typeof entry.id !== "string" || !ACTIONS.includes(entry.action) || !entry.payload || entry.payload.id !== entry.id || !/^[0-9a-f-]{36}$/i.test(entry.payload.requestId || "")) return;
+        state.pending.set(entry.id, entry);
+      });
+    } catch {}
+  }
+  function persistPending() {
+    try { sessionStorage.setItem(PENDING_KEY, JSON.stringify(Array.from(state.pending.values()))); } catch {}
+  }
+  function requestId() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+    if (typeof crypto === "undefined" || typeof crypto.getRandomValues !== "function") return null;
+    const bytes = crypto.getRandomValues(new Uint8Array(16));bytes[6] = (bytes[6] & 15) | 64;bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  }
   function isVisible() {
     return state.authenticated && !document.hidden && !!$("#dashboard-view") && !$("#dashboard-view").hidden;
   }
@@ -85,7 +107,7 @@
     state.rows.forEach((row, id) => {
       row.manage.disabled = !state.authenticated || !!state.saving;
       row.root.classList.toggle("saving", state.saving?.id === id);
-      row.manage.textContent = state.saving?.id === id ? "Menyimpan…" : "Kelola stok";
+      row.manage.textContent = state.saving?.id === id ? "Menyimpan…" : state.pending.has(id) ? "Periksa perubahan" : "Kelola stok";
     });
     updateEditor();
   }
@@ -159,13 +181,16 @@
   function openEditor(id, action = "add") {
     if (!state.authenticated || state.saving || !state.products.has(id)) return;
     const product = state.products.get(id);
+    const pending = state.pending.get(id);
     const stock = currentStock(product);
-    if (!allowedAction(action, stock)) return;
-    state.editing = { id, expectedStock: stock, action, conflicted: false, drafts: { add: "", subtract: "", set: stock === null ? "" : String(stock) } };
+    if (pending) action = pending.action;
+    if (!pending && !allowedAction(action, stock)) return;
+    state.editing = { id, expectedStock: pending ? pending.expectedStock : stock, action, conflicted: false, drafts: { add: "", subtract: "", set: stock === null ? "" : String(stock) }, mutation: pending || null };
+    if (pending && action !== "clear") state.editing.drafts[action] = String(pending.quantity);
     $("#stock-edit-name").textContent = product.name;
     $("#stock-edit-title").textContent = "Kelola stok";
     $("#stock-edit-quantity").value = action === "clear" ? "0" : state.editing.drafts[action];
-    editorMessage("");
+    editorMessage(pending ? "Hasil perubahan sebelumnya belum terkonfirmasi. Tekan Periksa perubahan untuk mengirim ulang tindakan yang sama tanpa mengubah stok dua kali." : "", !!pending);
     updateEditor();
     if (!$("#stock-editor").open) $("#stock-editor").showModal();
     focusEditor();
@@ -173,7 +198,7 @@
 
   function selectAction(action) {
     const editing = state.editing;
-    if (!editing || state.saving || action === editing.action || !allowedAction(action, currentStock(state.products.get(editing.id)))) return;
+    if (!editing || state.saving || editing.mutation || action === editing.action || !allowedAction(action, currentStock(state.products.get(editing.id)))) return;
     if (editing.action !== "clear") editing.drafts[editing.action] = $("#stock-edit-quantity").value;
     editing.action = action;
     $("#stock-edit-quantity").value = action === "clear" ? "0" : editing.drafts[action];
@@ -198,6 +223,10 @@
 
   function editorValues() {
     const editing = state.editing;
+    if (editing.mutation) {
+      const mutation = editing.mutation;
+      return { relative: mutation.relative, before: mutation.before, quantity: mutation.quantity, after: mutation.after, valid: true };
+    }
     const latest = currentStock(state.products.get(editing.id));
     const relative = editing.action === "add" || editing.action === "subtract";
     const before = relative ? latest : editing.expectedStock;
@@ -224,7 +253,7 @@
     $("#stock-edit-label").textContent = labels[editing.action][0];
     $("#stock-edit-description").textContent = labels[editing.action][1];
     $("#stock-edit-hint").textContent = labels[editing.action][2];
-    $("#stock-edit-before-label").textContent = relative ? "Stok saat ini" : "Stok saat dibuka";
+    $("#stock-edit-before-label").textContent = editing.mutation ? "Stok sebelum tindakan" : relative ? "Stok saat ini" : "Stok saat dibuka";
     $("#stock-edit-before").textContent = units(before);
     $("#stock-edit-after").textContent = valid || (quantity !== null && after >= 0 && after <= MAX_STOCK) ? units(after) : "—";
     $("#stock-edit-field").hidden = editing.action === "clear";
@@ -232,17 +261,17 @@
     $("#stock-edit-quantity").min = relative ? "1" : "0";
     $("#stock-edit-quantity").max = String(editing.action === "subtract" ? (latest ?? 0) : editing.action === "add" ? MAX_STOCK - (latest ?? 0) : MAX_STOCK);
     $("#stock-edit-quantity").placeholder = relative ? "Masukkan jumlah" : "Jumlah stok akhir";
-    $("#stock-edit-quantity").disabled = busy || editing.action === "clear";
+    $("#stock-edit-quantity").disabled = busy || !!editing.mutation || editing.action === "clear";
     $("#stock-edit-cancel").disabled = busy;
     $("#stock-edit-close").disabled = busy;
     ACTIONS.forEach(action => {
       const button = $("#stock-action-" + action);
-      button.disabled = busy || !allowedAction(action, latest);
+      button.disabled = busy || !!editing.mutation || !allowedAction(action, latest);
       button.setAttribute("aria-pressed", String(action === editing.action));
     });
     const save = $("#stock-edit-save");
     save.disabled = !state.authenticated || busy || editing.conflicted || !valid;
-    save.textContent = busy ? "Menyimpan…" : ({ add: "Tambah stok", subtract: "Kurangi stok", set: "Simpan jumlah", clear: "Ya, kosongkan stok" })[editing.action];
+    save.textContent = busy ? "Menyimpan…" : editing.mutation ? "Periksa perubahan" : ({ add: "Tambah stok", subtract: "Kurangi stok", set: "Simpan jumlah", clear: "Ya, kosongkan stok" })[editing.action];
     save.classList.toggle("danger", editing.action === "clear" || (quantity !== null && after === 0));
     $("#stock-editor").setAttribute("aria-busy", String(busy));
   }
@@ -250,7 +279,8 @@
   async function saveStock() {
     if (!state.authenticated || state.saving || !state.editing || state.editing.conflicted) return;
     const editing = state.editing;
-    const { relative, quantity, after, valid } = editorValues();
+    const retrying = !!editing.mutation;
+    const { relative, before, quantity, after, valid } = editorValues();
     if (!valid) {
       editorMessage(editing.action === "subtract" && quantity !== null && after < 0 ? "Jumlah pengurangan melebihi stok saat ini." :
         editing.action === "add" && quantity !== null && after > MAX_STOCK ? "Stok akhir tidak boleh melebihi 1.000.000 unit." :
@@ -258,20 +288,39 @@
       $("#stock-edit-quantity").focus();
       return;
     }
-    const payload = relative ? { id: editing.id, delta: editing.action === "subtract" ? -quantity : quantity } :
-      { id: editing.id, stock: after, expectedStock: editing.expectedStock };
+    if (!editing.mutation) {
+      const id = requestId();
+      if (!id) { editorMessage("Browser belum mendukung penyimpanan aman. Gunakan browser terbaru melalui HTTPS.", true); return; }
+      const payload = relative ? { id: editing.id, delta: editing.action === "subtract" ? -quantity : quantity, requestId: id } :
+        { id: editing.id, stock: after, expectedStock: editing.expectedStock, requestId: id };
+      editing.mutation = { id: editing.id, action: editing.action, relative, before, quantity, after, expectedStock: editing.expectedStock, payload };
+      state.pending.set(editing.id, editing.mutation);
+      persistPending();
+    }
+    const payload = editing.mutation.payload;
     cancelRead();
     const mutation = { id: editing.id, generation: state.generation };
     state.saving = mutation;
     editorMessage("");
     updateControls();
     let refresh = false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
     try {
-      const response = await fetch("/api/admin/stock", { method: "PATCH", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) });
-      const data = await response.json();
+      const response = await fetch("/api/admin/stock", { method: "PATCH", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload), signal: controller.signal });
       if (state.saving !== mutation || !state.authenticated || mutation.generation !== state.generation) return;
       if (response.status === 401) { sessionExpired(); return; }
+      const data = await response.json();
+      if (state.saving !== mutation || !state.authenticated || mutation.generation !== state.generation) return;
       if (!response.ok) {
+        // A definitive validation/conflict rejection made no stock change. Network/server failures retain the exact retry.
+        if (response.status >= 400 && response.status < 500 && data.code !== "REQUEST_CONFLICT") {
+          state.pending.delete(editing.id);editing.mutation = null;persistPending();
+        }
+        if (data.code === "REQUEST_CONFLICT") {
+          editing.conflicted = true;
+          throw new Error("Tindakan tersimpan berbeda dari permintaan ini. Jangan membuat perubahan baru; hubungi pengelola untuk memeriksa stok.");
+        }
         if (data.code === "STOCK_CONFLICT") {
           editing.conflicted = true;
           refresh = true;
@@ -280,20 +329,23 @@
         if (data.code === "INSUFFICIENT_STOCK") refresh = true;
         throw new Error(data.error || "Stok gagal diperbarui.");
       }
-      if (!data.product || data.product.id !== editing.id || currentStock(data.product) === null) throw new Error("Hasil perubahan belum dapat dipastikan. Tutup jendela ini dan refresh stok sebelum mencoba lagi.");
+      if (!data.product || data.product.id !== editing.id || currentStock(data.product) === null) throw new Error("Hasil perubahan belum terkonfirmasi. Tekan Periksa perubahan untuk memeriksa tindakan yang sama.");
+      state.pending.delete(editing.id);editing.mutation = null;persistPending();
       state.products.set(editing.id, data.product);
       renderProducts(Array.from(state.products.values()));
       updatedTime();
-      message(relative ? `Stok ${data.product.name} ${editing.action === "add" ? "ditambah" : "dikurangi"} ${quantity} unit. Stok sekarang ${data.product.stock} unit.` :
+      message(retrying ? "Perubahan stok terkonfirmasi. Jumlah terbaru sedang diperiksa kembali." : relative ? `Stok ${data.product.name} ${editing.action === "add" ? "ditambah" : "dikurangi"} ${quantity} unit. Stok sekarang ${data.product.stock} unit.` :
         data.product.stock === 0 ? `Stok ${data.product.name} dikosongkan. Menu ditandai habis dan bisa diisi kembali.` :
         `Stok ${data.product.name} diperbarui dari ${editing.expectedStock} menjadi ${data.product.stock} unit.`);
       state.saving = null;
       closeEditor();
       updateControls();
+      if (retrying) await loadStock(true);
     } catch (error) {
       if (state.saving !== mutation) return;
-      editorMessage(error.message || "Stok gagal diperbarui. Periksa jumlah terbaru sebelum mencoba lagi.", true);
+      editorMessage(editing.mutation ? "Hasil perubahan belum terkonfirmasi. Tekan Periksa perubahan untuk mencoba tindakan yang sama; jumlah dan jenis tindakan dikunci agar stok tidak berubah dua kali." : error.message || "Stok gagal diperbarui. Periksa jumlah terbaru sebelum mencoba lagi.", true);
     } finally {
+      clearTimeout(timeout);
       if (state.saving === mutation) {
         state.saving = null;
         updateControls();
@@ -310,9 +362,10 @@
     if (!state.initialized) $("#stock-caption").textContent = "Memuat stok menu…";
     try {
       const response = await fetch("/api/admin/stock", { headers: { Accept: "application/json" }, cache: "no-store", signal: request.controller.signal });
-      const data = await response.json();
       if (state.request !== request || request.generation !== state.generation) return;
       if (response.status === 401) { sessionExpired(); return; }
+      const data = await response.json();
+      if (state.request !== request || request.generation !== state.generation) return;
       if (!response.ok) throw new Error(data.error || "Stok belum dapat dimuat. Coba refresh stok.");
       if (!Array.isArray(data.products)) throw new Error("Data stok belum tersedia. Coba refresh setelah deployment selesai.");
       renderProducts(data.products);
@@ -321,7 +374,7 @@
       if (!silent || $("#stock-message").classList.contains("error")) message("");
     } catch (error) {
       if (state.request !== request || error.name === "AbortError") return;
-      message(error.message || "Stok belum dapat dimuat. Coba refresh stok.", true);
+      message(["SyntaxError", "TypeError"].includes(error.name) ? "Koneksi belum tersedia. Tekan Refresh stok untuk mencoba lagi." : error.message || "Stok belum dapat dimuat. Coba refresh stok.", true);
       if (!state.initialized) $("#stock-caption").textContent = "Stok belum tersedia.";
     } finally {
       if (state.request === request) { state.request = null; updateControls(); }

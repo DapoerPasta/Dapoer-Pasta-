@@ -1,5 +1,6 @@
 const { PRODUCTS } = require("./catalog");
 const { ensureSchema } = require("./db");
+const { requestId, fingerprint, rethrowOperationError } = require("./operations");
 
 const MAX_STOCK = 1000000;
 const byId = new Map(PRODUCTS.map(product => [product.id, product]));
@@ -31,10 +32,19 @@ async function listInventory() {
   return PRODUCTS.map(product => ({ ...product, stock: counts.get(product.id) ?? 0 }));
 }
 
-async function adjustStock(id, delta) {
+async function adjustStock(id, delta, operationId) {
   validateStockAdjustment(id, delta);
+  const replayId = requestId(operationId);
   const sql = await ensureSchema();
   if (!sql) throw inventoryError("DATABASE_NOT_CONFIGURED");
+  if (replayId) {
+    try {
+      const rows = await sql`SELECT dapoer_change_stock_once(${id},${delta}::integer,NULL::integer,NULL::integer,
+        ${replayId}::uuid,${fingerprint({ id, delta })}) AS saved`;
+      if (!rows[0]?.saved) throw new Error("STOCK_SAVE_UNCONFIRMED");
+      return { ...byId.get(id), stock: Number(rows[0].saved.stock) };
+    } catch (error) { rethrowOperationError(error); }
+  }
   // PostgreSQL rechecks this condition after waiting for concurrent UPDATEs.
   // Additive changes never replace an administrator's or customer's update.
   const rows = await sql`
@@ -47,10 +57,19 @@ async function adjustStock(id, delta) {
   return { ...byId.get(id), stock: Number(rows[0].stock) };
 }
 
-async function setStock(id, stock, expectedStock) {
+async function setStock(id, stock, expectedStock, operationId) {
   validateStockSet(id, stock, expectedStock);
+  const replayId = requestId(operationId);
   const sql = await ensureSchema();
   if (!sql) throw inventoryError("DATABASE_NOT_CONFIGURED");
+  if (replayId) {
+    try {
+      const rows = await sql`SELECT dapoer_change_stock_once(${id},NULL::integer,${stock}::integer,${expectedStock}::integer,
+        ${replayId}::uuid,${fingerprint({ id, stock, expectedStock })}) AS saved`;
+      if (!rows[0]?.saved) throw new Error("STOCK_SAVE_UNCONFIRMED");
+      return { ...byId.get(id), stock: Number(rows[0].saved.stock) };
+    } catch (error) { rethrowOperationError(error); }
+  }
   // Compare and set prevents a stale editor from replacing a checkout or
   // another administrator's change, including when clearing stock to zero.
   const rows = await sql`

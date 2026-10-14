@@ -5,22 +5,67 @@
   const id = params.get("id") || "", token = params.get("token") || "";
   const files = window.DapoerReceiptPrint;
   let currentOrder = null, busy = false, generation = 0, request = null, exportRequest = null;
+  let initialized = false, resumeNeeded = false, applicationPrint = false, nativePrint = false;
 
   document.addEventListener("DOMContentLoaded", () => {
+    initialized = true;
     const paper = params.get("paper");
     if (["58", "80", "a4"].includes(paper)) $("#receipt-paper-size").value = paper;
     updatePaper();
     $("#receipt-paper-size").addEventListener("change", () => { cancelExport(); updatePaper(); });
     $("#print-receipt").addEventListener("click", () => output("print"));
     $("#download-receipt-pdf").addEventListener("click", () => output("pdf"));
-    document.addEventListener("dapoer:admin-session", event => { if (!event.detail?.authenticated && currentOrder?.customerDataProtected === false) fail("Sesi admin berakhir. Muat ulang nota untuk melihat informasi yang tersedia."); });
+    const sessionEnded = detail => {
+      if (detail?.authenticated !== false) return;
+      // This also invalidates an outstanding read/export. A response started
+      // before logout must never restore private fields after the broadcast.
+      if (currentOrder?.customerDataProtected === true && !request && !exportRequest) return;
+      fail("Sesi admin berakhir. Masuk kembali ke admin untuk membuka nota lengkap.");
+      if (token && !document.hidden && !nativePrint) loadReceipt();
+    };
+    if (window.DapoerAdminSession) window.DapoerAdminSession.subscribe(sessionEnded);
+    else document.addEventListener("dapoer:admin-session", event => sessionEnded(event.detail));
     if (token) $("#back-tracking").href = `/track/?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`;
     else { $("#back-tracking").href = "/admin/"; $("#back-tracking").textContent = "← Kembali ke Admin"; }
     loadReceipt();
   });
 
-  window.addEventListener("pagehide", () => { generation++; request?.abort(); cancelExport(); clear(); });
-  window.addEventListener("pageshow", event => { if (event.persisted) loadReceipt(); });
+  document.addEventListener("visibilitychange", () => {
+    if (!initialized || applicationPrint) return;
+    if (document.hidden) {
+      if (currentOrder?.customerDataProtected === false || request || exportRequest) suspend();
+    } else if (resumeNeeded) revalidate();
+  });
+  window.addEventListener("focus", () => {
+    if (initialized && !document.hidden && !applicationPrint && !nativePrint && !busy && (resumeNeeded || currentOrder?.customerDataProtected === false)) revalidate();
+  });
+  window.addEventListener("pagehide", () => { if (initialized) suspend(); });
+  window.addEventListener("pageshow", event => { if (initialized && event.persisted) revalidate(); });
+  window.addEventListener("beforeprint", () => {
+    if (!initialized || applicationPrint || currentOrder?.customerDataProtected === true) return;
+    // Native Ctrl+P cannot await an authorization request. Clear private DOM
+    // synchronously; the application button validates and grants one print.
+    nativePrint = true;
+    suspend();
+    $("#receipt-loading").hidden = true;
+    messageText("Untuk mencetak nota lengkap, tutup menu cetak ini lalu gunakan tombol Cetak struk. Akses admin akan diperiksa kembali.");
+  });
+  window.addEventListener("afterprint", () => {
+    if (!nativePrint) return;
+    nativePrint = false;
+    if (!document.hidden) revalidate();
+  });
+
+  function suspend() {
+    generation++; request?.abort(); request = null; cancelExport(); clear();
+    resumeNeeded = true;
+  }
+
+  function revalidate() {
+    if (nativePrint || busy || request || document.hidden) return;
+    resumeNeeded = false;
+    loadReceipt();
+  }
 
   function updatePaper() {
     const paper = $("#receipt-paper-size").value;
@@ -37,17 +82,26 @@
   }
 
   async function readOrder(signal) {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (signal?.aborted) controller.abort();
+    else signal?.addEventListener("abort", abort, { once: true });
+    let timedOut = false;
+    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 12000);
     try {
       if (!files || !/^[A-Za-z0-9-]{3,80}$/.test(id) || (token && token.length < 32)) throw new Error("Link nota tidak valid.");
       const query = new URLSearchParams({ id });
       if (token) query.set("token", token);
-      const response = await fetch(`/api/receipt?${query}`, { headers: { Accept: "application/json" }, credentials: "same-origin", cache: "no-store", signal });
+      const response = await fetch(`/api/receipt?${query}`, { headers: { Accept: "application/json" }, credentials: "same-origin", cache: "no-store", signal: controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Nota belum tersedia.");
       const order = files.normalize(data.order);
       if (order.id !== id) throw new Error("Nota tidak cocok dengan pesanan. Muat ulang halaman.");
       return order;
-    } catch (error) { error.receiptReadFailure = true; throw error; }
+    } catch (error) {
+      if (timedOut) error = new Error("Koneksi terlalu lama. Muat ulang nota untuk mencoba kembali.");
+      error.receiptReadFailure = true; throw error;
+    } finally { clearTimeout(timeout); signal?.removeEventListener("abort", abort); }
   }
 
   async function loadReceipt() {
@@ -55,11 +109,17 @@
     request?.abort(); cancelExport(); clear();
     $("#receipt-error").hidden = true;
     $("#receipt-loading").hidden = false;
+    if (document.hidden) { resumeNeeded = true; request = null; return; }
     request = new AbortController();
+    const controller = request;
     try {
-      const order = await readOrder(request.signal);
-      if (turn === generation) render(order);
+      const order = await readOrder(controller.signal);
+      if (turn === generation && !controller.signal.aborted && !nativePrint) {
+        if (document.hidden && order.customerDataProtected === false) suspend();
+        else render(order);
+      }
     } catch (error) { if (turn === generation && error.name !== "AbortError") fail(error.message || "Nota belum dapat dimuat."); }
+    finally { if (request === controller) request = null; }
   }
 
   function render(order) {
@@ -97,6 +157,7 @@
     currentOrder = null;
     document.body.dataset.receiptReady = "false";
     document.body.dataset.customerProtected = "true";
+    document.body.dataset.privatePrintAuthorized = "false";
     $("#receipt-content").hidden = true;
     $("#receipt-items").replaceChildren();
     for (const field of ["id", "customer", "date", "status", "queue-number", "queue-date", "total", "method", "phone", "address", "notes"]) $("#receipt-" + field).textContent = "—";
@@ -104,7 +165,7 @@
   }
 
   function fail(message) {
-    generation++; request?.abort(); cancelExport(); clear();
+    generation++; request?.abort(); request = null; cancelExport(); clear();
     $("#receipt-loading").hidden = true;
     $("#receipt-error").hidden = false;
     $("#receipt-error").textContent = message;
@@ -129,8 +190,14 @@
       const order = await readOrder(controller.signal);
       if (turn !== generation || controller.signal.aborted) return;
       render(order);
-      if (kind === "print") { messageText(""); window.print(); return; }
+      if (kind === "print") {
+        messageText(""); applicationPrint = true;
+        document.body.dataset.privatePrintAuthorized = "true";
+        try { window.print(); } finally { applicationPrint = false; document.body.dataset.privatePrintAuthorized = "false"; }
+        return;
+      }
       const result = await files.build(order, { paper, signal: controller.signal });
+      if (turn !== generation || controller.signal.aborted) return;
       const latest = await readOrder(controller.signal);
       if (turn !== generation || controller.signal.aborted) return;
       if (JSON.stringify(order) !== JSON.stringify(latest)) {
