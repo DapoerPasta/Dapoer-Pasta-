@@ -1,6 +1,7 @@
 const { PRODUCTS } = require("./catalog");
 const { ensureSchema } = require("./db");
 const { requestId, fingerprint, rethrowOperationError } = require("./operations");
+const { stockReason } = require("./stock-history");
 
 const MAX_STOCK = 1000000;
 const byId = new Map(PRODUCTS.map(product => [product.id, product]));
@@ -32,53 +33,35 @@ async function listInventory() {
   return PRODUCTS.map(product => ({ ...product, stock: counts.get(product.id) ?? 0 }));
 }
 
-async function adjustStock(id, delta, operationId) {
+async function adjustStock(id, delta, operationId, reasonInput) {
   validateStockAdjustment(id, delta);
+  const reason = stockReason(reasonInput);
   const replayId = requestId(operationId);
   const sql = await ensureSchema();
   if (!sql) throw inventoryError("DATABASE_NOT_CONFIGURED");
-  if (replayId) {
-    try {
-      const rows = await sql`SELECT dapoer_change_stock_once(${id},${delta}::integer,NULL::integer,NULL::integer,
-        ${replayId}::uuid,${fingerprint({ id, delta })}) AS saved`;
-      if (!rows[0]?.saved) throw new Error("STOCK_SAVE_UNCONFIRMED");
-      return { ...byId.get(id), stock: Number(rows[0].saved.stock) };
-    } catch (error) { rethrowOperationError(error); }
-  }
-  // PostgreSQL rechecks this condition after waiting for concurrent UPDATEs.
-  // Additive changes never replace an administrator's or customer's update.
-  const rows = await sql`
-    UPDATE inventory SET stock = stock + ${delta}, updated_at = NOW()
-    WHERE product_id = ${id} AND stock::bigint + ${delta} >= 0
-      AND (${delta} < 0 OR stock::bigint + ${delta} <= ${MAX_STOCK})
-    RETURNING product_id, stock
-  `;
-  if (!rows[0]) throw inventoryError(delta < 0 ? "INSUFFICIENT_STOCK" : "INVALID_STOCK_ADJUSTMENT");
-  return { ...byId.get(id), stock: Number(rows[0].stock) };
+  try {
+    // Empty reasons keep fingerprints from pending pre-upgrade requests valid.
+    const intent = reason ? { id, delta, reason } : { id, delta };
+    const rows = await sql`SELECT dapoer_change_stock_once(${id},${delta}::integer,NULL::integer,NULL::integer,
+      ${replayId}::uuid,${fingerprint(intent)},${reason}) AS saved`;
+    if (!rows[0]?.saved) throw new Error("STOCK_SAVE_UNCONFIRMED");
+    return { ...byId.get(id), stock: Number(rows[0].saved.stock) };
+  } catch (error) { rethrowOperationError(error); }
 }
 
-async function setStock(id, stock, expectedStock, operationId) {
+async function setStock(id, stock, expectedStock, operationId, reasonInput) {
   validateStockSet(id, stock, expectedStock);
+  const reason = stockReason(reasonInput);
   const replayId = requestId(operationId);
   const sql = await ensureSchema();
   if (!sql) throw inventoryError("DATABASE_NOT_CONFIGURED");
-  if (replayId) {
-    try {
-      const rows = await sql`SELECT dapoer_change_stock_once(${id},NULL::integer,${stock}::integer,${expectedStock}::integer,
-        ${replayId}::uuid,${fingerprint({ id, stock, expectedStock })}) AS saved`;
-      if (!rows[0]?.saved) throw new Error("STOCK_SAVE_UNCONFIRMED");
-      return { ...byId.get(id), stock: Number(rows[0].saved.stock) };
-    } catch (error) { rethrowOperationError(error); }
-  }
-  // Compare and set prevents a stale editor from replacing a checkout or
-  // another administrator's change, including when clearing stock to zero.
-  const rows = await sql`
-    UPDATE inventory SET stock = ${stock}, updated_at = NOW()
-    WHERE product_id = ${id} AND stock = ${expectedStock}
-    RETURNING product_id, stock
-  `;
-  if (!rows[0]) throw inventoryError("STOCK_CONFLICT");
-  return { ...byId.get(id), stock: Number(rows[0].stock) };
+  try {
+    const intent = reason ? { id, stock, expectedStock, reason } : { id, stock, expectedStock };
+    const rows = await sql`SELECT dapoer_change_stock_once(${id},NULL::integer,${stock}::integer,${expectedStock}::integer,
+      ${replayId}::uuid,${fingerprint(intent)},${reason}) AS saved`;
+    if (!rows[0]?.saved) throw new Error("STOCK_SAVE_UNCONFIRMED");
+    return { ...byId.get(id), stock: Number(rows[0].saved.stock) };
+  } catch (error) { rethrowOperationError(error); }
 }
 
 module.exports = { MAX_STOCK, listInventory, adjustStock, setStock, validateStockAdjustment, validateStockSet };

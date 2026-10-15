@@ -12,12 +12,15 @@
   <link rel="stylesheet" href="/assets/css/admin.css?v=20261014-reliable">
   <link rel="stylesheet" href="/assets/css/admin-history.css">
   <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261014-reliable">
+  <link rel="stylesheet" href="/assets/css/admin-stock-history.css?v=20261015-stock-history">
   <link rel="stylesheet" href="/assets/css/admin-finance.css?v=20261009-export">
   <script src="/assets/js/admin-session.js?v=20261014-reliable" defer></script>
   <script src="/assets/js/admin.js?v=20261014-reliable" defer></script>
   <script src="/assets/js/admin-history-loader.js" defer></script>
-  <script src="/assets/js/admin-stock.js?v=20261014-reliable" defer></script>
+  <script src="/assets/js/admin-stock.js?v=20261015-stock-history" defer></script>
   <script src="/assets/js/finance-export-files.js?v=20261009-export" defer></script>
+  <script src="/assets/js/stock-history-files.js?v=20261015-stock-history" defer></script>
+  <script src="/assets/js/admin-stock-history.js?v=20261015-stock-history" defer></script>
   <script src="/assets/js/admin-finance.js?v=20261009-export" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
@@ -125,11 +128,41 @@
             </div>
             <button id="refresh-stock" class="stock-refresh" type="button">↻ Refresh stok</button>
           </div>
+          <div class="stock-view-tabs" role="tablist" aria-label="Tampilan stok">
+            <button id="stock-tab-current" type="button" role="tab" aria-selected="true" aria-controls="stock-panel-current">Stok saat ini</button>
+            <button id="stock-tab-history" type="button" role="tab" aria-selected="false" aria-controls="stock-panel-history" tabindex="-1">Riwayat stok</button>
+          </div>
+          <div id="stock-panel-current" role="tabpanel" aria-labelledby="stock-tab-current">
           <p class="stock-guide">Pilih <strong>Kelola stok</strong> untuk menambah, mengurangi, mengatur jumlah akhir, atau mengosongkan persediaan menu.</p>
           <p class="stock-message" id="stock-message" role="status" aria-live="polite"></p>
           <div class="stock-table-head" aria-hidden="true"><span>Menu</span><span>Stok saat ini</span><span>Kelola</span></div>
           <div id="stock-list" class="stock-list" aria-busy="false"></div>
           <div class="stock-footer"><span>Terakhir diperbarui <strong id="stock-last-updated">—</strong> · otomatis setiap 10 detik</span><span>Stok berkurang saat pesanan tersimpan dan kembali saat dibatalkan.</span></div>
+          </div>
+          <div id="stock-panel-history" role="tabpanel" aria-labelledby="stock-tab-history" hidden>
+            <div class="stock-history-toolbar">
+              <div class="stock-history-periods" role="group" aria-label="Periode riwayat stok">
+                <button data-stock-history-period="day" type="button" aria-pressed="false">Harian</button><button data-stock-history-period="week" type="button" aria-pressed="false">Mingguan</button><button data-stock-history-period="month" type="button" aria-pressed="true">Bulanan</button><button data-stock-history-period="year" type="button" aria-pressed="false">Tahunan</button>
+              </div>
+              <div class="stock-history-date-controls"><button id="stock-history-prev" type="button" aria-label="Periode stok sebelumnya">←</button><label for="stock-history-date"><span>Tanggal acuan · WIB</span><input id="stock-history-date" type="date" min="2000-01-01" max="2100-12-31" required></label><button id="stock-history-next" type="button" aria-label="Periode stok berikutnya">→</button><button id="stock-history-today" type="button">Hari ini</button></div>
+            </div>
+            <div class="stock-history-tools">
+              <label class="stock-history-product-filter" for="stock-history-product"><span>Menu</span><select id="stock-history-product"><option value="">Semua menu</option></select></label>
+              <button id="stock-history-refresh" type="button">↻ Refresh</button>
+              <label class="stock-history-format" for="stock-history-export-format"><span>Format unduhan</span><select id="stock-history-export-format" disabled><option value="pdf">PDF (.pdf)</option><option value="xlsx">Excel / Sheets (.xlsx)</option><option value="csv">CSV (.csv)</option></select></label>
+              <button id="stock-history-export" class="stock-history-download" type="button" disabled>↓ Unduh laporan</button>
+            </div>
+            <div class="stock-history-heading"><div><p class="eyebrow">Pergerakan persediaan</p><h3 id="stock-history-period-label">Riwayat stok</h3></div><span id="stock-history-updated">Waktu Indonesia Barat</span></div>
+            <p id="stock-history-message" class="stock-history-message" role="status" aria-live="polite"></p>
+            <div id="stock-history-state" class="stock-history-state">Riwayat akan dimuat setelah login.</div>
+            <div id="stock-history-report" hidden aria-busy="false">
+              <p id="stock-history-coverage" class="stock-history-coverage"></p>
+              <div class="stock-history-kpis"><article><span>Stok masuk</span><strong id="stock-history-incoming">—</strong><small>Penambahan &amp; pengembalian</small></article><article><span>Stok keluar</span><strong id="stock-history-outgoing">—</strong><small>Pesanan &amp; pengurangan</small></article><article><span>Perubahan tercatat</span><strong id="stock-history-count">—</strong><small>Seluruh periode pilihan</small></article></div>
+              <section class="stock-history-card" aria-labelledby="stock-history-balances-heading"><div class="stock-history-card-head"><h4 id="stock-history-balances-heading">Saldo persediaan</h4><p>Saldo awal + masuk − keluar = saldo akhir</p></div><div class="stock-history-table-scroll"><table class="stock-history-table stock-history-balances"><caption class="stock-history-sr-only">Saldo setiap menu dalam periode pilihan, satuan unit</caption><thead><tr><th scope="col">Menu</th><th scope="col">Saldo awal</th><th scope="col">Masuk</th><th scope="col">Keluar</th><th scope="col">Saldo akhir</th></tr></thead><tbody id="stock-history-summary-body"></tbody></table></div></section>
+              <section class="stock-history-card" aria-labelledby="stock-history-movements-heading"><div class="stock-history-card-head"><h4 id="stock-history-movements-heading">Riwayat keluar masuk</h4><p>Catatan stok tersimpan otomatis dan tidak dapat diubah.</p></div><div class="stock-history-table-scroll"><table class="stock-history-table stock-history-movements"><caption class="stock-history-sr-only">Perubahan stok beserta saldo sebelum dan sesudah, waktu WIB</caption><thead><tr><th scope="col">Waktu · WIB</th><th scope="col">Menu</th><th scope="col">Masuk</th><th scope="col">Keluar</th><th scope="col">Sebelum → sesudah</th><th scope="col">Keterangan</th></tr></thead><tbody id="stock-history-body"></tbody></table></div><div class="stock-history-pagination"><span id="stock-history-page-label"></span><div><button id="stock-history-page-prev" type="button" disabled>← Sebelumnya</button><button id="stock-history-page-next" type="button" disabled>Berikutnya →</button></div></div></section>
+              <p class="stock-history-export-note">Unduhan mencakup seluruh catatan dalam periode dan menu pilihan, termasuk halaman lainnya.</p>
+            </div>
+          </div>
           <dialog id="stock-editor" class="stock-editor" aria-labelledby="stock-edit-title" aria-describedby="stock-edit-description">
             <form id="stock-edit-form" novalidate>
               <div class="stock-editor-head">
@@ -157,6 +190,7 @@
                 <div class="stock-editor-input"><input id="stock-edit-quantity" type="number" min="0" max="1000000" step="1" inputmode="numeric" aria-describedby="stock-edit-hint"><span>unit</span></div>
                 <p id="stock-edit-hint">Masukkan jumlah stok yang akan ditambahkan.</p>
               </div>
+              <label class="stock-history-reason-label" for="stock-edit-reason">Keterangan <span>(opsional)</span><input id="stock-edit-reason" type="text" maxlength="200" placeholder="Contoh: produksi baru atau koreksi stok fisik"></label>
               <p id="stock-edit-warning" class="stock-editor-warning" hidden>Pelanggan tidak dapat memesan menu ini sampai stok diisi kembali. Pesanan yang sudah tersimpan tetap ada.</p>
               <p id="stock-edit-message" class="stock-editor-message" role="status" aria-live="polite"></p>
               <div class="stock-editor-actions"><button id="stock-edit-cancel" type="button">Batal</button><button id="stock-edit-save" type="submit">Simpan stok</button></div>

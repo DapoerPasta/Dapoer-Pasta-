@@ -17,12 +17,13 @@
     $("#refresh-stock").addEventListener("click", () => loadStock(false));
     $("#stock-edit-form").addEventListener("submit", event => { event.preventDefault(); saveStock(); });
     $("#stock-edit-quantity").addEventListener("input", updateEditor);
+    $("#stock-edit-reason")?.addEventListener("input", updateEditor);
     ACTIONS.forEach(action => $("#stock-action-" + action).addEventListener("click", () => selectAction(action)));
     $("#stock-edit-cancel").addEventListener("click", closeEditor);
     $("#stock-edit-close").addEventListener("click", closeEditor);
     $("#stock-editor").addEventListener("cancel", event => { event.preventDefault(); closeEditor(); });
     document.addEventListener("dapoer:admin-session", event => setAuthenticated(!!event.detail?.authenticated));
-    document.addEventListener("dapoer:stock-changed", () => loadStock(true));
+    document.addEventListener("dapoer:stock-changed", event => { if (event.detail?.source !== "stock-editor") loadStock(true); });
     document.addEventListener("visibilitychange", () => { if (isVisible()) loadStock(true); });
     if (window.DapoerAdminAuthenticated) setAuthenticated(true);
   }
@@ -190,6 +191,7 @@
     $("#stock-edit-name").textContent = product.name;
     $("#stock-edit-title").textContent = "Kelola stok";
     $("#stock-edit-quantity").value = action === "clear" ? "0" : state.editing.drafts[action];
+    if ($("#stock-edit-reason")) $("#stock-edit-reason").value = pending?.payload.reason || "";
     editorMessage(pending ? "Hasil perubahan sebelumnya belum terkonfirmasi. Tekan Periksa perubahan untuk mengirim ulang tindakan yang sama tanpa mengubah stok dua kali." : "", !!pending);
     updateEditor();
     if (!$("#stock-editor").open) $("#stock-editor").showModal();
@@ -217,6 +219,7 @@
     const editing = state.editing;
     state.editing = null;
     if ($("#stock-editor").open) $("#stock-editor").close();
+    if ($("#stock-edit-reason")) $("#stock-edit-reason").value = "";
     editorMessage("");
     if (state.authenticated && editing) state.rows.get(editing.id)?.manage.focus();
   }
@@ -262,6 +265,7 @@
     $("#stock-edit-quantity").max = String(editing.action === "subtract" ? (latest ?? 0) : editing.action === "add" ? MAX_STOCK - (latest ?? 0) : MAX_STOCK);
     $("#stock-edit-quantity").placeholder = relative ? "Masukkan jumlah" : "Jumlah stok akhir";
     $("#stock-edit-quantity").disabled = busy || !!editing.mutation || editing.action === "clear";
+    if ($("#stock-edit-reason")) $("#stock-edit-reason").disabled = busy || !!editing.mutation;
     $("#stock-edit-cancel").disabled = busy;
     $("#stock-edit-close").disabled = busy;
     ACTIONS.forEach(action => {
@@ -270,7 +274,7 @@
       button.setAttribute("aria-pressed", String(action === editing.action));
     });
     const save = $("#stock-edit-save");
-    save.disabled = !state.authenticated || busy || editing.conflicted || !valid;
+    save.disabled = !state.authenticated || busy || editing.conflicted || !valid || ($("#stock-edit-reason")?.value.trim().length || 0) > 200;
     save.textContent = busy ? "Menyimpan…" : editing.mutation ? "Periksa perubahan" : ({ add: "Tambah stok", subtract: "Kurangi stok", set: "Simpan jumlah", clear: "Ya, kosongkan stok" })[editing.action];
     save.classList.toggle("danger", editing.action === "clear" || (quantity !== null && after === 0));
     $("#stock-editor").setAttribute("aria-busy", String(busy));
@@ -280,6 +284,8 @@
     if (!state.authenticated || state.saving || !state.editing || state.editing.conflicted) return;
     const editing = state.editing;
     const retrying = !!editing.mutation;
+    const reason = $("#stock-edit-reason")?.value.trim() || "";
+    if (!retrying && reason.length > 200) { editorMessage("Keterangan maksimal 200 karakter.", true); $("#stock-edit-reason").focus(); return; }
     const { relative, before, quantity, after, valid } = editorValues();
     if (!valid) {
       editorMessage(editing.action === "subtract" && quantity !== null && after < 0 ? "Jumlah pengurangan melebihi stok saat ini." :
@@ -293,6 +299,7 @@
       if (!id) { editorMessage("Browser belum mendukung penyimpanan aman. Gunakan browser terbaru melalui HTTPS.", true); return; }
       const payload = relative ? { id: editing.id, delta: editing.action === "subtract" ? -quantity : quantity, requestId: id } :
         { id: editing.id, stock: after, expectedStock: editing.expectedStock, requestId: id };
+      if (reason) payload.reason = reason;
       editing.mutation = { id: editing.id, action: editing.action, relative, before, quantity, after, expectedStock: editing.expectedStock, payload };
       state.pending.set(editing.id, editing.mutation);
       persistPending();
@@ -340,6 +347,7 @@
       state.saving = null;
       closeEditor();
       updateControls();
+      document.dispatchEvent(new CustomEvent("dapoer:stock-changed", { detail: { productId: editing.id, source: "stock-editor" } }));
       if (retrying) await loadStock(true);
     } catch (error) {
       if (state.saving !== mutation) return;

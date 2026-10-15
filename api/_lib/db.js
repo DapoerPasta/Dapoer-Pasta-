@@ -1,6 +1,7 @@
 const { neon } = require("@neondatabase/serverless");
 const { TIME_ZONE, createHistoryOptions } = require("./order-history");
 const { PRODUCTS } = require("./catalog");
+const { ensureStockHistorySchema } = require("./stock-history");
 const { ensureOrderQueueSchema, queueMetadata } = require("./order-queue");
 const { ensureOperationsSchema, rethrowOperationError, requestId, expectedTotal,
   orderFingerprint, validateExpectedStatus } = require("./operations");
@@ -84,6 +85,7 @@ async function ensureSchema() {
         SELECT value, 0 FROM jsonb_array_elements_text(${JSON.stringify(PRODUCTS.map(product => product.id))}::jsonb)
         ON CONFLICT (product_id) DO NOTHING
       `;
+      await ensureStockHistorySchema(sql);
       // A PostgreSQL function runs in the statement transaction, also over
       // Neon's HTTP driver. Exceptions roll back every deduction and INSERT.
       // Lock in product-id order; read balances after acquiring each row lock.
@@ -95,6 +97,7 @@ async function ensureSchema() {
         DECLARE
           item RECORD;
           available INTEGER;
+          previous_stock_context TEXT;
         BEGIN
           -- Match the relation-before-inventory order used by queue migration.
           -- The compatible lock is held through stock deduction and INSERT.
@@ -102,6 +105,8 @@ async function ensureSchema() {
           IF jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
             RAISE EXCEPTION 'INSUFFICIENT_STOCK';
           END IF;
+          previous_stock_context:=current_setting('dapoer.stock_context',TRUE);
+          PERFORM set_config('dapoer.stock_context',jsonb_build_object('source','order','orderId',p_id)::text,TRUE);
           FOR item IN
             SELECT id, SUM(quantity) AS quantity
             FROM jsonb_to_recordset(p_items) AS requested(id TEXT, quantity BIGINT)
@@ -115,6 +120,7 @@ async function ensureSchema() {
             UPDATE inventory SET stock = stock - item.quantity, updated_at = NOW()
             WHERE product_id = item.id;
           END LOOP;
+          PERFORM set_config('dapoer.stock_context',COALESCE(previous_stock_context,''),TRUE);
           INSERT INTO orders (
             id, customer_name, customer_phone, address, notes, payment_method,
             items, total, status, tracking_token, stock_reserved
@@ -154,6 +160,7 @@ async function ensureSchema() {
           current_order orders%ROWTYPE;
           item RECORD;
           result JSONB;
+          previous_stock_context TEXT;
         BEGIN
           SELECT * INTO current_order FROM orders WHERE id = p_id FOR UPDATE;
           IF NOT FOUND THEN RETURN NULL; END IF;
@@ -176,6 +183,8 @@ async function ensureSchema() {
           END IF;
           IF p_status = 'dibatalkan' AND current_order.status <> 'dibatalkan'
              AND current_order.stock_reserved THEN
+            previous_stock_context:=current_setting('dapoer.stock_context',TRUE);
+            PERFORM set_config('dapoer.stock_context',jsonb_build_object('source','cancellation','orderId',p_id)::text,TRUE);
             FOR item IN
               SELECT id, SUM(quantity) AS quantity
               FROM jsonb_to_recordset(current_order.items) AS reserved(id TEXT, quantity BIGINT)
@@ -185,6 +194,7 @@ async function ensureSchema() {
               UPDATE inventory SET stock = stock + item.quantity, updated_at = NOW()
               WHERE product_id = item.id;
             END LOOP;
+            PERFORM set_config('dapoer.stock_context',COALESCE(previous_stock_context,''),TRUE);
           END IF;
           UPDATE orders SET status = p_status,
             updated_at = GREATEST(clock_timestamp(),current_order.updated_at + INTERVAL '1 microsecond') WHERE id = p_id
@@ -221,7 +231,7 @@ async function saveOrder(order) {
   if (!sql) throw stockError("DATABASE_NOT_CONFIGURED");
   try {
     const rows = operationId || displayedTotal !== null ? await sql`
-    SELECT dapoer_save_order_once(
+    SELECT dapoer_save_order_once_recorded(
       ${order.id}, ${order.customer.name}, ${order.customer.phone},
       ${order.customer.address}, ${order.customer.notes},
       ${order.customer.paymentMethod}, ${JSON.stringify(order.items)}::jsonb,
@@ -229,7 +239,7 @@ async function saveOrder(order) {
       ${operationId}::uuid, ${intentFingerprint}, ${displayedTotal}::bigint
     ) AS saved
     ` : await sql`
-    SELECT dapoer_save_order_with_queue(
+    SELECT dapoer_save_order_with_queue_recorded(
       ${order.id}, ${order.customer.name}, ${order.customer.phone},
       ${order.customer.address}, ${order.customer.notes},
       ${order.customer.paymentMethod}, ${JSON.stringify(order.items)}::jsonb,
@@ -334,9 +344,9 @@ async function updateOrderStatus(id, status, options = {}) {
   const sql = await ensureSchema();
   if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
   try {
-    const rows = observed ? await sql`SELECT dapoer_update_order_status_checked(${id}, ${status},
+    const rows = observed ? await sql`SELECT dapoer_update_order_status_checked_recorded(${id}, ${status},
       ${observed.expectedStatus}, ${observed.expectedUpdatedAt}::timestamptz) AS "order"` :
-      await sql`SELECT dapoer_update_order_status(${id}, ${status}) AS "order"`;
+      await sql`SELECT dapoer_update_order_status_recorded(${id}, ${status}) AS "order"`;
     return rows[0]?.order || null;
   } catch (error) {
     rethrowStockError(error);

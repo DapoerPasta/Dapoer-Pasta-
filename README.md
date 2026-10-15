@@ -161,6 +161,52 @@ Role database harus dapat membuat / mengubah tabel, indeks, dan fungsi
 PL/pgSQL di schema aplikasi, serta membaca dan memperbarui persediaan.
 Tidak ada kredensial baru yang diperlukan.
 
+### Riwayat keluar-masuk stok
+
+Di **Stok Menu → Riwayat stok**, pilih periode harian, mingguan, bulanan,
+atau tahunan dan tanggal acuannya. Minggu dihitung Senin–Minggu; seluruh
+batas tanggal memakai WIB. Filter produk membatasi ringkasan dan catatan
+yang ditampilkan maupun diunduh. Ringkasan memperlihatkan saldo awal, jumlah
+masuk, jumlah keluar, dan saldo akhir untuk setiap produk.
+
+Perubahan persediaan dicatat otomatis bersama transaksi database: penambahan,
+pengurangan, pengaturan jumlah akhir, pengosongan, pemesanan, dan pengembalian
+stok akibat pembatalan yang diizinkan. Catatan menyimpan waktu, jumlah sebelum
+dan sesudah, sumber, keterangan, serta nomor pesanan bila ada. Keterangan
+opsional di editor stok dapat dipakai untuk menjelaskan stok rusak, koreksi
+stok fisik, atau penerimaan barang. Pengiriman ulang tindakan yang sama tidak
+membuat catatan tambahan; perubahan yang gagal atau dibatalkan transaksinya
+tidak muncul pada riwayat.
+
+Saat fitur mulai aktif, stok yang benar-benar tersimpan menjadi saldo awal.
+Riwayat sebelum waktu aktivasi tidak dibuat ulang. Laporan menampilkan batas
+ketersediaan data agar saldo awal pada periode yang mencakup waktu aktivasi
+tidak disalahartikan sebagai saldo dari sebelum pencatatan dimulai. Catatan
+riwayat tidak dapat diedit atau dihapus dari dashboard; koreksi dilakukan
+dengan perubahan stok baru sehingga jejak sebelumnya tetap tersedia.
+
+Unduhan **PDF**, **Excel (.xlsx)**, dan **CSV** mencakup seluruh catatan pada
+periode dan produk yang dipilih, termasuk halaman yang belum dibuka. Data
+dibekukan saat laporan dimuat agar ringkasan, halaman berikutnya, dan unduhan
+tetap cocok ketika pesanan baru masuk. Gunakan **Refresh** pada tab riwayat untuk
+mengambil keadaan terbaru. Snapshot laporan berlaku sementara; setelah
+kedaluwarsa, muat ulang laporan sebelum mengunduh.
+
+Riwayat memakai endpoint admin stok yang sama, dengan sesi dan pembatasan
+akses yang sama. Tabel saldo awal, jurnal stok, dan snapshot laporan dibuat
+otomatis di database yang sudah digunakan. Tidak ada layanan, kredensial,
+atau endpoint serverless tambahan. Pencatatan mengukur **jumlah unit**, bukan
+nilai persediaan atau harga pokok; laporan keuangan tetap terpisah.
+
+Untuk integrasi, gunakan `GET /api/admin/stock?view=history&period=week&date=2026-10-15`
+(pilihan periode: `day`, `week`, `month`, `year`; filter opsional `productId`).
+Halaman berikutnya memakai `snapshot` dan `cursor` dari `pagination` tanpa
+mengirim ulang filter. `pageSize` maksimal 1.000 untuk pengambilan unduhan.
+Snapshot kedaluwarsa mengembalikan `410 STOCK_HISTORY_EXPIRED`; buat laporan
+baru, jangan menggabungkan halaman dari snapshot berbeda.
+
+## Riwayat Pesanan
+
 Riwayat dibuka pada **hari ini menurut WIB (Asia/Jakarta)**. Pilih tanggal untuk melihat pesanan hari sebelumnya, atau gunakan tombol panah untuk berpindah hari. Pesanan lama tetap tersimpan di database. Tombol **Hari ini** mengaktifkan pergantian tanggal otomatis pada pukul 00.00 WIB; tanggal riwayat yang dipilih manual tetap ditampilkan sampai admin menggantinya.
 
 Ringkasan menghitung seluruh pesanan pada tanggal pilihan. Daftar memuat 100 pesanan per halaman; tombol **Muat pesanan berikutnya** membuka sisanya. Pencarian dan filter status berlaku pada pesanan yang sudah dimuat. Refresh berkala mempertahankan halaman yang sudah dibuka. Memilih tanggal atau berganti hari tidak memicu notifikasi untuk pesanan lama.
@@ -381,8 +427,13 @@ Pengujian integrasi membuat schema terpisah lalu menghapusnya; suite menolak
 host database nonlokal dan tidak disertakan pada `npm test`.
 
 Dengan variabel database lokal yang sama, jalankan
-`node --test test/order-queue-postgres.test.js test/finance-postgres.test.js`
+`node --test test/order-queue-postgres.test.js test/finance-postgres.test.js test/stock-history-postgres.test.js`
 untuk menguji antrean dan laporan keuangan pada PostgreSQL nyata. Suite antrean
 mencakup checkout bersamaan, reset WIB, migrasi riwayat, kompatibilitas instance
 lama, pembatalan, dan rollback nomor bersama stok. `npm test` juga memeriksa
 akses nota admin/publik, validasi struk, PDF, dan pembatalan unduhan.
+
+Suite riwayat stok membuktikan migrasi saldo awal tanpa transaksi rekaan,
+pencatatan atomik pesanan/pembatalan, UUID dan konflik stok, batas periode WIB,
+saldo yang belum tersedia sebelum aktivasi, serta halaman unduhan yang tetap
+konsisten saat transaksi lain baru selesai setelah snapshot laporan dibuat.

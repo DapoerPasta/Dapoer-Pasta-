@@ -112,16 +112,24 @@ async function ensureOperationsSchema(sql) {
 
       CREATE OR REPLACE FUNCTION dapoer_change_stock_once(
         p_id TEXT, p_delta INTEGER, p_target INTEGER, p_expected INTEGER,
-        p_request_id UUID, p_fingerprint TEXT
+        p_request_id UUID, p_fingerprint TEXT, p_reason TEXT
       ) RETURNS JSONB LANGUAGE plpgsql AS $function$
-      DECLARE previous operation_requests%ROWTYPE; saved JSONB;
+      DECLARE previous operation_requests%ROWTYPE; saved JSONB; previous_stock_context TEXT;
       BEGIN
-        PERFORM pg_advisory_xact_lock(hashtextextended('stock:' || p_request_id::text, 0));
-        SELECT * INTO previous FROM operation_requests WHERE scope='stock' AND request_id=p_request_id;
-        IF FOUND THEN
-          IF previous.fingerprint <> p_fingerprint THEN RAISE EXCEPTION 'REQUEST_CONFLICT'; END IF;
-          RETURN previous.result;
+        IF p_request_id IS NOT NULL THEN
+          PERFORM pg_advisory_xact_lock(hashtextextended('stock:' || p_request_id::text, 0));
+          SELECT * INTO previous FROM operation_requests WHERE scope='stock' AND request_id=p_request_id;
+          IF FOUND THEN
+            IF previous.fingerprint <> p_fingerprint THEN RAISE EXCEPTION 'REQUEST_CONFLICT'; END IF;
+            RETURN previous.result;
+          END IF;
         END IF;
+        previous_stock_context:=current_setting('dapoer.stock_context',TRUE);
+        PERFORM set_config('dapoer.stock_context',jsonb_build_object(
+          'source',CASE WHEN p_delta>0 THEN 'restock' ELSE 'adjustment' END,
+          'reason',COALESCE(NULLIF(p_reason,''),CASE WHEN p_delta>0 THEN 'Penambahan stok oleh admin'
+            WHEN p_delta<0 THEN 'Pengurangan stok oleh admin' WHEN p_target=0 THEN 'Stok dikosongkan oleh admin'
+            ELSE 'Jumlah stok ditetapkan oleh admin' END))::text,TRUE);
         IF p_delta IS NOT NULL THEN
           UPDATE inventory SET stock=stock+p_delta,updated_at=clock_timestamp()
             WHERE product_id=p_id AND stock::bigint+p_delta>=0
@@ -136,9 +144,18 @@ async function ensureOperationsSchema(sql) {
             RETURNING jsonb_build_object('product_id',product_id,'stock',stock) INTO saved;
           IF saved IS NULL THEN RAISE EXCEPTION 'STOCK_CONFLICT'; END IF;
         END IF;
-        INSERT INTO operation_requests(scope,request_id,fingerprint,result) VALUES('stock',p_request_id,p_fingerprint,saved);
+        PERFORM set_config('dapoer.stock_context',COALESCE(previous_stock_context,''),TRUE);
+        IF p_request_id IS NOT NULL THEN
+          INSERT INTO operation_requests(scope,request_id,fingerprint,result) VALUES('stock',p_request_id,p_fingerprint,saved);
+        END IF;
         RETURN saved;
       END;
+      $function$;
+      -- Preserve the original SQL signature for in-flight/legacy clients.
+      CREATE OR REPLACE FUNCTION dapoer_change_stock_once(
+        p_id TEXT,p_delta INTEGER,p_target INTEGER,p_expected INTEGER,p_request_id UUID,p_fingerprint TEXT
+      ) RETURNS JSONB LANGUAGE plpgsql AS $function$
+      BEGIN RETURN dapoer_change_stock_once(p_id,p_delta,p_target,p_expected,p_request_id,p_fingerprint,''); END;
       $function$;
 
       CREATE OR REPLACE FUNCTION dapoer_update_order_status_checked(
