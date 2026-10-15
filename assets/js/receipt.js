@@ -19,30 +19,28 @@
       if (detail?.authenticated !== false) return;
       // This also invalidates an outstanding read/export. A response started
       // before logout must never restore private fields after the broadcast.
-      if (currentOrder?.customerDataProtected === true && !request && !exportRequest) return;
       fail("Sesi admin berakhir. Masuk kembali ke admin untuk membuka nota lengkap.");
-      if (token && !document.hidden && !nativePrint) loadReceipt();
     };
     if (window.DapoerAdminSession) window.DapoerAdminSession.subscribe(sessionEnded);
     else document.addEventListener("dapoer:admin-session", event => sessionEnded(event.detail));
-    if (token) $("#back-tracking").href = `/track/?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`;
-    else { $("#back-tracking").href = "/admin/"; $("#back-tracking").textContent = "← Kembali ke Admin"; }
+    $("#back-tracking").href = "/admin/";
+    $("#back-tracking").textContent = "← Kembali ke Admin";
     loadReceipt();
   });
 
   document.addEventListener("visibilitychange", () => {
     if (!initialized || applicationPrint) return;
     if (document.hidden) {
-      if (currentOrder?.customerDataProtected === false || request || exportRequest) suspend();
+      if (currentOrder || request || exportRequest) suspend();
     } else if (resumeNeeded) revalidate();
   });
   window.addEventListener("focus", () => {
-    if (initialized && !document.hidden && !applicationPrint && !nativePrint && !busy && (resumeNeeded || currentOrder?.customerDataProtected === false)) revalidate();
+    if (initialized && !document.hidden && !applicationPrint && !nativePrint && !busy && (resumeNeeded || currentOrder)) revalidate();
   });
   window.addEventListener("pagehide", () => { if (initialized) suspend(); });
   window.addEventListener("pageshow", event => { if (initialized && event.persisted) revalidate(); });
   window.addEventListener("beforeprint", () => {
-    if (!initialized || applicationPrint || currentOrder?.customerDataProtected === true) return;
+    if (!initialized || applicationPrint) return;
     // Native Ctrl+P cannot await an authorization request. Clear private DOM
     // synchronously; the application button validates and grants one print.
     nativePrint = true;
@@ -78,7 +76,9 @@
     const disabled = busy || !currentOrder;
     $("#print-receipt").disabled = disabled;
     $("#download-receipt-pdf").disabled = disabled;
-    $("#receipt-paper-size").disabled = busy;
+    $("#receipt-paper-size").disabled = disabled;
+    $("#receipt-print-controls").hidden = !currentOrder;
+    $("#receipt-print-help").hidden = !currentOrder;
   }
 
   async function readOrder(signal) {
@@ -95,6 +95,7 @@
       const response = await fetch(`/api/receipt?${query}`, { headers: { Accept: "application/json" }, credentials: "same-origin", cache: "no-store", signal: controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Nota belum tersedia.");
+      if (data.order?.customerDataProtected !== false) throw new Error("Struk hanya tersedia untuk admin. Silakan login admin.");
       const order = files.normalize(data.order);
       if (order.id !== id) throw new Error("Nota tidak cocok dengan pesanan. Muat ulang halaman.");
       return order;
@@ -115,7 +116,7 @@
     try {
       const order = await readOrder(controller.signal);
       if (turn === generation && !controller.signal.aborted && !nativePrint) {
-        if (document.hidden && order.customerDataProtected === false) suspend();
+        if (document.hidden) suspend();
         else render(order);
       }
     } catch (error) { if (turn === generation && error.name !== "AbortError") fail(error.message || "Nota belum dapat dimuat."); }
@@ -124,19 +125,18 @@
 
   function render(order) {
     currentOrder = order;
-    document.body.dataset.customerProtected = String(order.customerDataProtected);
+    document.body.dataset.customerProtected = "false";
     $("#receipt-id").textContent = order.id;
-    $("#receipt-customer").textContent = order.customerDataProtected ? "Data pelanggan dilindungi" : order.customerName || "—";
+    $("#receipt-customer").textContent = order.customerName || "—";
     $("#receipt-date").textContent = files.createdLabel(order.createdAt);
     $("#receipt-status").textContent = order.statusLabel;
     $("#receipt-queue-number").textContent = order.queueLabel;
     $("#receipt-queue-date").textContent = order.queueDate ? files.dateLabel(order.queueDate) : "Nomor antrean belum tersedia untuk pesanan ini.";
     $("#receipt-total").textContent = files.money(order.total);
     $("#receipt-method").textContent = order.paymentMethod;
-    $("#receipt-phone").textContent = order.customerDataProtected ? "Dilindungi" : order.customerPhone || "—";
-    $("#receipt-address").textContent = order.customerDataProtected ? "Dilindungi" : order.address || "—";
-    $("#receipt-notes").textContent = order.customerDataProtected ? "Dilindungi" : order.notes || "Tidak ada";
-    $("#receipt-privacy").hidden = !order.customerDataProtected;
+    $("#receipt-phone").textContent = order.customerPhone || "—";
+    $("#receipt-address").textContent = order.address || "—";
+    $("#receipt-notes").textContent = order.notes || "Tidak ada";
     const root = $("#receipt-items"); root.replaceChildren();
     order.items.forEach(item => {
       const row = document.createElement("div"); row.className = "receipt-item";

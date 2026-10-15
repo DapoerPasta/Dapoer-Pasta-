@@ -12,13 +12,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="/assets/css/style.css?v=20261005-checkoutpro">
-  <script src="/assets/js/order-recovery.js?v=20261014-simple-hero" defer></script>
-  <script src="/assets/js/app.js?v=20261015-bank-payment" defer></script>
+  <script src="/assets/js/order-recovery.js?v=20261015-confirmation" defer></script>
+  <script src="/assets/js/app.js?v=20261015-confirmation" defer></script>
   <link rel="stylesheet" href="/assets/css/stock.css?v=20261007-stock">
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <link rel="stylesheet" href="/assets/css/storefront-motion.css?v=20261008-depth">
   <link rel="stylesheet" href="/assets/css/storefront-depth.css?v=20261009-coin">
-  <link rel="stylesheet" href="/assets/css/storefront-reliable.css?v=20261015-customer">
+  <link rel="stylesheet" href="/assets/css/storefront-reliable.css?v=20261015-confirmation">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
   <script src="/assets/js/storefront-depth.js?v=20261008-depth" defer></script>
 </head>
@@ -242,6 +242,15 @@
     </button>
   </div>
 
+  <section id="order-confirmation" class="order-confirmation" aria-label="Lanjutkan pesanan yang tersimpan" hidden>
+    <div class="order-confirmation-copy">
+      <span>Pesanan Anda tetap tersimpan</span>
+      <strong id="order-confirmation-summary"></strong>
+      <p id="order-confirmation-message" role="status" aria-live="polite" hidden></p>
+    </div>
+    <button id="order-confirmation-open" type="button" aria-haspopup="dialog" aria-controls="checkout-modal">Lanjutkan konfirmasi</button>
+  </section>
+
   <div class="cart-overlay" id="cart-overlay" aria-hidden="true">
     <aside class="cart-drawer" role="dialog" aria-modal="true" aria-label="Keranjang pesanan" tabindex="-1">
       <div class="cart-header">
@@ -277,14 +286,15 @@
         <p id="checkout-success-order"></p>
         <div id="checkout-success-queue" class="checkout-success-queue" hidden></div>
         <p>Konfirmasikan pesanan dan ongkir melalui WhatsApp. Pesanan tercatat; pembayaran tetap perlu dikonfirmasi admin.</p>
+        <p class="checkout-resume-hint">Jika layar ini tertutup, gunakan <strong>Lanjutkan konfirmasi</strong> untuk membuka kembali pesanan yang sama.</p>
         <div class="checkout-success-actions">
           <a id="checkout-whatsapp-link" class="button success-whatsapp" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Konfirmasi di WhatsApp</a>
           <a id="checkout-tracking-link" class="button success-secondary" referrerpolicy="no-referrer">Lacak pesanan</a>
-          <a id="checkout-receipt-link" class="button success-secondary" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Lihat struk</a>
         </div>
         <button id="checkout-done" class="checkout-done" type="button">Kembali ke menu</button>
       </section>
       <form id="checkout-form" class="checkout-form">
+        <p class="checkout-draft-hint">Isian dipulihkan saat halaman dimuat ulang dalam tab ini. Setelah pesanan tersimpan, konfirmasi dapat dilanjutkan tanpa mengisi ulang.</p>
         <label>Nama lengkap<input id="checkout-name" minlength="2" maxlength="80" required autocomplete="name"></label>
         <label>Nomor WhatsApp<input id="checkout-phone" type="tel" inputmode="tel" minlength="8" maxlength="24" required autocomplete="tel" placeholder="08xxxxxxxxxx"></label>
         <label>Alamat pengiriman<textarea id="checkout-address" minlength="5" maxlength="500" required rows="3" autocomplete="street-address"></textarea></label>

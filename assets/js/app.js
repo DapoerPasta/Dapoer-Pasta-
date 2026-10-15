@@ -1,17 +1,21 @@
-const state={menu:[],store:null,cart:loadCart(),cartWriteFailed:false,menuReady:false,menuRequest:null,menuRetry:null,menuNodes:new Map(),cartNodes:new Map(),cartSignature:null,checkoutBusy:false,checkoutOpening:false,dialogGeneration:0,intent:null,modal:null,modalFocus:null,inertNodes:[],success:null};
+const state={menu:[],store:null,cart:loadCart(),cartWriteFailed:false,menuReady:false,menuRequest:null,menuRetry:null,menuNodes:new Map(),cartNodes:new Map(),cartSignature:null,checkoutBusy:false,checkoutOpening:false,dialogGeneration:0,intent:null,modal:null,modalFocus:null,inertNodes:[],success:null,recovery:null,recoveryRequest:null,recoveryGeneration:0};
 const $=s=>document.querySelector(s);
 const rupiah=v=>`Rp ${Number(v).toLocaleString("id-ID")}`;
 const INTENT_KEY="dapoer-checkout-intent-v1";
 const INTENT_INDEX_KEY="dapoer-checkout-request-v1";
+const DRAFT_KEY="dapoer-checkout-draft-v1";
+const DRAFT_MAX_AGE=24*60*60*1000;
 function cleanText(value,max){return typeof value==="string"?value.replace(/[\u0000-\u001F\u007F]/g," ").trim().slice(0,max):""}
 document.addEventListener("DOMContentLoaded",init);
 
 async function init(){
-  bindUI();observeReveal();renderCart();restoreIntentNotice();
+  bindUI();restoreCheckoutDraft();observeReveal();renderCart();restoreIntentNotice();refreshOrderRecovery();
   setInterval(()=>{if(!document.hidden)loadMenu()},15000);
-  document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadMenu()});
-  window.addEventListener("online",()=>{if(!document.hidden)loadMenu()});
-  window.addEventListener("storage",event=>{if(event.key==="dapoer-pasta-cart"||event.key===null)syncCartFromStorage()});
+  document.addEventListener("visibilitychange",()=>{if(document.hidden)saveCheckoutDraft();else{loadMenu();refreshOrderRecovery()}});
+  window.addEventListener("online",()=>{if(!document.hidden){loadMenu();refreshOrderRecovery()}});
+  window.addEventListener("pagehide",saveCheckoutDraft);
+  window.addEventListener("pageshow",event=>{if(event.persisted)refreshOrderRecovery()});
+  window.addEventListener("storage",event=>{if(event.key==="dapoer-pasta-cart"||event.key===null)syncCartFromStorage();if(event.key===window.DapoerOrderRecovery?.currentKey||event.key===null)refreshOrderRecovery()});
   await loadMenu();
 }
 function bindUI(){
@@ -30,12 +34,14 @@ function bindUI(){
   for(const id of ["name","phone","address","payment"]){$("#checkout-"+id)?.addEventListener("input",event=>{event.target.setCustomValidity?.("");event.target.removeAttribute?.("aria-invalid")})}
   $("#checkout-retry")?.addEventListener("click",retryPendingCheckout);
   $("#checkout-done")?.addEventListener("click",()=>toggleCheckout(false));
-  $("#open-chat")?.addEventListener("click",()=>{const open=!$("#chat-box")?.classList.contains("open");$("#chat-box")?.classList.toggle("open",open);$("#open-chat")?.setAttribute("aria-expanded",String(open));if(open)$("#chat-input")?.focus()});
+  $("#order-confirmation-open")?.addEventListener("click",resumeOrderConfirmation);
+  for(const id of ["name","phone","address","payment","notes"]){for(const event of ["input","change"])$("#checkout-"+id)?.addEventListener(event,saveCheckoutDraft)}
+  $("#open-chat")?.addEventListener("click",()=>{const open=!$("#chat-box")?.classList.contains("open");$("#chat-box")?.classList.toggle("open",open);$("#open-chat")?.setAttribute("aria-expanded",String(open));renderOrderRecovery();if(open)$("#chat-input")?.focus()});
   $("#close-chat")?.addEventListener("click",closeChat);
   $("#chat-form")?.addEventListener("submit",sendChat);
   document.addEventListener("keydown",handleDialogKeyboard);
 }
-function closeChat(){$("#chat-box")?.classList.remove("open");$("#open-chat")?.setAttribute("aria-expanded","false");$("#open-chat")?.focus()}
+function closeChat(){$("#chat-box")?.classList.remove("open");$("#open-chat")?.setAttribute("aria-expanded","false");renderOrderRecovery();$("#open-chat")?.focus()}
 async function loadMenu(){
   if(state.menuRequest)return state.menuRequest;
   state.menuRequest=fetchMenu();
@@ -139,6 +145,7 @@ function updateQuantity(id,delta){
 }
 function removeCartItem(id){state.cart=state.cart.filter(x=>x.id!==id);persistCart();renderCart()}
 function renderCart(){
+  renderOrderRecovery();
   const root=$("#cart-items");if(!root)return;
   $("#cart-count").textContent=state.cart.reduce((s,x)=>s+x.quantity,0);
   const checkout=$("#checkout-button");if(checkout){const pending=loadIntent();checkout.disabled=state.checkoutOpening||state.checkoutBusy||(!pending&&(!state.cart.length||!cartStockAvailable()));checkout.textContent=state.checkoutOpening?"Memeriksa stok…":pending?"Periksa Pesanan Sebelumnya":"Lanjutkan Checkout";checkout.setAttribute("aria-busy",String(state.checkoutOpening))}
@@ -173,6 +180,7 @@ function cartStockAvailable(items=state.cart){return items.every(item=>{const av
 function cartTotal(){return state.cart.reduce((sum,item)=>sum+item.price*item.quantity,0)}
 function setDialog(id,open,focusSelector){
   const modal=$("#"+id);if(!modal)return;
+  if(state.modal==="checkout-modal"&&(!open||id!=="checkout-modal"))saveCheckoutDraft();
   state.dialogGeneration++;if(state.checkoutOpening){state.checkoutOpening=false;renderCart()}
   if(open){
     const origin=state.modalFocus||document.activeElement;
@@ -187,6 +195,7 @@ function setDialog(id,open,focusSelector){
     if(state.modal===id){for(const item of state.inertNodes)item.node.inert=item.previous;state.inertNodes=[];state.modal=null;document.body.classList.remove("no-scroll");const focus=state.modalFocus;state.modalFocus=null;if(focus?.isConnected!==false)focus?.focus?.()}
   }
   $("#mobile-menu-button")?.setAttribute("aria-expanded",String(state.modal==="mobile-menu"));
+  renderOrderRecovery();
 }
 function handleDialogKeyboard(event){
   if(!state.modal){if(event.key==="Escape"&&$("#chat-box")?.classList.contains("open"))closeChat();return}
@@ -216,6 +225,85 @@ async function openCheckout(){
   }finally{if(navigation===state.dialogGeneration){state.checkoutOpening=false;renderCart()}}
 }
 function customerSnapshot(){return {name:cleanText($("#checkout-name").value,80),phone:cleanText($("#checkout-phone").value,24).replace(/[^0-9+\- ()]/g,""),address:cleanText($("#checkout-address").value,500),paymentMethod:cleanText($("#checkout-payment").value,30),notes:cleanText($("#checkout-notes").value,300)}}
+function saveCheckoutDraft(){
+  const customer=customerSnapshot();
+  try{if(Object.values(customer).some(Boolean))sessionStorage.setItem(DRAFT_KEY,JSON.stringify({savedAt:Date.now(),customer}));else sessionStorage.removeItem(DRAFT_KEY)}catch{}
+}
+function restoreCheckoutDraft(){
+  let draft;
+  try{draft=JSON.parse(sessionStorage.getItem(DRAFT_KEY)||"null")}catch{}
+  if(!draft&&loadIntent())draft={savedAt:Date.now(),customer:loadIntent().payload.customer};
+  if(!draft||!Number.isFinite(draft.savedAt)||draft.savedAt>Date.now()+60000||Date.now()-draft.savedAt>=DRAFT_MAX_AGE||!draft.customer||["name","phone","address","paymentMethod","notes"].some(key=>typeof draft.customer[key]!=="string")){try{sessionStorage.removeItem(DRAFT_KEY)}catch{}return}
+  for(const[id,key,max]of [["name","name",80],["phone","phone",24],["address","address",500],["payment","paymentMethod",30],["notes","notes",300]]){
+    const field=$("#checkout-"+id),value=cleanText(draft.customer[key],max);
+    if(field&&!field.value&&(id!=="payment"||["OVO","ShopeePay","DANA","Transfer Bank"].includes(value)))field.value=value;
+  }
+}
+function renderOrderRecovery(){
+  const root=$("#order-confirmation"),button=$("#order-confirmation-open"),summary=$("#order-confirmation-summary"),message=$("#order-confirmation-message");
+  if(!root||!button||!summary||!message)return;
+  const current=window.DapoerOrderRecovery?.getCurrent(),record=state.recovery?.record;
+  const available=!!current&&!!record&&current.id===record.id&&current.token===record.token;
+  root.hidden=!available||!!state.modal||!!$("#chat-box")?.classList.contains("open");
+  button.disabled=state.recovery?.status==="checking"||state.checkoutBusy||state.checkoutOpening;
+  button.textContent=state.recovery?.status==="checking"?"Memeriksa pesanan…":"Lanjutkan konfirmasi";
+  if(!available)return;
+  summary.textContent=`${record.queueNumber?`Antrean A${String(record.queueNumber).padStart(3,"0")} · `:""}${record.id} · ${rupiah(record.total)}`;
+  message.textContent=state.recovery.status==="offline"?"Pesanan tetap tersimpan. Sambungkan internet, lalu lanjutkan konfirmasi.":"Data pemesan sudah tersimpan. Lanjutkan konfirmasi melalui WhatsApp.";
+  message.hidden=state.recovery.status!=="offline";
+}
+function updateSavedConfirmation(record,whatsapp,message){
+  if(!record||state.success?.id!==record.id||state.success?.token!==record.token)return;
+  const link=$("#checkout-whatsapp-link");if(link){link.hidden=!whatsapp;if(whatsapp)link.href=whatsapp;else link.removeAttribute("href")}
+  if(message)checkoutNotice(message);
+  else if(whatsapp&&state.modal==="checkout-modal")checkoutNotice(state.cart.length?"Perubahan terbaru di keranjang tetap disimpan untuk pesanan berikutnya.":"");
+}
+async function refreshOrderRecovery(){
+  let record=window.DapoerOrderRecovery?.getCurrent();
+  if(!record){const legacy=window.DapoerOrderRecovery?.getLegacyReference();if(legacy)record={...legacy,trackingUrl:`/track/?id=${encodeURIComponent(legacy.id)}&token=${encodeURIComponent(legacy.token)}`,legacy:true}}
+  if(!record){updateSavedConfirmation(state.success,null,"Tautan konfirmasi di perangkat ini sudah berakhir. Pesanan tetap tercatat; buka Lacak pesanan untuk memeriksa status dan menghubungi admin.");state.recovery=null;state.recoveryGeneration++;state.recoveryRequest?.controller?.abort();state.recoveryRequest=null;renderOrderRecovery();return null}
+  if(state.success&&(state.success.id!==record.id||state.success.token!==record.token))updateSavedConfirmation(state.success,null,"Ada pesanan tersimpan yang lebih baru di perangkat ini. Gunakan Lacak pesanan untuk memeriksa pesanan ini.");
+  const key=`${record.id}:${record.token}`;
+  if(state.recoveryRequest?.key===key)return state.recoveryRequest.promise;
+  state.recoveryRequest?.controller?.abort();
+  const turn=++state.recoveryGeneration,controller=typeof AbortController==="function"?new AbortController():null;
+  updateSavedConfirmation(record,null,"Memeriksa status pesanan sebelum melanjutkan konfirmasi…");
+  state.recovery={record,status:"checking",order:null};renderOrderRecovery();
+  const request={key,controller,promise:null};state.recoveryRequest=request;
+  request.promise=(async()=>{
+    let timeout;
+    try{
+      const result=await Promise.race([
+        (async()=>{const response=await fetch(`/api/track?id=${encodeURIComponent(record.id)}&token=${encodeURIComponent(record.token)}`,{cache:"no-store",credentials:"same-origin",headers:{Accept:"application/json"},...(controller?{signal:controller.signal}:{})});return {response,data:await response.json()}})(),
+        new Promise((_,reject)=>{timeout=setTimeout(()=>{controller?.abort();reject(new Error("recovery timeout"))},12000)})
+      ]);
+      const current=window.DapoerOrderRecovery?.getCurrent();
+      const legacy=record.legacy?window.DapoerOrderRecovery?.getLegacyReference():null;
+      const stillCurrent=record.legacy?!current&&legacy?.id===record.id&&legacy?.token===record.token&&legacy?.savedAt===record.savedAt:current?.id===record.id&&current?.token===record.token;
+      if(turn!==state.recoveryGeneration||!stillCurrent)return null;
+      if(!result.response.ok){if([400,401,403,404].includes(result.response.status)){updateSavedConfirmation(record,null,"Tautan pesanan ini tidak dapat diverifikasi. Hubungi admin untuk memeriksa pesanan yang sudah tersimpan.");window.DapoerOrderRecovery?.forget(record);state.recovery=null;return null}throw new Error("recovery unavailable")}
+      const order=result.data.order;
+      if(order?.id!==record.id||!Number.isSafeInteger(order.total)||order.total<1||!["baru","diproses","dikirim","selesai","dibatalkan"].includes(order.status)||typeof order.updatedAt!=="string"||!Number.isFinite(new Date(order.updatedAt).getTime())||!Array.isArray(order.items)||!order.items.length||order.items.some(item=>!item||typeof item.name!=="string"||!item.name.trim()||!Number.isSafeInteger(item.quantity)||item.quantity<1||!Number.isSafeInteger(item.subtotal)||item.subtotal<0))throw new Error("recovery invalid");
+      if(["selesai","dibatalkan"].includes(order.status)){updateSavedConfirmation(record,null,order.status==="dibatalkan"?"Pesanan ini sudah dibatalkan. Konfirmasi WhatsApp untuk pesanan ini dinonaktifkan.":"Pesanan ini sudah selesai. Anda tetap dapat melihat status melalui Lacak pesanan.");window.DapoerOrderRecovery?.forget(record);state.recovery=null;return null}
+      const confirmedRecord=record.legacy?window.DapoerOrderRecovery?.recoverLegacy({id:record.id,token:record.token,order}):record;
+      if(!confirmedRecord)throw new Error("recovery invalid");
+      const whatsapp=window.DapoerOrderRecovery?.getWhatsAppUrl({id:record.id,token:record.token,order});
+      if(!whatsapp)throw new Error("recovery invalid");
+      const verified={...confirmedRecord,total:order.total,queueNumber:Number.isSafeInteger(order.queueNumber)&&order.queueNumber>0?order.queueNumber:null,queueDate:typeof order.queueDate==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(order.queueDate)?order.queueDate:null};
+      state.recovery={record:verified,order,status:"ready",whatsapp};updateSavedConfirmation(record,whatsapp);return state.recovery;
+    }catch{if(turn===state.recoveryGeneration){state.recovery={record,status:"offline",order:null};updateSavedConfirmation(record,null,"Status belum dapat diperiksa. Sambungkan internet, lalu tutup layar ini dan tekan Lanjutkan konfirmasi untuk mencoba kembali.")}return null}
+    finally{clearTimeout(timeout);if(state.recoveryRequest===request)state.recoveryRequest=null;renderOrderRecovery()}
+  })();
+  return request.promise;
+}
+async function resumeOrderConfirmation(){
+  if(state.checkoutBusy||state.checkoutOpening)return;
+  const navigation=state.dialogGeneration,recovery=await refreshOrderRecovery();
+  if(!recovery){if(state.recovery?.status==="offline")showToast("Sambungkan internet untuk memeriksa pesanan yang sudah tersimpan.");return}
+  const current=window.DapoerOrderRecovery?.getCurrent();
+  if(navigation!==state.dialogGeneration||document.hidden||$("#chat-box")?.classList.contains("open")||current?.id!==recovery.record.id||current?.token!==recovery.record.token)return;
+  showCheckoutSuccess(recovery.record,recovery.whatsapp,recovery.record.total,!!state.cart.length,true);
+}
 function validateCustomer(customer){
   const checks=[["name",customer.name.length>=2,"Tulis nama lengkap minimal 2 karakter."],["phone",customer.phone.replace(/\D/g,"").length>=8,"Tulis nomor WhatsApp yang benar, minimal 8 angka."],["address",customer.address.length>=5,"Tulis alamat pengiriman minimal 5 karakter."],["payment",["OVO","ShopeePay","DANA","Transfer Bank"].includes(customer.paymentMethod),"Pilih metode pembayaran yang tersedia."]];
   for(const[id]of checks){const field=$("#checkout-"+id);field?.setCustomValidity?.("");field?.removeAttribute?.("aria-invalid")}
@@ -251,6 +339,7 @@ function restoreIntentNotice(){const intent=loadIntent();if($("#checkout-retry")
 async function retryPendingCheckout(){const intent=loadIntent();if(!intent||state.checkoutBusy)return;await saveCheckout(intent,intent.payload,JSON.stringify(sortedItems(state.cart)),customerSnapshot())}
 async function submitCheckout(e){
   e.preventDefault();if(state.checkoutBusy)return;
+  saveCheckoutDraft();
   if(!state.cart.length){showToast("Keranjang kosong.");return}
   const snapshot={items:sortedItems(state.cart),customer:customerSnapshot(),expectedTotal:cartTotal()};
   const existing=loadIntent();const replay=existing&&canonicalPayload(existing.payload,false)===canonicalPayload(snapshot,false);
@@ -300,15 +389,18 @@ async function postCheckout(intent,snapshot,cartBefore,customerBefore){
   const unchanged=JSON.stringify(sortedItems(state.cart))===cartBefore&&JSON.stringify(sortedItems(state.cart))===JSON.stringify(sortedItems(intent.payload.items));
   if(unchanged){state.cart=[];persistCart();renderCart()}
   if(JSON.stringify(customerBefore)===JSON.stringify(intent.payload.customer)&&JSON.stringify(customerSnapshot())===JSON.stringify(customerBefore))$("#checkout-form")?.reset();
+  saveCheckoutDraft();
+  state.recoveryGeneration++;state.recoveryRequest?.controller?.abort();state.recoveryRequest=null;
+  state.recovery={record,status:"ready",whatsapp,order:null};
   showCheckoutSuccess(record,whatsapp,data.order.total,!unchanged);loadMenu();
 }
-function showCheckoutSuccess(record,whatsapp,total,cartPreserved){
+function showCheckoutSuccess(record,whatsapp,total,cartPreserved,restored=false){
   state.success=record;checkoutNotice(cartPreserved?"Perubahan terbaru di keranjang tetap disimpan untuk pesanan berikutnya.":"");
   $("#checkout-form").hidden=true;$("#checkout-success").hidden=false;$("#checkout-title").textContent="Pesanan Tersimpan";
   $("#checkout-success-order").textContent=`${record.id} · ${rupiah(total)}`;
   const queue=$("#checkout-success-queue");queue.hidden=!record.queueNumber;queue.textContent=record.queueNumber?`Nomor antrean A${String(record.queueNumber).padStart(3,"0")}${record.queueDate?` · ${record.queueDate} WIB`:""}`:"";
-  $("#checkout-whatsapp-link").href=whatsapp;$("#checkout-tracking-link").href=record.trackingUrl;$("#checkout-receipt-link").href=record.receiptUrl;
-  toggleCheckout(true);showToast(`Pesanan ${record.id} tersimpan.`);
+  $("#checkout-whatsapp-link").hidden=false;$("#checkout-whatsapp-link").href=whatsapp;$("#checkout-tracking-link").href=record.trackingUrl;
+  toggleCheckout(true);if(!restored)showToast(`Pesanan ${record.id} tersimpan.`);
 }
 async function sendChat(e){
   e.preventDefault();const input=$("#chat-input"),message=input.value.trim();if(!message)return;

@@ -43,7 +43,7 @@ function host(kind, options = {}) {
     querySelector(selector) { if (!nodes.has(selector)) nodes.set(selector, element()); return nodes.get(selector); },
     querySelectorAll() { return []; }
   });
-  const storage = () => { const values = new Map(); return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }; };
+  const storage = () => { const values = new Map(); return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) }; };
   const context = vm.createContext(events({
     document, console, URL, URLSearchParams, AbortController, DOMException, Date, Intl, Blob,
     navigator: { onLine: true }, localStorage: storage(), sessionStorage: storage(),
@@ -125,10 +125,11 @@ test("native private printing clears immediately; application printing obtains o
   assert.equal(view.body.dataset.privatePrintAuthorized, "false");
 });
 
-test("a receipt hidden then refocused revalidates and replaces expired admin identity with the protected public view", async () => {
+test("a receipt hidden then refocused requires admin again instead of falling back to a customer receipt", async () => {
   let authenticated = true;
   const view = host("receipt", { token: true, fetch: async () => ({
-    ok: true, json: async () => ({ order: fixture({ customerDataProtected: !authenticated }) })
+    ok: authenticated, status: authenticated ? 200 : 401,
+    json: async () => authenticated ? { order: fixture() } : { error: "Struk hanya tersedia untuk admin. Silakan login admin." }
   }) });
   view.start(); await flush();
   view.document.hidden = true; view.document.emit("visibilitychange");
@@ -140,11 +141,14 @@ test("a receipt hidden then refocused revalidates and replaces expired admin ide
   await flush();
   assert.equal(view.requests.length, 2, "visibility/focus share the same in-flight validation");
   assert.equal(view.body.dataset.customerProtected, "true");
-  assert.equal(view.node("#receipt-phone").textContent, "Dilindungi");
+  assert.equal(view.node("#receipt-phone").textContent, "—");
+  assert.equal(view.body.dataset.receiptReady, "false");
+  assert.equal(view.node("#receipt-print-controls").hidden, true);
+  assert.equal(view.node("#receipt-print-help").hidden, true);
+  assert.match(view.node("#receipt-error").textContent, /login admin/);
   assert.doesNotMatch(JSON.stringify([...view.nodes.values()].map(node => node.textContent)), /PRIVATE_/);
   view.node("#print-receipt").emit("click"); await flush();
-  assert.equal(view.prints.length, 1);
-  assert.equal(view.prints[0].name, "Data pelanggan dilindungi");
+  assert.equal(view.prints.length, 0);
 });
 
 test("a stale initial private response cannot restore a receipt after session logout", async () => {
@@ -172,12 +176,35 @@ test("logout during private PDF generation aborts the export without a download 
   assert.equal(view.body.dataset.receiptReady, "false");
 });
 
-test("public receipt native printing remains available without an admin authorization grant", async () => {
+test("a legacy public receipt response cannot be rendered, printed, or downloaded", async () => {
   const view = host("receipt", { token: true, protected: true });
-  view.start(); await flush(); view.context.emit("beforeprint");
-  assert.equal(view.body.dataset.receiptReady, "true");
-  assert.equal(view.node("#receipt-customer").textContent, "Data pelanggan dilindungi");
+  view.start(); await flush();
+  assert.equal(view.body.dataset.receiptReady, "false");
+  assert.equal(view.node("#receipt-content").hidden, true);
+  assert.equal(view.node("#receipt-customer").textContent, "—");
+  assert.equal(view.node("#print-receipt").disabled, true);
+  assert.equal(view.node("#download-receipt-pdf").disabled, true);
+  assert.match(view.node("#receipt-error").textContent, /login admin/);
+  view.node("#print-receipt").emit("click");
+  view.node("#download-receipt-pdf").emit("click");
+  await flush();
   assert.equal(view.requests.length, 1);
+  assert.equal(view.prints.length, 0);
+  assert.equal(view.downloads.length, 0);
+});
+
+test("logout on an old token link scrubs the receipt without retrying a public fallback", async () => {
+  const view = host("receipt", { token: true });
+  view.start(); await flush();
+  assert.equal(view.node("#receipt-customer").textContent, "PRIVATE_NAME");
+  assert.equal(view.node("#receipt-print-controls").hidden, false);
+  assert.equal(view.node("#back-tracking").href, "/admin/");
+  view.logout(); await flush();
+  assert.equal(view.requests.length, 1);
+  assert.equal(view.body.dataset.receiptReady, "false");
+  assert.equal(view.node("#receipt-print-controls").hidden, true);
+  assert.equal(view.node("#receipt-print-help").hidden, true);
+  assert.equal(view.node("#receipt-items").children.length, 0);
 });
 
 test("tracking preserves the last successful update on transient failures and recovers after retry", async () => {
@@ -218,7 +245,7 @@ test("tracking coalesces refreshes, pauses hidden tabs, and discards aborted sta
   assert.equal([...view.timers.values()].filter(timer => timer.delay === 8000).length, 1);
 });
 
-test("tracking WhatsApp recovery appears only after a successful matching order with a safe session URL", async () => {
+test("tracking WhatsApp confirmation prefers the matching session message and never borrows another order's message", async () => {
   const view = host("track", { token: true });
   const whatsapp = "https://api.whatsapp.com/send/?phone=6285175391181&text=Saved%20order";
   view.context.DapoerOrderRecovery.remember({ order: fixture(), trackingUrl: "/track/?id=" + ID + "&token=" + TOKEN, whatsappUrl: whatsapp });
@@ -228,13 +255,50 @@ test("tracking WhatsApp recovery appears only after a successful matching order 
   const mismatch = host("track", { token: true });
   mismatch.context.DapoerOrderRecovery.remember({ order: fixture({ id: "DP-OTHER-ORDER" }), trackingUrl: "/track/?id=DP-OTHER-ORDER&token=" + TOKEN, whatsappUrl: whatsapp });
   mismatch.start(); await flush();
-  assert.equal(mismatch.node("#track-whatsapp-recovery").hidden, true);
-  assert.equal(mismatch.node("#track-whatsapp-link").href, undefined);
-  const cancelled = host("track", { token: true, fetch: async () => ({ ok: true, status: 200, json: async () => ({ order: fixture({ status: "dibatalkan" }) }) }) });
-  cancelled.context.DapoerOrderRecovery.remember({ order: fixture(), trackingUrl: "/track/?id=" + ID + "&token=" + TOKEN, whatsappUrl: whatsapp });
-  cancelled.start(); await flush();
-  assert.equal(cancelled.node("#track-whatsapp-recovery").hidden, true);
-  assert.equal(cancelled.node("#track-whatsapp-link").href, undefined);
+  assert.equal(mismatch.node("#track-whatsapp-recovery").hidden, false);
+  const fallback = new URL(mismatch.node("#track-whatsapp-link").href).searchParams.get("text");
+  assert.match(fallback, new RegExp(ID));
+  assert.doesNotMatch(fallback, /DP-OTHER-ORDER|Saved order|PRIVATE_/);
+  for (const status of ["dibatalkan", "selesai"]) {
+    const terminal = host("track", { token: true, fetch: async () => ({ ok: true, status: 200, json: async () => ({ order: fixture({ status }) }) }) });
+    terminal.context.DapoerOrderRecovery.remember({ order: fixture(), trackingUrl: "/track/?id=" + ID + "&token=" + TOKEN, whatsappUrl: whatsapp });
+    terminal.start(); await flush();
+    assert.equal(terminal.node("#track-whatsapp-recovery").hidden, true);
+    assert.equal(terminal.node("#track-whatsapp-link").href, undefined);
+  }
+});
+
+test("tracking can continue a verified order after the original browser session has gone without creating another order", async () => {
+  const view = host("track", { token: true });
+  assert.equal(view.nodes.has("#track-whatsapp-link"), false);
+  view.start(); await flush();
+  assert.equal(view.node("#track-whatsapp-recovery").hidden, false);
+  const url = new URL(view.node("#track-whatsapp-link").href), message = url.searchParams.get("text");
+  assert.equal(url.origin, "https://api.whatsapp.com");
+  assert.equal(url.searchParams.get("phone"), "6285175391181");
+  assert.match(message, new RegExp(ID));
+  assert.match(message, /74[.\s]?000/);
+  assert.doesNotMatch(message, /PRIVATE_/);
+  assert.equal(view.requests.length, 1);
+  assert.match(view.requests[0].url, /^\/api\/track\?/);
+});
+
+test("terminal tracking clears only its own confirmation and preserves a newer order and form draft", async () => {
+  const create = () => host("track", { token: true, fetch: async () => ({ ok: true, status: 200, json: async () => ({ order: fixture({ status: "selesai" }) }) }) });
+  const whatsapp = "https://api.whatsapp.com/send/?phone=6285175391181&text=Saved%20order";
+  const own = create();
+  own.context.DapoerOrderRecovery.remember({ order: fixture(), trackingUrl: "/track/?id=" + ID + "&token=" + TOKEN, whatsappUrl: whatsapp });
+  own.start(); await flush();
+  assert.equal(own.context.DapoerOrderRecovery.getCurrent(), null);
+  assert.equal(own.context.DapoerOrderRecovery.getWhatsAppUrl({ id: ID, token: TOKEN }), null);
+
+  const newer = create(), otherId = "DP-OTHER-ORDER", draft = JSON.stringify({ customer: { name: "Another customer" } });
+  newer.context.sessionStorage.setItem("dapoer-checkout-draft-v1", draft);
+  newer.context.DapoerOrderRecovery.remember({ order: fixture({ id: otherId }), trackingUrl: "/track/?id=" + otherId + "&token=" + TOKEN, whatsappUrl: whatsapp });
+  newer.start(); await flush();
+  assert.equal(newer.context.DapoerOrderRecovery.getCurrent().id, otherId);
+  assert.equal(newer.context.DapoerOrderRecovery.getWhatsAppUrl({ id: otherId, token: TOKEN }), whatsapp);
+  assert.equal(newer.context.sessionStorage.getItem("dapoer-checkout-draft-v1"), draft);
 });
 
 test("tracking rejects a different order and removes recovery and displayed content on a revoked token", async () => {
@@ -253,18 +317,15 @@ test("tracking rejects a different order and removes recovery and displayed cont
   assert.equal(view.tick(8000), false, "revoked links do not continue polling");
 });
 
-test("tracking renders immediately without the QR library and adds a late QR without another API read", async () => {
+test("customer tracking exposes status and order summary without any receipt or QR feature", async () => {
   const view = host("track", { token: true });
   view.start(); await flush();
   assert.equal(view.node("#track-content").hidden, false);
-  assert.equal(view.node("#receipt-qr").hidden, true);
-  assert.equal(view.node("#receipt-qr-title").textContent, "Buka nota pesanan");
-  const qrCalls = [];
-  view.context.QRCode = function(root, options) { qrCalls.push(options); };
-  view.context.QRCode.CorrectLevel = { M: 1 };
-  view.node("#track-qr-library").emit("load");
-  assert.equal(view.node("#receipt-qr").hidden, false);
-  assert.equal(qrCalls.length, 1);
-  assert.equal(qrCalls[0].text, "https://dapoer.example/nota/?id=" + ID + "&token=" + TOKEN);
+  assert.equal(view.node("#track-order-id").textContent, ID);
+  assert.equal(view.node("#track-items").children.length, 1);
+  assert.equal(view.node("#track-queue-number").textContent, "A001");
+  assert.equal([...view.nodes.keys()].some(selector => /receipt|qr/.test(selector)), false);
+  const html = fs.readFileSync(path.join(__dirname, "../track/index.html"), "utf8");
+  assert.doesNotMatch(html, /\/nota\/|receipt-|qrcode|Nota Digital|Lihat Nota/);
   assert.equal(view.requests.length, 1);
 });

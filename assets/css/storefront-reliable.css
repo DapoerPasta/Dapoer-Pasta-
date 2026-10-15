@@ -9,13 +9,25 @@
 .checkout-success h3{font:600 2.3rem "Cormorant Garamond",serif;color:var(--burgundy);margin-bottom:10px}
 .checkout-success p{font-size:.86rem;line-height:1.7;color:#705e52;max-width:510px;margin:12px auto}
 .checkout-success-queue{display:inline-block;padding:12px 22px;margin:8px auto;border:1px solid #e5d5b7;border-radius:14px;background:#fbf4e7;color:var(--burgundy);font-size:1rem;font-weight:700}
-.checkout-success-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px auto 0;max-width:520px}
+.checkout-success-actions{display:grid;grid-template-columns:1fr;gap:12px;margin:24px auto 0;max-width:520px}
 .checkout-success-actions .button{justify-content:center;min-height:48px;letter-spacing:.2px;text-transform:none;text-align:center}
 .success-whatsapp{grid-column:1/-1;background:#167143;color:white;border:1px solid #167143}
 .success-secondary{background:#fff;color:var(--burgundy);border:1px solid #decebb}
 .checkout-done,.checkout-retry{border:0;border-radius:10px;padding:14px 18px;min-height:44px;background:#f2e8d9;color:var(--burgundy);font-weight:700;cursor:pointer}
 .checkout-done{margin-top:20px}
 .checkout-retry{grid-column:1/-1}
+.checkout-draft-hint{grid-column:1/-1;margin:0;color:#786456;font-size:.75rem;line-height:1.7}
+.checkout-success p.checkout-resume-hint{font-size:.76rem;color:#796755}
+.order-confirmation{position:fixed;z-index:1200;left:16px;right:94px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:560px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;padding:16px 18px;border:1px solid #e5d4b7;border-left:4px solid var(--gold);border-radius:15px;background:#fffdf8;box-shadow:0 12px 45px #2a08082b}
+.order-confirmation-copy{min-width:0}
+.order-confirmation-copy>span{display:block;color:#7d6857;font-size:.66rem;line-height:1.5}
+.order-confirmation-copy>strong{display:block;margin-top:4px;color:var(--burgundy);font-size:.76rem;line-height:1.5;overflow-wrap:anywhere}
+.order-confirmation-copy>p{margin:7px 0 0;color:#8d3d32;font-size:.67rem;line-height:1.6}
+.order-confirmation button{min-height:44px;padding:12px 16px;border:0;border-radius:10px;background:var(--green);color:white;font:700 .74rem "DM Sans",sans-serif;cursor:pointer}
+.order-confirmation button:disabled{opacity:.65;cursor:wait}
+.order-confirmation button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+body:has(#order-confirmation:not([hidden])){padding-bottom:150px}
+@media(max-width:650px){.order-confirmation{grid-template-columns:minmax(0,1fr);left:12px;right:90px;bottom:calc(12px + env(safe-area-inset-bottom,0px));gap:10px;padding:12px}.order-confirmation button{width:100%;padding-inline:10px;font-size:.7rem}.order-confirmation-copy>strong{font-size:.72rem}}
 .product-action{gap:12px}
 .add-button{min-height:44px;display:inline-flex;align-items:center;text-align:left;padding:10px 0}
 .small-mark{flex-shrink:0}

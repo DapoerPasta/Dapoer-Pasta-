@@ -219,7 +219,7 @@ Website publik tidak membutuhkan akun customer. Customer tetap checkout langsung
 
 ## Pengamanan link publik di Vercel
 
-Alamat beranda, dashboard, tracking, nota, endpoint API, parameter `id`/`token`, dan URL aset tetap sama. Nota yang dibuka tanpa sesi admin hanya menampilkan ringkasan transaksi. Nama, nomor WhatsApp, alamat, dan catatan pelanggan tidak dikirim melalui API publik; admin yang login dapat melihat data lengkap melalui link nota yang sama. Pembeli tetap menerima ringkasan pesanan, sementara admin menerima detail pengiriman lewat checkout WhatsApp dan dashboard.
+Alamat beranda, dashboard, tracking, nota, endpoint API, parameter `id`/`token`, dan URL aset tetap sama. Nota dan `GET /api/receipt` hanya tersedia dengan sesi admin yang valid, termasuk bila tautan lama menyertakan token tracking. Customer melihat ringkasan dan status melalui tracking; tautan struk dan QR nota tidak ditampilkan pada checkout maupun tracking. Nama, nomor WhatsApp, alamat, dan catatan pelanggan tidak dikirim melalui API tracking publik. Admin menerima detail pengiriman lewat checkout WhatsApp dan dashboard.
 
 API sensitif membatasi permintaan melalui tabel `security_rate_limits` di Neon. Tabel dan indeksnya dibuat otomatis menggunakan koneksi `DATABASE_URL` yang sama dengan pesanan. Counter diperbarui secara atomik sehingga batas tetap berlaku pada beberapa instance Vercel. Role database harus dapat membuat tabel/indeks dan menjalankan INSERT, UPDATE, SELECT, serta DELETE. Di produksi, jika database atau identitas IP dari Vercel tidak tersedia, API sensitif mengembalikan `503` sebelum menjalankan operasi. Penyimpanan counter di memori hanya berlaku untuk pengembangan lokal, bukan produksi.
 
@@ -234,7 +234,7 @@ API sensitif membatasi permintaan melalui tabel `security_rate_limits` di Neon. 
 
 Permintaan yang melampaui batas menerima `429` dengan header `Retry-After`. Batas dapat disesuaikan di `api/_lib/security.js`. POST/PATCH menolak asal browser yang berbeda, format selain JSON, dan payload di atas 16 KiB; logout tetap mendukung permintaan tanpa body.
 
-Halaman/API pesanan dan admin menggunakan cache privat tanpa penyimpanan dan tidak diindeks. `no-referrer` mencegah token URL terkirim sebagai referer ke situs lain. Skrip QR yang URL-nya tetap sama memakai pemeriksaan integritas SRI. Aset baru harus divalidasi ulang oleh browser; stylesheet privasi tambahan memperbaiki overlay nota sekalipun CSS lama masih tersimpan di cache. Perlindungan data pribadi berlaku di backend, sehingga tetap aman ketika browser masih memakai JavaScript versi lama.
+Halaman/API pesanan dan admin menggunakan cache privat tanpa penyimpanan dan tidak diindeks. `no-referrer` mencegah token URL terkirim sebagai referer ke situs lain. Aset baru harus divalidasi ulang oleh browser; stylesheet privasi tambahan memperbaiki overlay nota sekalipun CSS lama masih tersimpan di cache. Pembatasan struk berlaku di backend, sehingga tautan customer versi lama tetap memerlukan sesi admin.
 
 Sesudah perubahan di-deploy ke **project Vercel yang sama**, URL situs tetap sama. Konfigurasi secret produksi, akses Neon, dan respons deployment perlu diverifikasi sebelum menganggap pengamanan sudah aktif. Pembatasan aplikasi tidak menggantikan perlindungan trafik di Vercel Firewall; aktifkan perlindungan tambahan di sana sesuai kebutuhan trafik dan anggaran.
 
@@ -316,8 +316,9 @@ yang sama. Fungsi `dapoer_save_order` tetap mengembalikan BOOLEAN untuk
 instance lama; `dapoer_save_order_with_queue` mengembalikan metadata yang
 tersimpan tanpa permintaan database kedua. `GET /api/receipt?id=...` tanpa
 token hanya tersedia dengan sesi admin yang valid, termasuk untuk pesanan
-lama tanpa token. Link publik tetap memerlukan token yang cocok dan API tidak
-mengirimkan identitas pelanggan tanpa sesi admin. Print/PDF memeriksa ulang
+lama tanpa token. Menyertakan token tidak memberikan akses customer ke struk.
+API memeriksa sesi sebelum pencarian pesanan atau query pembatas trafik.
+Print/PDF admin memeriksa ulang
 nota; kesalahan akses membersihkan pratinjau dan menonaktifkan cetak/unduh.
 Tidak ada endpoint Vercel, kredensial, atau dependensi aplikasi baru.
 
@@ -332,15 +333,39 @@ berbeda dari `expectedTotal` ditolak dengan `409 PRICE_CHANGED` sebelum stok
 atau pesanan berubah. Frontend memperbarui harga keranjang dari menu terbaru
 dan meminta pemeriksaan ulang jika harga berubah sebelum konfirmasi.
 
-Halaman sukses menyediakan tombol **Konfirmasi di WhatsApp**, **Lacak pesanan**,
-dan **Lihat struk**. Pembukaan WhatsApp dilakukan dengan klik langsung agar
-tetap bekerja setelah koneksi lambat. Beranda memakai satu tombol gold
-**Pilih Menu & Pesan**; fitur Pesanan terakhir tidak digunakan. Pesan WhatsApp
-dan data checkout yang belum mendapat konfirmasi hanya disimpan dalam sesi tab, dengan cadangan
-memori jika penyimpanan tidak tersedia. Pesan WhatsApp tidak dikirim melalui
-API tracking publik. Jika tab ditutup saat hasil belum pasti, periksa pesanan
-yang sudah tercatat atau hubungi admin sebelum memesan ulang. Perubahan baru
-di keranjang dan formulir saat penyimpanan berlangsung tetap dipertahankan.
+Halaman sukses menyediakan **Konfirmasi di WhatsApp** dan **Lacak pesanan**.
+Struk hanya dibuka dan dicetak oleh admin. Pembukaan WhatsApp dilakukan dengan
+klik langsung agar tetap bekerja setelah koneksi lambat. Beranda tetap memakai
+satu tombol gold **Pilih Menu & Pesan**.
+
+Jika layar sukses tidak sengaja ditutup, pengingat **Lanjutkan konfirmasi**
+membuka kembali pesanan yang sama setelah statusnya diperiksa melalui tracking.
+Tindakan ini tidak mengirim checkout baru, mengurangi stok lagi, atau meminta
+customer mengisi ulang data yang sudah tersimpan di database. Pengingat hanya
+berlaku untuk satu pesanan aktif terakhir, selama 24 jam pada browser/perangkat
+yang sama; pesanan selesai, dibatalkan, atau tautannya dicabut tidak ditawarkan
+untuk konfirmasi. Tidak ada daftar riwayat pesanan di hero.
+Tab versi lama yang masih menyimpan konfirmasi WhatsApp dalam sesi dipulihkan
+setelah pesanan aktif diverifikasi; migrasi ini tidak mengirim checkout ulang
+atau memperpanjang masa berlaku saat halaman dimuat ulang.
+
+Metadata ID, token tracking, total, dan antrean untuk pemulihan disimpan di
+`localStorage` dengan masa berlaku 24 jam. Nama, nomor WhatsApp, alamat,
+catatan, dan pesan WhatsApp lengkap tidak dimasukkan ke penyimpanan permanen
+ini. Pesan WhatsApp lengkap serta draf formulir hanya tersedia dalam sesi tab,
+maksimal 24 jam, dengan cadangan memori bila penyimpanan tidak tersedia.
+Isian draf yang belum dikirim dipulihkan pada kolom kosong setelah reload;
+isian baru tidak ditimpa. Draf yang sudah berhasil disimpan dibersihkan hanya
+jika formulir belum diubah selama penyimpanan berlangsung.
+
+Setelah tab/browser ditutup dan pesan sesi tidak tersedia, status pesanan
+divalidasi dengan token tracking; WhatsApp dapat dibuka dengan nomor pesanan,
+antrean, item, total, dan tautan tracking. Admin mengambil data pemesan dan
+alamat dari pesanan yang sudah tersimpan. API tracking tetap tidak mengirim
+identitas customer atau pesan WhatsApp lengkap. Jika koneksi tidak tersedia,
+pengingat memberikan kesempatan mencoba lagi tanpa membuat pesanan baru.
+Checkout yang responsnya belum pasti tetap memakai pemulihan UUID tersendiri;
+perubahan baru di keranjang dan formulir tetap dipertahankan.
 
 Pemeriksaan menu dibatasi 15 detik agar koneksi yang menggantung tidak
 mengunci checkout. Pemutakhiran berkala dan pemulihan saat koneksi kembali
@@ -392,7 +417,7 @@ Logout diteruskan ke tab admin/nota lain melalui BroadcastChannel dan event
 penyimpanan browser. Nota privat membersihkan identitas pelanggan ketika tab
 ditinggalkan dan memeriksa akses kembali saat aktif. Gunakan tombol **Cetak
 struk** untuk nota admin: pencetakan bawaan browser yang belum memvalidasi akses
-tidak menampilkan data privat. Nota publik dan PDF thermal tetap mengikuti
+tidak menampilkan data privat. Nota admin dan PDF thermal tetap mengikuti
 proteksi identitas pelanggan yang sama.
 
 Foto menu mempunyai varian WebP 720 dan 1200 piksel serta fallback PNG asli.
@@ -454,7 +479,8 @@ Dengan variabel database lokal yang sama, jalankan
 untuk menguji antrean dan laporan keuangan pada PostgreSQL nyata. Suite antrean
 mencakup checkout bersamaan, reset WIB, migrasi riwayat, kompatibilitas instance
 lama, pembatalan, dan rollback nomor bersama stok. `npm test` juga memeriksa
-akses nota admin/publik, validasi struk, PDF, dan pembatalan unduhan.
+penolakan struk customer, akses nota admin, validasi struk, PDF, pembatalan unduhan,
+serta pemulihan konfirmasi dan isian formulir tanpa menggandakan pesanan.
 
 Suite riwayat stok membuktikan migrasi saldo awal tanpa transaksi rekaan,
 pencatatan atomik pesanan/pembatalan, UUID dan konflik stok, batas periode WIB,

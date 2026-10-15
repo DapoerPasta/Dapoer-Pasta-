@@ -6,24 +6,24 @@
   <meta name="robots" content="noindex,nofollow">
   <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#2a0808">
-  <title>Nota Pesanan | Dapoer Pasta</title>
+  <title>Struk Admin | Dapoer Pasta</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/receipt.css?v=20261009-thermal">
   <link rel="stylesheet" href="/assets/css/receipt-privacy.css">
-  <link rel="stylesheet" href="/assets/css/receipt-thermal.css?v=20261014-reliable">
+  <link rel="stylesheet" href="/assets/css/receipt-thermal.css?v=20261015-admin-receipts">
   <script src="/assets/js/receipt-print-files.js?v=20261009-thermal" defer></script>
   <script src="/assets/js/admin-session.js?v=20261014-reliable" defer></script>
-  <script src="/assets/js/receipt.js?v=20261014-reliable" defer></script>
+  <script src="/assets/js/receipt.js?v=20261015-admin-receipts" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
 </head>
 <body data-receipt-ready="false" data-paper-size="80" data-customer-protected="true" data-private-print-authorized="false">
   <main class="receipt-shell">
     <div class="receipt-actions no-print">
-      <a id="back-tracking" href="/track/">← Kembali ke Tracking</a>
-      <div class="receipt-print-controls">
+      <a id="back-tracking" href="/admin/">← Kembali ke Admin</a>
+      <div id="receipt-print-controls" class="receipt-print-controls" hidden>
         <label for="receipt-paper-size">Ukuran kertas</label>
         <select id="receipt-paper-size">
           <option value="80">Thermal 80 mm</option>
@@ -34,7 +34,7 @@
         <button id="download-receipt-pdf" type="button" class="receipt-secondary" disabled>Unduh PDF</button>
       </div>
     </div>
-    <div class="receipt-print-help no-print">
+    <div id="receipt-print-help" class="receipt-print-help no-print" hidden>
       <p><strong>Cetak dari komputer atau HP.</strong> Pilih printer USB, Bluetooth, atau WiFi yang tersedia di menu cetak perangkat. Komputer memerlukan driver; Android memerlukan layanan cetak; iPhone/iPad memerlukan AirPrint atau aplikasi printer. Jika printer tidak muncul, unduh PDF lalu buka di aplikasi printer.</p>
       <p id="receipt-paper-help">Gunakan kertas 80 mm, skala 100%, dan nonaktifkan header/footer pada menu cetak.</p>
     </div>
@@ -85,7 +85,6 @@
 
       <div class="divider"></div>
 
-      <p id="receipt-privacy" class="receipt-privacy" hidden>Data pelanggan dilindungi. Nota ini menampilkan detail dan status pesanan.</p>
 
       <section class="receipt-extra">
         <div><span>WhatsApp</span><strong id="receipt-phone">—</strong></div>

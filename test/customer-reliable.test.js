@@ -12,13 +12,13 @@ const success=(payload,id="DP-TEST-001")=>reply({order:{id,items:payload.items,t
 function storage(map,fail=false,failWrites=false){return{getItem(key){if(fail)throw new Error("denied");return map.get(key)||null},setItem(key,value){if(fail||failWrites)throw new Error("denied");map.set(key,String(value))},removeItem(key){if(fail||failWrites)throw new Error("denied");map.delete(key)}}}
 function customer(fetch,{local=new Map(),session=new Map(),failStorage=false,failWrites=false}={}){
   const elements=new Map(),opened=[],events=new Map(),timeouts=new Map(),intervals=[],location={origin:"https://example.com"},document={hidden:false,activeElement:null,addEventListener(type,fn){events.set(`document:${type}`,fn)},querySelectorAll(){return[]}};
-  function node(){const classes=new Set(),listeners=new Map();return{children:[],value:"",textContent:"",hidden:false,disabled:false,isConnected:true,inert:false,validationMessage:"",attributes:{},classList:{add(x){classes.add(x)},remove(x){classes.delete(x)},toggle(x,on){on?classes.add(x):classes.delete(x)},contains(x){return classes.has(x)}},append(...children){this.children.push(...children)},replaceChildren(...children){this.children=children;this.replacements=(this.replacements||0)+1},addEventListener(type,fn){listeners.set(type,fn)},emit(type,event={}){return listeners.get(type)?.({target:this,...event})},setAttribute(key,value){this.attributes[key]=String(value)},removeAttribute(key){delete this.attributes[key]},setCustomValidity(message){this.validationMessage=message},reportValidity(){return !this.validationMessage},querySelector(){return null},focus(){document.activeElement=this},reset(){for(const id of ["name","phone","address","payment","notes"])document.querySelector(`#checkout-${id}`).value=""}}}
+  function node(){const classes=new Set(),listeners=new Map();return{children:[],value:"",textContent:"",hidden:false,disabled:false,isConnected:true,inert:false,validationMessage:"",attributes:{},classList:{add(x){classes.add(x)},remove(x){classes.delete(x)},toggle(x,on){on?classes.add(x):classes.delete(x)},contains(x){return classes.has(x)}},append(...children){this.children.push(...children)},replaceChildren(...children){this.children=children;this.replacements=(this.replacements||0)+1},addEventListener(type,fn){listeners.set(type,fn)},emit(type,event={}){return listeners.get(type)?.({target:this,...event})},setAttribute(key,value){this.attributes[key]=String(value)},removeAttribute(key){delete this.attributes[key];delete this[key]},setCustomValidity(message){this.validationMessage=message},reportValidity(){return !this.validationMessage},querySelector(){return null},focus(){document.activeElement=this},reset(){for(const id of ["name","phone","address","payment","notes"])document.querySelector(`#checkout-${id}`).value=""}}}
   document.createElement=node;document.body=node();document.querySelector=selector=>{if(!elements.has(selector))elements.set(selector,node());return elements.get(selector)};
   const window={location,crypto:webcrypto,open(...args){opened.push(args)},addEventListener(type,fn){events.set(`window:${type}`,fn)}};
   let timerId=0;
   const context=vm.createContext({window,document,fetch,URL,TextEncoder,Uint8Array,AbortController,localStorage:storage(local,failStorage,failWrites),sessionStorage:storage(session,failStorage,failWrites),setTimeout(fn,delay){const id=++timerId;timeouts.set(id,{fn,delay});return id},clearTimeout(id){timeouts.delete(id)},setInterval(fn,delay){intervals.push({fn,delay});return intervals.length}});
   vm.runInContext(fs.readFileSync(path.join(__dirname,"../assets/js/order-recovery.js"),"utf8"),context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname,"../assets/js/app.js"),"utf8")+"\nglobalThis.api={state,init,loadMenu,addToCart,updateQuantity,renderCart,submitCheckout,retryPendingCheckout,loadIntent,openCheckout,toggleCart,toggleMobileMenu,handleDialogKeyboard};",context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname,"../assets/js/app.js"),"utf8")+"\nglobalThis.api={state,init,loadMenu,addToCart,updateQuantity,renderCart,submitCheckout,retryPendingCheckout,loadIntent,openCheckout,toggleCart,toggleCheckout,toggleMobileMenu,handleDialogKeyboard,refreshOrderRecovery,resumeOrderConfirmation,renderOrderRecovery,saveCheckoutDraft,restoreCheckoutDraft};",context);
   const ui={...context.api,element:document.querySelector,opened,location,local,session,events,intervals,document,recovery:window.DapoerOrderRecovery,emit(type,event={}){return events.get(`window:${type}`)?.(event)},runTimeout(delay){const timer=[...timeouts].find(([,item])=>item.delay===delay);assert.ok(timer,`A ${delay}ms deadline must be scheduled`);timeouts.delete(timer[0]);timer[1].fn()}};
   ui.fill=(name="Customer")=>{for(const[key,value]of Object.entries({name,phone:"081234567890",address:"Jalan contoh 123",payment:"DANA",notes:""}))ui.element(`#checkout-${key}`).value=value};
   ui.submit=()=>ui.submitCheckout({preventDefault(){}});return ui;
@@ -54,7 +54,7 @@ test("lost response retries identical body and UUID even after stock and price c
   const sent=[];let catalog=product();const ui=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[catalog]});const payload=JSON.parse(options.body);sent.push(payload);if(sent.length===1)throw new Error("lost response");return success(payload)});
   await ui.loadMenu();ui.addToCart(ID);ui.fill();await ui.submit();assert.equal(ui.element("#checkout-retry").hidden,false);
   catalog=product(0,42000);await ui.loadMenu();await ui.submit();assert.equal(sent.length,2);assert.deepEqual(sent[1],sent[0]);assert.equal(sent[0].expectedTotal,37000);assert.match(sent[0].requestId,/^[a-f0-9-]{36}$/);
-  assert.equal(ui.element("#checkout-success").hidden,false);assert.equal(ui.element("#checkout-whatsapp-link").href,"https://api.whatsapp.com/send?phone=6285175391181&text=Konfirmasi");assert.match(ui.element("#checkout-tracking-link").href,/^\/track\//);assert.match(ui.element("#checkout-receipt-link").href,/^\/nota\//);assert.equal(ui.opened.length,0);assert.equal(ui.location.href,undefined);assert.equal(ui.loadIntent(),null);
+  assert.equal(ui.element("#checkout-success").hidden,false);assert.equal(ui.element("#checkout-whatsapp-link").href,"https://api.whatsapp.com/send?phone=6285175391181&text=Konfirmasi");assert.match(ui.element("#checkout-tracking-link").href,/^\/track\//);assert.equal(ui.element("#checkout-receipt-link").href,undefined);assert.equal(ui.state.success.receiptUrl,undefined);assert.equal(ui.opened.length,0);assert.equal(ui.location.href,undefined);assert.equal(ui.loadIntent(),null);
   assert.equal(ui.state.cart.length,0,"automatic catalog repricing must not leave already-ordered cart items behind");
   assert.ok(!JSON.stringify([...ui.local.values()]).includes("Jalan contoh"));
 });
@@ -114,7 +114,7 @@ test("recovery rejects malicious URLs, mismatched identifiers, duplicate tokens 
   const ui=customer(async()=>{}),good=`/track/?id=DP-TEST-001&token=${TOKEN}`;
   for(const url of [`https://evil.example${good}`,good+"&token="+TOKEN,good+"&other=x",good+"#fragment",`/nota/?id=DP-TEST-001&token=${TOKEN}`,`/track/?id=DP-TEST-001&token=short`])assert.equal(ui.recovery.safeOrderUrl(url,"/track/"),null);
   assert.equal(ui.recovery.remember({order:{id:"DP-TEST-002"},trackingUrl:good,whatsappUrl:"https://api.whatsapp.com/send?phone=6285175391181"}),null);
-  ui.recovery.remember({order:{id:"DP-TEST-001",customer:{name:"PII",address:"Secret"}},trackingUrl:good,whatsappUrl:"https://api.whatsapp.com/send?phone=6285175391181&text=Secret"});
+  ui.recovery.remember({order:{id:"DP-TEST-001",total:37000,customer:{name:"PII",address:"Secret"}},trackingUrl:good,whatsappUrl:"https://api.whatsapp.com/send?phone=6285175391181&text=Secret"});
   assert.ok(ui.recovery.getWhatsAppUrl({id:"DP-TEST-001",token:TOKEN}));assert.equal(ui.recovery.getWhatsAppUrl({id:"DP-TEST-002",token:TOKEN}),null);assert.equal(ui.recovery.getWhatsAppUrl({id:"DP-TEST-001",token:"b".repeat(48)}),null);assert.ok(!JSON.stringify([...ui.local.values()]).includes("Secret"));
   for(const url of ["http://api.whatsapp.com/send?phone=6285175391181","https://api.whatsapp.com.evil.test/send?phone=6285175391181","https://api.whatsapp.com/send?phone=123","https://api.whatsapp.com/send?phone=6285175391181&phone=123","https://user@api.whatsapp.com/send?phone=6285175391181"])assert.equal(ui.recovery.safeWhatsApp(url),null);
 });
@@ -199,4 +199,193 @@ test("pending checkout recovery opens immediately without requiring menu connect
 for(const[field,value,message]of [['name','  a  ',/nama lengkap/],['phone','abc123',/WhatsApp/],['address','  ab  ',/alamat/],['payment','Other',/pembayaran/]])test(`invalid ${field} focuses that field and prevents a new checkout request`,async()=>{
   let posts=0;const ui=customer(async(url,options)=>{if(url==='/api/menu')return reply({products:[product()]});posts++;return success(JSON.parse(options.body))});await ui.loadMenu();ui.addToCart(ID);ui.fill();ui.element(`#checkout-${field}`).value=value;await ui.submit();
   assert.equal(posts,0);assert.equal(ui.document.activeElement,ui.element(`#checkout-${field}`));assert.match(ui.element('#checkout-notice').textContent,message);assert.equal(ui.loadIntent(),null);
+});
+
+const CURRENT_KEY="dapoer-current-order-v2",DRAFT_KEY="dapoer-checkout-draft-v1",WA_KEY="dapoer-order-whatsapp-v1";
+const currentRecord=(extra={})=>({id:"DP-TEST-001",token:TOKEN,trackingUrl:`/track/?id=DP-TEST-001&token=${TOKEN}`,total:37000,queueNumber:7,queueDate:"2026-10-15",savedAt:Date.now(),...extra});
+const trackedOrder=(extra={})=>({id:"DP-TEST-001",status:"baru",total:37000,queueNumber:7,queueDate:"2026-10-15",paymentMethod:"Transfer Bank",createdAt:"2026-10-15T01:00:00Z",updatedAt:"2026-10-15T01:00:00Z",items:[{id:ID,name:"Chicken pop corn 250gr",quantity:1,subtotal:37000}],...extra});
+const savedLocal=()=>new Map([[CURRENT_KEY,JSON.stringify(currentRecord())]]);
+
+test("closing a saved checkout leaves one reminder and resuming confirms the original order without posting again",async()=>{
+  let posts=0,reads=0;
+  const ui=customer(async(url,options)=>{
+    if(url==="/api/menu")return reply({products:[product()]});
+    if(url.startsWith("/api/track?")){reads++;return reply({order:trackedOrder()})}
+    posts++;return success(JSON.parse(options.body));
+  });
+  await ui.loadMenu();ui.addToCart(ID);ui.fill();await ui.submit();
+  assert.equal(ui.element("#order-confirmation").hidden,true,"the saved-order modal hides the reminder");
+  ui.toggleCheckout(false);assert.equal(ui.element("#order-confirmation").hidden,false);
+  assert.match(ui.element("#order-confirmation-summary").textContent,/Antrean A007/);
+  await ui.resumeOrderConfirmation();
+  assert.equal(posts,1);assert.equal(reads,1);assert.equal(ui.state.modal,"checkout-modal");assert.equal(ui.element("#order-confirmation").hidden,true);
+  assert.equal(ui.element("#checkout-whatsapp-link").href,"https://api.whatsapp.com/send?phone=6285175391181&text=Konfirmasi");
+  assert.equal(ui.element("#checkout-name").value,"");assert.equal(ui.loadIntent(),null);
+});
+
+test("reload restores the saved-order reminder and full session WhatsApp link without opening a dialog or creating another order",async()=>{
+  const local=savedLocal(),session=new Map([[WA_KEY,JSON.stringify({id:"DP-TEST-001",token:TOKEN,url:"https://api.whatsapp.com/send?phone=6285175391181&text=PRIVATE_FORM",savedAt:Date.now()})]]);
+  let posts=0,reads=0;
+  const ui=customer(async(url)=>{if(url==="/api/menu")return reply({products:[product()]});if(url.startsWith("/api/track?")){reads++;return reply({order:trackedOrder()})}posts++;throw new Error("Unexpected POST")},{local,session});
+  await ui.init();await ui.refreshOrderRecovery();
+  assert.equal(ui.state.modal,null);assert.equal(ui.document.activeElement,null);assert.equal(ui.element("#order-confirmation").hidden,false);
+  await ui.resumeOrderConfirmation();assert.equal(posts,0);assert.ok(reads>=1);assert.equal(ui.state.modal,"checkout-modal");
+  assert.match(ui.element("#checkout-whatsapp-link").href,/PRIVATE_FORM/);
+  assert.ok(!JSON.stringify([...local.values()]).includes("PRIVATE_FORM"));assert.ok(!JSON.stringify([...local.values()]).includes("receiptUrl"));
+});
+
+test("a new browser session rebuilds WhatsApp confirmation from verified order data without requiring the old form or leaking customer fields",async()=>{
+  const local=savedLocal(),session=new Map();let posts=0;
+  const ui=customer(async(url)=>{if(url==="/api/menu")return reply({products:[product()]});if(url.startsWith("/api/track?"))return reply({order:trackedOrder({customer:{name:"PRIVATE_NAME",address:"PRIVATE_ADDRESS"},notes:"PRIVATE_NOTES"})});posts++;throw new Error("Unexpected order")},{local,session});
+  await ui.init();await ui.resumeOrderConfirmation();
+  const text=new URL(ui.element("#checkout-whatsapp-link").href).searchParams.get("text");
+  assert.match(text,/DP-TEST-001/);assert.match(text,/A007/);assert.match(text,/Chicken pop corn 250gr × 1/);assert.match(text,/Rp 37\.000/);assert.match(text,/Transfer Bank/);assert.match(text,/Data pemesan dan alamat sudah diisi/);
+  assert.doesNotMatch(text,/PRIVATE_/);assert.equal(posts,0);assert.equal(ui.element("#checkout-name").value,"");
+});
+
+test("the current confirmation expires after 24 hours without changing the cart or a newer form draft",async()=>{
+  const local=new Map([[CURRENT_KEY,JSON.stringify(currentRecord({savedAt:Date.now()-86400001}))],["dapoer-pasta-cart",JSON.stringify([{id:ID,quantity:1,name:"Pasta",price:37000}])]]);
+  const session=new Map([[DRAFT_KEY,JSON.stringify({savedAt:Date.now(),customer:{name:"New draft",phone:"081234567890",address:"Jalan draft baru",paymentMethod:"DANA",notes:""}})]]);
+  let reads=0;const ui=customer(async(url)=>{if(url==="/api/menu")return reply({products:[product()]});reads++;throw new Error("Expired recovery must not fetch")},{local,session});
+  await ui.init();assert.equal(reads,0);assert.equal(ui.recovery.getCurrent(),null);assert.equal(ui.element("#order-confirmation").hidden,true);
+  assert.equal(ui.state.cart.length,1);assert.equal(ui.element("#checkout-name").value,"New draft");assert.ok(session.has(DRAFT_KEY));
+});
+
+for(const status of ["dibatalkan","selesai"])test(`verified ${status} removes the reminder and WhatsApp recovery while preserving the next order draft`,async()=>{
+  const local=savedLocal(),session=new Map([[WA_KEY,JSON.stringify({id:"DP-TEST-001",token:TOKEN,url:"https://api.whatsapp.com/send?phone=6285175391181&text=OLD",savedAt:Date.now()})],[DRAFT_KEY,"PRESERVE_DRAFT"]]);
+  let posts=0;const ui=customer(async(url)=>{if(url.startsWith("/api/track?"))return reply({order:trackedOrder({status})});posts++;throw new Error("Unexpected order")},{local,session});
+  await ui.resumeOrderConfirmation();assert.equal(posts,0);assert.equal(ui.state.modal,null);assert.equal(ui.element("#order-confirmation").hidden,true);assert.equal(ui.recovery.getCurrent(),null);assert.equal(session.has(WA_KEY),false);assert.equal(session.get(DRAFT_KEY),"PRESERVE_DRAFT");
+});
+
+test("revoked or missing saved-order tracking removes recovery without creating another order",async()=>{
+  const local=savedLocal();let reads=0;
+  const ui=customer(async(url)=>{assert.match(url,/^\/api\/track\?/);reads++;return reply({error:"Pesanan tidak ditemukan"},404)},{local});
+  await ui.resumeOrderConfirmation();assert.equal(reads,1);assert.equal(ui.state.modal,null);assert.equal(ui.recovery.getCurrent(),null);assert.equal(ui.element("#order-confirmation").hidden,true);
+});
+
+test("a temporary tracking outage keeps a visible retry reminder and only exposes WhatsApp after a successful fresh read",async()=>{
+  const local=savedLocal();let available=false,reads=0;
+  const ui=customer(async()=>{reads++;return available?reply({order:trackedOrder()}):reply({error:"Unavailable"},503)},{local});
+  await ui.resumeOrderConfirmation();assert.equal(ui.state.modal,null);assert.equal(ui.element("#order-confirmation").hidden,false);assert.equal(ui.element("#order-confirmation-message").hidden,false);assert.match(ui.element("#order-confirmation-message").textContent,/Sambungkan internet/);
+  assert.equal(ui.element("#checkout-whatsapp-link").href,undefined);assert.equal(ui.element("#order-confirmation-open").disabled,false);
+  available=true;await ui.resumeOrderConfirmation();assert.equal(reads,2);assert.equal(ui.state.modal,"checkout-modal");assert.ok(ui.element("#checkout-whatsapp-link").href);
+});
+
+test("tracking timeout releases a deduplicated recovery request and ignores its late terminal response",async()=>{
+  const local=savedLocal();let release,reads=0;const stalled=new Promise(resolve=>{release=resolve});
+  const ui=customer(async()=>++reads===1?stalled:reply({order:trackedOrder()}),{local});
+  const first=ui.refreshOrderRecovery(),duplicate=ui.refreshOrderRecovery();assert.equal(reads,1);ui.runTimeout(12000);assert.equal(await first,null);assert.equal(await duplicate,null);assert.equal(ui.element("#order-confirmation-open").disabled,false);
+  await ui.resumeOrderConfirmation();assert.equal(reads,2);assert.equal(ui.state.modal,"checkout-modal");
+  release(reply({order:trackedOrder({status:"dibatalkan"})}));await flush();assert.equal(ui.recovery.getCurrent().id,"DP-TEST-001");assert.equal(ui.state.recovery.status,"ready");
+});
+
+for(const changed of ["another dialog","chat","another current order"])test(`a delayed recovery cannot open over ${changed}`,async()=>{
+  const local=savedLocal();let release;const stalled=new Promise(resolve=>{release=resolve});
+  const ui=customer(async()=>stalled,{local});const opening=ui.resumeOrderConfirmation();
+  if(changed==="another dialog")ui.toggleCart(true);
+  else if(changed==="chat")ui.element("#chat-box").classList.add("open");
+  else local.set(CURRENT_KEY,JSON.stringify(currentRecord({id:"DP-TEST-002",trackingUrl:`/track/?id=DP-TEST-002&token=${TOKEN}`})));
+  release(reply({order:trackedOrder()}));await opening;
+  assert.notEqual(ui.state.modal,"checkout-modal");assert.equal(ui.element("#checkout-whatsapp-link").href,undefined);
+  if(changed==="another current order")assert.equal(ui.recovery.getCurrent().id,"DP-TEST-002");
+});
+
+test("malformed or mismatched tracking data cannot expose confirmation from forged local metadata",async()=>{
+  for(const order of [trackedOrder({id:"DP-OTHER-001"}),trackedOrder({items:[]}),trackedOrder({items:[{name:"Pasta",quantity:-1,subtotal:37000}]}),trackedOrder({updatedAt:"invalid"})]){
+    const ui=customer(async()=>reply({order}),{local:savedLocal()});await ui.resumeOrderConfirmation();assert.equal(ui.state.modal,null);assert.equal(ui.state.recovery.status,"offline");assert.equal(ui.element("#checkout-whatsapp-link").href,undefined);
+  }
+});
+
+test("an unsaved checkout draft survives close and reload in the same tab without becoming permanent local customer data",async()=>{
+  const local=new Map(),session=new Map();const ui=customer(async()=>reply({products:[product()]}),{local,session});await ui.init();ui.fill("Draft Customer");ui.element("#checkout-payment").value="Transfer Bank";ui.element("#checkout-notes").value="Kirim sore";ui.toggleCheckout(true);ui.toggleCheckout(false);
+  const next=customer(async()=>reply({products:[product()]}),{local,session});await next.init();assert.equal(next.element("#checkout-name").value,"Draft Customer");assert.equal(next.element("#checkout-address").value,"Jalan contoh 123");assert.equal(next.element("#checkout-payment").value,"Transfer Bank");assert.equal(next.element("#checkout-notes").value,"Kirim sore");assert.equal(next.state.modal,null);
+  assert.doesNotMatch(JSON.stringify([...local.values()]),/Draft Customer|Jalan contoh|Kirim sore/);
+});
+
+test("draft restore fills only blank fields and ignores expired or malformed drafts",async()=>{
+  const draft={savedAt:Date.now(),customer:{name:"Stored customer",phone:"081234567890",address:"Stored address",paymentMethod:"Transfer Bank",notes:"Stored notes"}};
+  const ui=customer(async()=>{}, {session:new Map([[DRAFT_KEY,JSON.stringify(draft)]])});ui.element("#checkout-name").value="Browser autofill";ui.restoreCheckoutDraft();assert.equal(ui.element("#checkout-name").value,"Browser autofill");assert.equal(ui.element("#checkout-address").value,"Stored address");
+  for(const invalid of [{...draft,savedAt:Date.now()-86400001},{...draft,savedAt:Date.now()+120000},{...draft,customer:{...draft.customer,address:[]}}]){
+    const invalidUi=customer(async()=>{}, {session:new Map([[DRAFT_KEY,JSON.stringify(invalid)]])});invalidUi.restoreCheckoutDraft();assert.equal(invalidUi.element("#checkout-name").value,"");assert.equal(invalidUi.session.has(DRAFT_KEY),false);
+  }
+});
+
+test("saved checkout clears only the submitted unchanged draft and preserves customer edits made while saving",async()=>{
+  const cleared=customer(async(url,options)=>url==="/api/menu"?reply({products:[product()]}):success(JSON.parse(options.body)));await cleared.loadMenu();cleared.addToCart(ID);cleared.fill();cleared.saveCheckoutDraft();await cleared.submit();assert.equal(cleared.session.has(DRAFT_KEY),false);
+  let release,started;const stalled=new Promise(resolve=>{release=resolve}),began=new Promise(resolve=>{started=resolve});
+  const ui=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[product()]});started();await stalled;return success(JSON.parse(options.body))});await ui.loadMenu();ui.addToCart(ID);ui.fill();const saving=ui.submit();await began;ui.fill("Next customer");release();await saving;
+  assert.equal(JSON.parse(ui.session.get(DRAFT_KEY)).customer.name,"Next customer");assert.equal(ui.element("#checkout-name").value,"Next customer");
+});
+
+test("legacy WhatsApp session links acquire one bounded lifetime without reviving already expired metadata",()=>{
+  const session=new Map([[WA_KEY,JSON.stringify({id:"DP-TEST-001",token:TOKEN,url:"https://api.whatsapp.com/send?phone=6285175391181&text=LEGACY_FORM"})]]);
+  const ui=customer(async()=>{}, {session});assert.match(ui.recovery.getWhatsAppUrl({id:"DP-TEST-001",token:TOKEN}),/LEGACY_FORM/);const stamp=JSON.parse(session.get(WA_KEY)).savedAt;assert.ok(Number.isFinite(stamp));ui.recovery.getWhatsAppUrl({id:"DP-TEST-001",token:TOKEN});assert.equal(JSON.parse(session.get(WA_KEY)).savedAt,stamp);
+  const expired=customer(async()=>{}, {session:new Map([[WA_KEY,JSON.stringify({id:"DP-TEST-001",token:TOKEN,url:"https://api.whatsapp.com/send?phone=6285175391181&text=OLD",savedAt:Date.now()-86400001})]])});assert.equal(expired.recovery.getWhatsAppUrl({id:"DP-TEST-001",token:TOKEN}),null);assert.equal(expired.session.has(WA_KEY),false);
+});
+
+test("blocked writes retain the newly saved current order in memory instead of an older readable stored order",()=>{
+  const local=new Map([[CURRENT_KEY,JSON.stringify(currentRecord({id:"DP-OLD-001",trackingUrl:`/track/?id=DP-OLD-001&token=${TOKEN}`}))]]);
+  const ui=customer(async()=>{}, {local,failWrites:true});const record=ui.recovery.remember({order:{id:"DP-TEST-001",total:37000},trackingUrl:`/track/?id=DP-TEST-001&token=${TOKEN}`,whatsappUrl:"https://api.whatsapp.com/send?phone=6285175391181&text=NEW"});assert.equal(record.id,"DP-TEST-001");assert.equal(ui.recovery.getCurrent().id,"DP-TEST-001");
+});
+
+for(const state of ["dibatalkan","selesai","revoked","expired","outage"])test(`returning to an open success modal after ${state} cannot keep a stale WhatsApp action`,async()=>{
+  let status="baru";
+  const ui=customer(async(url,options)=>{
+    if(url==="/api/menu")return reply({products:[product()]});
+    if(url.startsWith("/api/track?")){if(status==="revoked")return reply({error:"not found"},404);if(status==="outage")return reply({error:"unavailable"},503);return reply({order:trackedOrder({status})})}
+    return success(JSON.parse(options.body));
+  });
+  await ui.init();ui.addToCart(ID);ui.fill();await ui.submit();assert.equal(ui.element("#checkout-whatsapp-link").hidden,false);
+  if(state==="expired"){const record=JSON.parse(ui.local.get(CURRENT_KEY));record.savedAt=Date.now()-86400001;ui.local.set(CURRENT_KEY,JSON.stringify(record))}else status=state;
+  ui.events.get("document:visibilitychange")();await ui.state.recoveryRequest?.promise;
+  assert.equal(ui.state.modal,"checkout-modal");assert.equal(ui.element("#checkout-whatsapp-link").hidden,true);assert.equal(ui.element("#checkout-whatsapp-link").href,undefined);assert.match(ui.element("#checkout-tracking-link").href,/^\/track\//);assert.equal(ui.element("#checkout-notice").hidden,false);
+});
+
+const legacySession=(extra={})=>new Map([[WA_KEY,JSON.stringify({id:"DP-TEST-001",token:TOKEN,url:"https://api.whatsapp.com/send?phone=6285175391181&text=PRIVATE_ORIGINAL_FORM",...extra})]]);
+
+test("a pre-upgrade WhatsApp session becomes a current confirmation only after a verified GET, retaining its original timestamp and full session form",async()=>{
+  const local=new Map(),session=legacySession();let release,reads=0;const stalled=new Promise(resolve=>{release=resolve});
+  const ui=customer(async(url,options)=>{assert.match(url,/^\/api\/track\?/);assert.ok(!options.method||options.method==="GET");reads++;return stalled},{local,session});
+  const first=ui.refreshOrderRecovery(),duplicate=ui.refreshOrderRecovery();
+  assert.equal(reads,1);assert.equal(local.has(CURRENT_KEY),false);assert.equal(ui.element("#order-confirmation").hidden,true);assert.equal(ui.state.modal,null);
+  const originalStamp=JSON.parse(session.get(WA_KEY)).savedAt;assert.ok(Number.isFinite(originalStamp));
+  release(reply({order:trackedOrder({total:30000,items:[{name:"Pasta brulee oval 2 pcs",quantity:1,subtotal:30000}]})}));await first;await duplicate;
+  const current=JSON.parse(local.get(CURRENT_KEY));assert.equal(current.total,30000);assert.equal(current.savedAt,originalStamp);assert.equal(current.queueNumber,7);assert.equal(ui.element("#order-confirmation").hidden,false);assert.equal(ui.state.modal,null);assert.doesNotMatch(JSON.stringify([...local.values()]),/PRIVATE_ORIGINAL_FORM/);
+  assert.match(ui.recovery.getWhatsAppUrl(current),/PRIVATE_ORIGINAL_FORM/);assert.notEqual(JSON.parse(session.get(WA_KEY)).legacyRecoveryPending,true);
+  const reloaded=customer(async()=>reply({order:trackedOrder()}),{local,session});await reloaded.resumeOrderConfirmation();assert.equal(reloaded.state.modal,"checkout-modal");assert.equal(JSON.parse(local.get(CURRENT_KEY)).savedAt,originalStamp);assert.match(reloaded.element("#checkout-whatsapp-link").href,/PRIVATE_ORIGINAL_FORM/);
+});
+
+for(const condition of ["cancelled","completed","revoked","mismatched","malformed"])test(`a ${condition} pre-upgrade session cannot become a saved confirmation`,async()=>{
+  const local=new Map(),session=legacySession();let reads=0;
+  const ui=customer(async(url,options)=>{assert.match(url,/^\/api\/track\?/);assert.ok(!options.method||options.method==="GET");reads++;if(condition==="revoked")return reply({error:"not found"},404);return reply({order:trackedOrder(condition==="cancelled"?{status:"dibatalkan"}:condition==="completed"?{status:"selesai"}:condition==="mismatched"?{id:"DP-OTHER-001"}:{items:[]})})},{local,session});
+  await ui.resumeOrderConfirmation();assert.equal(reads,1);assert.equal(local.has(CURRENT_KEY),false);assert.equal(ui.element("#order-confirmation").hidden,true);assert.equal(ui.state.modal,null);assert.equal(ui.element("#checkout-whatsapp-link").href,undefined);
+});
+
+test("legacy migration never renews an expired entry or adopts an already timestamped ordinary session",async()=>{
+  for(const extra of [{savedAt:Date.now()-86400001},{savedAt:Date.now()},{savedAt:Date.now()-86400001,legacyRecoveryPending:true}]){
+    const local=new Map(),session=legacySession(extra);let reads=0;const ui=customer(async()=>{reads++;throw new Error("No migration read allowed")},{local,session});await ui.resumeOrderConfirmation();assert.equal(reads,0);assert.equal(local.has(CURRENT_KEY),false);assert.equal(ui.state.modal,null);assert.equal(ui.element("#order-confirmation").hidden,true);
+  }
+});
+
+test("an expired current confirmation prevents its plain legacy session from reviving even after a second reload",async()=>{
+  const local=new Map([[CURRENT_KEY,JSON.stringify(currentRecord({savedAt:Date.now()-86400001}))]]),session=legacySession();let reads=0;
+  for(let attempt=0;attempt<3;attempt++){
+    const ui=customer(async()=>{reads++;throw new Error("Expired current must not revive")},{local,session});await ui.resumeOrderConfirmation();assert.equal(local.has(CURRENT_KEY),false);assert.equal(ui.state.modal,null);assert.equal(ui.element("#order-confirmation").hidden,true);
+  }
+  assert.equal(reads,0);assert.equal(JSON.parse(session.get(WA_KEY)).legacyRecoveryPending,false);
+});
+
+test("a delayed legacy migration cannot overwrite a newer order that appears in another tab",async()=>{
+  const local=new Map(),session=legacySession();let release;const stalled=new Promise(resolve=>{release=resolve});
+  const ui=customer(async()=>stalled,{local,session});const reading=ui.resumeOrderConfirmation();
+  const newer=currentRecord({id:"DP-NEW-001",trackingUrl:`/track/?id=DP-NEW-001&token=${TOKEN}`,total:60000});local.set(CURRENT_KEY,JSON.stringify(newer));
+  release(reply({order:trackedOrder()}));await reading;assert.equal(JSON.parse(local.get(CURRENT_KEY)).id,"DP-NEW-001");assert.equal(JSON.parse(local.get(CURRENT_KEY)).total,60000);assert.equal(ui.state.modal,null);assert.equal(ui.element("#checkout-whatsapp-link").href,undefined);
+});
+
+test("a timed-out legacy migration retries within its first timestamp and ignores a late terminal response",async()=>{
+  const local=new Map(),session=legacySession();let release,reads=0;const stalled=new Promise(resolve=>{release=resolve});
+  const ui=customer(async()=>++reads===1?stalled:reply({order:trackedOrder()}),{local,session});const first=ui.refreshOrderRecovery(),duplicate=ui.refreshOrderRecovery();const stamp=JSON.parse(session.get(WA_KEY)).savedAt;
+  ui.runTimeout(12000);await first;await duplicate;assert.equal(reads,1);assert.equal(local.has(CURRENT_KEY),false);
+  await ui.resumeOrderConfirmation();assert.equal(reads,2);assert.equal(JSON.parse(local.get(CURRENT_KEY)).savedAt,stamp);assert.equal(ui.state.modal,"checkout-modal");
+  release(reply({order:trackedOrder({status:"dibatalkan"})}));await flush();assert.equal(JSON.parse(local.get(CURRENT_KEY)).id,"DP-TEST-001");
 });

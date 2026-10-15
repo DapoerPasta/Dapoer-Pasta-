@@ -11,7 +11,6 @@
   document.addEventListener("DOMContentLoaded", () => {
     initialized = true;
     $("#track-retry").addEventListener("click", loadStatus);
-    $("#track-qr-library")?.addEventListener("load", () => { if (shownOrder) renderQr(); });
     if (!validLink) return showError("Link tracking tidak valid.");
     if (!document.hidden) loadStatus();
   });
@@ -101,15 +100,14 @@
     $("#track-status").textContent = order.status;
     $("#track-updated").textContent = `Diperbarui ${new Date(order.updatedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} WIB`;
 
-    const receiptUrl = `${location.origin}/nota/?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`;
-    $("#receipt-link").href = receiptUrl;
-    renderQr();
-
-    const recoveryUrl = window.DapoerOrderRecovery?.getWhatsAppUrl({ id, token });
+    const terminal = ["dibatalkan", "selesai"].includes(order.status);
+    if (terminal) window.DapoerOrderRecovery?.forget?.({ id, token });
+    const recoveryUrl = window.DapoerOrderRecovery?.getWhatsAppUrl({ id, token, order });
+    const canConfirm = !!recoveryUrl && !terminal;
     const recovery = $("#track-whatsapp-recovery");
-    recovery.hidden = !recoveryUrl || order.status === "dibatalkan";
+    recovery.hidden = !canConfirm;
     const recoveryLink = $("#track-whatsapp-link");
-    if (recoveryUrl && order.status !== "dibatalkan") recoveryLink.href = recoveryUrl;
+    if (canConfirm) recoveryLink.href = recoveryUrl;
     else recoveryLink.removeAttribute("href");
 
     const currentIndex = statuses.indexOf(order.status);
@@ -126,17 +124,6 @@
       row.append(name, subtotal); root.append(row);
     });
     if (previousStatus && previousStatus !== order.status) document.title = `Status: ${order.status} | Dapoer Pasta`;
-  }
-
-  function renderQr() {
-    const qrRoot = $("#receipt-qr");
-    if (qrRoot && !qrRoot.dataset.ready && window.QRCode) {
-      try { new window.QRCode(qrRoot, { text: $("#receipt-link").href, width: 168, height: 168, correctLevel: window.QRCode.CorrectLevel.M }); qrRoot.dataset.ready = "1"; }
-      catch { /* The ordinary receipt link remains usable if QR rendering fails. */ }
-    }
-    qrRoot.hidden = qrRoot.dataset.ready !== "1";
-    $("#receipt-qr-title").textContent = qrRoot.hidden ? "Buka nota pesanan" : "Scan QR untuk membuka nota";
-    $("#receipt-qr-help").textContent = qrRoot.hidden ? "Lihat ringkasan dan status pesanan Anda melalui tombol nota di bawah." : "QR ini terhubung ke nota pesanan Anda dan dapat dipakai sebagai referensi transaksi.";
   }
 
   function showError(message, transient = false) {
