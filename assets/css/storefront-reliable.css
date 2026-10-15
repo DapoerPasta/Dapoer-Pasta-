@@ -16,7 +16,14 @@
 .checkout-done,.checkout-retry{border:0;border-radius:10px;padding:14px 18px;min-height:44px;background:#f2e8d9;color:var(--burgundy);font-weight:700;cursor:pointer}
 .checkout-done{margin-top:20px}
 .checkout-retry{grid-column:1/-1}
-.cart-remove,.quantity button{min-width:40px;min-height:40px}
+.product-action{gap:12px}
+.add-button{min-height:44px;display:inline-flex;align-items:center;text-align:left;padding:10px 0}
+.small-mark{flex-shrink:0}
+.menu-loading p{margin:0;line-height:1.7}
+.menu-retry{min-height:44px;margin-top:18px;padding:11px 20px;border:1px solid var(--burgundy);border-radius:999px;background:white;color:var(--burgundy);font:700 .8rem "DM Sans",sans-serif;cursor:pointer}
+.menu-retry:disabled{opacity:.6;cursor:wait}
+.menu-retry:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.cart-remove,.quantity button,.nav-icon,.checkout-panel-head button,.chat-input-row button{min-width:44px;min-height:44px}
 .cart-header button,.chat-header button{min-width:44px;min-height:44px}
 .chat-box{max-height:calc(100dvh - 180px)}
 .chat-messages{min-height:80px;flex:1;overflow-y:auto;overscroll-behavior:contain}
@@ -24,5 +31,5 @@
 .checkout-panel{max-height:calc(100dvh - 44px);overscroll-behavior:contain}
 .cart-items{overscroll-behavior:contain}
 .checkout-success-actions a:focus-visible,.checkout-done:focus-visible,.checkout-retry:focus-visible,.quantity button:focus-visible,.cart-remove:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
-@media(max-width:700px){.checkout-panel{max-height:calc(100dvh - 24px)}.checkout-success{padding:24px 20px}.checkout-success h3{font-size:2rem}.checkout-notice{margin:18px 20px 0}.chat-box{max-height:calc(100dvh - 165px)}.checkout-success-actions{grid-template-columns:1fr}.success-whatsapp{grid-column:auto}}
+@media(max-width:700px){.checkout-panel{max-height:calc(100dvh - 24px)}.checkout-success{padding:24px 20px}.checkout-success h3{font-size:2rem}.checkout-notice{margin:18px 20px 0}.chat-box{max-height:calc(100dvh - 165px)}.checkout-success-actions{grid-template-columns:1fr}.success-whatsapp{grid-column:auto}.checkout-form input,.checkout-form textarea,.checkout-form select,.chat-input-row input{font-size:16px}}
 @media(max-height:560px){.chat-box{bottom:14px;right:80px;max-height:calc(100dvh - 28px)}.chat-header{padding:12px}.chat-messages{height:170px}.checkout-panel-head{padding:14px 20px}.checkout-panel-head h2{font-size:1.7rem}}

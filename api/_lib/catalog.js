@@ -17,7 +17,7 @@ const PRODUCTS = Object.freeze([
   Object.freeze({id:"chicken-pop-corn-250gr",name:"Chicken pop corn 250gr",price:37000,...image("chicken-pop-corn-250gr","/8.png"),badge:"Casa",description:"Ayam pilihan dengan tekstur renyah, praktis untuk dinikmati kapan saja."}),
   Object.freeze({id:"chicken-cordon-blue-7pcs",name:"Chicken Cordon Blue 7 pcs",price:37000,...image("chicken-cordon-blue-7pcs","/9.png"),badge:"Signature",description:"Ayam dengan smoked beef dan mozzarella, gurih dengan bagian dalam yang creamy."}),
   Object.freeze({id:"mini-wonton-250gr",name:"Mini wonton 250gr",price:37000,...image("mini-wonton-250gr","/7 m.png"),badge:"Croccante",description:"Mini wonton berisi ayam dan udang dengan sensasi renyah yang menggugah selera."}),
-  Object.freeze({id:"pasta-brulee-oval-2pcs",name:"Pasta brulee oval 2 pcs",price:27000,...image("pasta-brulee-oval-2pcs","/10.png"),badge:"Brûlée",description:"Pasta creamy dengan ayam dan keju leleh dalam porsi oval yang praktis."}),
+  Object.freeze({id:"pasta-brulee-oval-2pcs",name:"Pasta brulee oval 2 pcs",price:30000,...image("pasta-brulee-oval-2pcs","/10.png"),badge:"Brûlée",description:"Pasta creamy dengan ayam dan keju leleh dalam porsi oval yang praktis."}),
   Object.freeze({id:"pasta-brulee-persegi-2pcs",name:"Pasta brulee persegi 2 pcs",price:32000,...image("pasta-brulee-persegi-2pcs","/11.png"),badge:"Signature",description:"Pasta creamy dengan ayam dan keju leleh dalam porsi persegi yang lebih mantap."})
 ]);
 

@@ -33,7 +33,7 @@ const PRODUCTS = Object.freeze([
   Object.freeze({
     id: "pasta-brulee-oval-2pcs",
     name: "Pasta brulee oval 2 pcs",
-    price: 27000,
+    price: 30000,
     image: "/10.png",
     badge: "Brûlée",
     description: "Pasta creamy dengan ayam dan keju leleh dalam porsi oval yang praktis."

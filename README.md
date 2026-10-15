@@ -342,6 +342,23 @@ API tracking publik. Jika tab ditutup saat hasil belum pasti, periksa pesanan
 yang sudah tercatat atau hubungi admin sebelum memesan ulang. Perubahan baru
 di keranjang dan formulir saat penyimpanan berlangsung tetap dipertahankan.
 
+Pemeriksaan menu dibatasi 15 detik agar koneksi yang menggantung tidak
+mengunci checkout. Pemutakhiran berkala dan pemulihan saat koneksi kembali
+dipasang sejak halaman mulai berjalan; ketika menu belum tersedia, pelanggan
+dapat memilih **Coba muat menu lagi**. Harga dan stok tetap harus berhasil diperiksa
+sebelum membuat pesanan baru. Menutup keranjang ketika pemeriksaan sedang
+berlangsung membatalkan pembukaan checkout, sehingga formulir tidak muncul
+kembali setelah pelanggan berpindah.
+
+Keranjang disinkronkan lintas tab termasuk saat pesanan sedang disimpan.
+Penyelesaian pesanan memeriksa kembali keranjang tersimpan sebelum
+mengosongkannya, agar perubahan baru dari tab lain tetap tersedia. Pembaruan
+nama dan harga dari katalog tidak menyiarkan ulang perubahan jumlah ke tab
+lain. Jika penyimpanan browser tidak tersedia, cadangan keranjang di memori
+tetap dipakai. Validasi formulir mengikuti data yang diperiksa server: nama
+minimal dua karakter, nomor WhatsApp minimal delapan digit, dan alamat minimal
+lima karakter, dengan petunjuk pada kolom yang perlu diperbaiki.
+
 Semua tindakan stok dari dashboard juga memakai UUID yang dipertahankan saat
 hasil koneksi belum pasti. Percobaan ulang memeriksa hasil tindakan yang sama,
 kemudian memuat persediaan terbaru. Mengubah isi tindakan dengan UUID yang

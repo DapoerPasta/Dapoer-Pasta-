@@ -80,6 +80,7 @@ test("checkout stock conflict refreshes quantities without opening WhatsApp or c
     return reply({ code: "INSUFFICIENT_STOCK", error: "Stok tidak mencukupi." }, 409);
   });
   await ui.loadMenu(); ui.addToCart(product(2).id);
+  for(const [field,value] of Object.entries({name:"Customer",phone:"081234567890",address:"Jalan contoh 123",payment:"DANA"}))ui.element(`#checkout-${field}`).value=value;
   await ui.submitCheckout({ preventDefault() {} });
   assert.equal(ui.opened.length, 0);
   assert.equal(ui.state.cart[0].quantity, 1);

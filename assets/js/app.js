@@ -1,4 +1,4 @@
-const state={menu:[],store:null,cart:loadCart(),menuReady:false,menuRequest:null,menuNodes:new Map(),cartNodes:new Map(),cartSignature:null,checkoutBusy:false,intent:null,modal:null,modalFocus:null,inertNodes:[],success:null};
+const state={menu:[],store:null,cart:loadCart(),cartWriteFailed:false,menuReady:false,menuRequest:null,menuRetry:null,menuNodes:new Map(),cartNodes:new Map(),cartSignature:null,checkoutBusy:false,checkoutOpening:false,dialogGeneration:0,intent:null,modal:null,modalFocus:null,inertNodes:[],success:null};
 const $=s=>document.querySelector(s);
 const rupiah=v=>`Rp ${Number(v).toLocaleString("id-ID")}`;
 const INTENT_KEY="dapoer-checkout-intent-v1";
@@ -8,10 +8,11 @@ document.addEventListener("DOMContentLoaded",init);
 
 async function init(){
   bindUI();observeReveal();renderCart();restoreIntentNotice();
-  await loadMenu();
   setInterval(()=>{if(!document.hidden)loadMenu()},15000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadMenu()});
-  window.addEventListener("storage",event=>{if(event.key==="dapoer-pasta-cart"&&!state.checkoutBusy){state.cart=loadCart();reconcileCart();renderCart()}});
+  window.addEventListener("online",()=>{if(!document.hidden)loadMenu()});
+  window.addEventListener("storage",event=>{if(event.key==="dapoer-pasta-cart"||event.key===null)syncCartFromStorage()});
+  await loadMenu();
 }
 function bindUI(){
   window.addEventListener("load",()=>setTimeout(()=>$("#preloader")?.classList.add("hide"),350));
@@ -26,6 +27,7 @@ function bindUI(){
   $("#close-checkout")?.addEventListener("click",()=>toggleCheckout(false));
   $("#checkout-modal")?.addEventListener("click",e=>{if(e.target.id==="checkout-modal")toggleCheckout(false)});
   $("#checkout-form")?.addEventListener("submit",submitCheckout);
+  for(const id of ["name","phone","address","payment"]){$("#checkout-"+id)?.addEventListener("input",event=>{event.target.setCustomValidity?.("");event.target.removeAttribute?.("aria-invalid")})}
   $("#checkout-retry")?.addEventListener("click",retryPendingCheckout);
   $("#checkout-done")?.addEventListener("click",()=>toggleCheckout(false));
   $("#open-chat")?.addEventListener("click",()=>{const open=!$("#chat-box")?.classList.contains("open");$("#chat-box")?.classList.toggle("open",open);$("#open-chat")?.setAttribute("aria-expanded",String(open));if(open)$("#chat-input")?.focus()});
@@ -42,10 +44,14 @@ async function loadMenu(){
 function validProduct(p){return p&&typeof p.id==="string"&&/^[a-z0-9-]{1,80}$/.test(p.id)&&typeof p.name==="string"&&Number.isSafeInteger(p.price)&&p.price>0&&Number.isSafeInteger(p.stock)&&p.stock>=0}
 async function fetchMenu(){
   const root=$("#menu-grid");
+  const controller=typeof AbortController==="function"?new AbortController():null;
+  let timeout;
+  if(state.menuRetry){state.menuRetry.disabled=true;state.menuRetry.textContent="Memuat menu…"}
   try{
-    const res=await fetch("/api/menu",{cache:"no-store",headers:{Accept:"application/json"}});
-    if(!res.ok)throw new Error("menu");
-    const data=await res.json();
+    const data=await Promise.race([
+      (async()=>{const res=await fetch("/api/menu",{cache:"no-store",headers:{Accept:"application/json"},...(controller?{signal:controller.signal}:{})});if(!res.ok)throw new Error("menu");return res.json()})(),
+      new Promise((_,reject)=>{timeout=setTimeout(()=>{controller?.abort();reject(new Error("menu timeout"))},15000)})
+    ]);
     if(!Array.isArray(data.products)||!data.products.length||data.products.some(p=>!validProduct(p))||new Set(data.products.map(p=>p.id)).size!==data.products.length)throw new Error("menu");
     state.menu=data.products;state.store=data.store||null;state.menuReady=true;
     const changedPrice=reconcileCart();renderMenu();renderCart();
@@ -53,10 +59,10 @@ async function fetchMenu(){
     return true;
   }catch{
     state.menuReady=false;
-    if(!state.menuNodes.size){root?.replaceChildren();const el=document.createElement("div");el.className="menu-loading";el.textContent="Menu dan stok belum dapat dimuat. Silakan coba lagi atau hubungi WhatsApp Dapoer Pasta.";root?.append(el)}
+    if(!state.menuNodes.size&&!state.menuRetry){const el=document.createElement("div"),message=document.createElement("p"),retry=document.createElement("button");el.className="menu-loading";message.textContent="Menu dan stok belum dapat dimuat. Silakan coba lagi atau hubungi WhatsApp Dapoer Pasta.";retry.className="menu-retry";retry.type="button";retry.addEventListener("click",loadMenu);el.append(message,retry);root?.replaceChildren(el);state.menuRetry=retry}
     for(const node of state.menuNodes.values()){node.add.disabled=true;node.stock.textContent="Stok belum dapat diperiksa"}
     renderCart();return false;
-  }
+  }finally{clearTimeout(timeout);if(state.menuRetry){state.menuRetry.disabled=false;state.menuRetry.textContent="Coba muat menu lagi"}}
 }
 function localImage(value){return typeof value==="string"&&value.startsWith("/")&&!value.startsWith("//")&&!/[\u0000-\u001f]/.test(value)?value:""}
 function renderMenu(){
@@ -93,8 +99,10 @@ function renderMenu(){
     node.badge.textContent=p.badge||"";node.price.textContent=rupiah(p.price);node.idx.textContent=String(i+1).padStart(2,"0")+".";node.title.textContent=p.name;node.desc.textContent=p.description||"";
     node.stock.textContent=p.stock>0?`Stok tersedia: ${p.stock}`:"Stok habis";node.stock.classList.toggle("sold-out",p.stock===0);
     node.add.disabled=p.stock<=0;node.add.textContent=p.stock>0?"Tambah ke keranjang →":"Stok habis";
+    node.add.setAttribute("aria-label",p.stock>0?`Tambah ${p.name} ke keranjang`:`${p.name}: stok habis`);
   });
   if(previous!==state.menu.map(p=>p.id).join("|"))root.replaceChildren(...state.menu.map(p=>state.menuNodes.get(p.id).card));
+  state.menuRetry=null;
   window.DapoerMotion?.reveal(root);
 }
 function validatedCart(value){
@@ -107,12 +115,14 @@ function validatedCart(value){
   }
   return [...items.values()];
 }
-function loadCart(){try{return validatedCart(JSON.parse(localStorage.getItem("dapoer-pasta-cart")||"[]"))}catch{return[]}}
-function persistCart(){try{localStorage.setItem("dapoer-pasta-cart",JSON.stringify(state.cart))}catch{}}
+function readStoredCart(){try{return validatedCart(JSON.parse(localStorage.getItem("dapoer-pasta-cart")||"[]"))}catch{return null}}
+function loadCart(){return readStoredCart()||[]}
+function persistCart(){try{localStorage.setItem("dapoer-pasta-cart",JSON.stringify(state.cart));state.cartWriteFailed=false}catch{state.cartWriteFailed=true}}
+function syncCartFromStorage(){if(state.cartWriteFailed)return;const cart=readStoredCart();if(cart===null)return;state.cart=cart;reconcileCart();renderCart()}
 function reconcileCart(){
   state.cart=validatedCart(state.cart);let changed=false;
   for(const item of state.cart){const product=state.menu.find(p=>p.id===item.id);if(product){if(item.price!==product.price)changed=true;item.price=product.price;item.name=product.name}}
-  persistCart();return changed;
+  return changed;
 }
 function addToCart(id){
   const p=state.menu.find(x=>x.id===id);if(!p)return;
@@ -131,7 +141,7 @@ function removeCartItem(id){state.cart=state.cart.filter(x=>x.id!==id);persistCa
 function renderCart(){
   const root=$("#cart-items");if(!root)return;
   $("#cart-count").textContent=state.cart.reduce((s,x)=>s+x.quantity,0);
-  const checkout=$("#checkout-button");if(checkout){const pending=loadIntent();checkout.disabled=!pending&&(!state.cart.length||!cartStockAvailable());checkout.textContent=pending?"Periksa Pesanan Sebelumnya":"Lanjutkan Checkout"}
+  const checkout=$("#checkout-button");if(checkout){const pending=loadIntent();checkout.disabled=state.checkoutOpening||state.checkoutBusy||(!pending&&(!state.cart.length||!cartStockAvailable()));checkout.textContent=state.checkoutOpening?"Memeriksa stok…":pending?"Periksa Pesanan Sebelumnya":"Lanjutkan Checkout";checkout.setAttribute("aria-busy",String(state.checkoutOpening))}
   const signature=state.cart.map(x=>x.id).join("|");
   if(!state.cart.length){
     if(state.cartSignature!==""){const empty=document.createElement("div");empty.className="empty-cart";empty.innerHTML='<i class="fa-solid fa-bag-shopping" aria-hidden="true"></i><p>Keranjang masih kosong.</p>';root.replaceChildren(empty);state.cartNodes.clear()}
@@ -163,6 +173,7 @@ function cartStockAvailable(items=state.cart){return items.every(item=>{const av
 function cartTotal(){return state.cart.reduce((sum,item)=>sum+item.price*item.quantity,0)}
 function setDialog(id,open,focusSelector){
   const modal=$("#"+id);if(!modal)return;
+  state.dialogGeneration++;if(state.checkoutOpening){state.checkoutOpening=false;renderCart()}
   if(open){
     const origin=state.modalFocus||document.activeElement;
     for(const name of ["cart-overlay","checkout-modal","mobile-menu"]){if(name!==id){$("#"+name)?.classList.remove("open");$("#"+name)?.setAttribute("aria-hidden","true")}}
@@ -193,13 +204,24 @@ function toggleMobileMenu(open){setDialog("mobile-menu",open,"#mobile-menu-close
 function checkoutNotice(message){const notice=$("#checkout-notice");if(notice){notice.textContent=message||"";notice.hidden=!message}if($("#checkout-contact-link"))$("#checkout-contact-link").hidden=true}
 function resetSuccess(){state.success=null;if($("#checkout-success"))$("#checkout-success").hidden=true;if($("#checkout-form"))$("#checkout-form").hidden=false;$("#checkout-title").textContent="Data Pemesan"}
 async function openCheckout(){
+  if(state.checkoutOpening||state.checkoutBusy)return;
   resetSuccess();restoreIntentNotice();
   if(!state.cart.length&&!loadIntent()){showToast("Pilih menu terlebih dahulu.");toggleCart(true);return}
-  await loadMenu();
-  if(!cartStockAvailable()&&!loadIntent()){showToast("Periksa stok terbaru dan sesuaikan jumlah di keranjang.");toggleCart(true);return}
-  $("#checkout-total").textContent=rupiah(cartTotal());toggleCheckout(true);
+  if(loadIntent()){$("#checkout-total").textContent=rupiah(cartTotal());toggleCheckout(true);return}
+  const navigation=++state.dialogGeneration;state.checkoutOpening=true;renderCart();
+  try{
+    await loadMenu();if(navigation!==state.dialogGeneration)return;
+    if(!state.cart.length||!cartStockAvailable()){showToast("Periksa stok terbaru dan sesuaikan jumlah di keranjang.");return}
+    $("#checkout-total").textContent=rupiah(cartTotal());toggleCheckout(true);
+  }finally{if(navigation===state.dialogGeneration){state.checkoutOpening=false;renderCart()}}
 }
 function customerSnapshot(){return {name:cleanText($("#checkout-name").value,80),phone:cleanText($("#checkout-phone").value,24).replace(/[^0-9+\- ()]/g,""),address:cleanText($("#checkout-address").value,500),paymentMethod:cleanText($("#checkout-payment").value,30),notes:cleanText($("#checkout-notes").value,300)}}
+function validateCustomer(customer){
+  const checks=[["name",customer.name.length>=2,"Tulis nama lengkap minimal 2 karakter."],["phone",customer.phone.replace(/\D/g,"").length>=8,"Tulis nomor WhatsApp yang benar, minimal 8 angka."],["address",customer.address.length>=5,"Tulis alamat pengiriman minimal 5 karakter."],["payment",["OVO","ShopeePay","DANA"].includes(customer.paymentMethod),"Pilih metode pembayaran yang tersedia."]];
+  for(const[id]of checks){const field=$("#checkout-"+id);field?.setCustomValidity?.("");field?.removeAttribute?.("aria-invalid")}
+  const invalid=checks.find(([,valid])=>!valid);if(!invalid)return true;
+  const field=$("#checkout-"+invalid[0]);field?.setCustomValidity?.(invalid[2]);field?.setAttribute?.("aria-invalid","true");checkoutNotice(invalid[2]);field?.focus?.();field?.reportValidity?.();return false;
+}
 function sortedItems(items){return items.map(item=>({id:item.id,quantity:item.quantity})).sort((a,b)=>a.id.localeCompare(b.id))}
 function canonicalPayload(payload,withTotal=true){return JSON.stringify({items:sortedItems(payload.items),customer:{name:payload.customer.name,phone:payload.customer.phone,address:payload.customer.address,paymentMethod:payload.customer.paymentMethod,notes:payload.customer.notes},...(withTotal?{expectedTotal:payload.expectedTotal}:{})})}
 function uuid(){
@@ -229,14 +251,14 @@ function restoreIntentNotice(){const intent=loadIntent();if($("#checkout-retry")
 async function retryPendingCheckout(){const intent=loadIntent();if(!intent||state.checkoutBusy)return;await saveCheckout(intent,intent.payload,JSON.stringify(sortedItems(state.cart)),customerSnapshot())}
 async function submitCheckout(e){
   e.preventDefault();if(state.checkoutBusy)return;
-  if($("#checkout-form")?.reportValidity&&!$("#checkout-form").reportValidity())return;
   if(!state.cart.length){showToast("Keranjang kosong.");return}
   const snapshot={items:sortedItems(state.cart),customer:customerSnapshot(),expectedTotal:cartTotal()};
+  const existing=loadIntent();const replay=existing&&canonicalPayload(existing.payload,false)===canonicalPayload(snapshot,false);
+  if(existing&&!replay){restoreIntentNotice();checkoutNotice("Periksa kembali pesanan sebelumnya terlebih dahulu. Perubahan baru di keranjang dan data pemesan akan tetap disimpan.");return}
+  if(!replay&&(!validateCustomer(snapshot.customer)||($("#checkout-form")?.reportValidity&&!$("#checkout-form").reportValidity())))return;
   const cartBefore=JSON.stringify(sortedItems(state.cart)),customerBefore=customerSnapshot();
   state.checkoutBusy=true;setCheckoutBusy(true);
   try{
-    const existing=loadIntent();const replay=existing&&canonicalPayload(existing.payload,false)===canonicalPayload(snapshot,false);
-    if(existing&&!replay){restoreIntentNotice();checkoutNotice("Periksa kembali pesanan sebelumnya terlebih dahulu. Perubahan baru di keranjang dan data pemesan akan tetap disimpan.");return}
     if(!replay){
       const loaded=await loadMenu();if(!loaded)throw new Error("Menu belum dapat diperiksa. Coba lagi sebentar.");
       const latestTotal=snapshot.items.reduce((sum,item)=>sum+(state.menu.find(p=>p.id===item.id)?.price||0)*item.quantity,0);
@@ -274,6 +296,7 @@ async function postCheckout(intent,snapshot,cartBefore,customerBefore){
   const record=window.DapoerOrderRecovery?.remember(data);
   if(!record)throw new Error("Pesanan belum mendapat konfirmasi lengkap. Periksa kembali pesanan yang sama.");
   clearIntent(intent.requestId);
+  syncCartFromStorage();
   const unchanged=JSON.stringify(sortedItems(state.cart))===cartBefore&&JSON.stringify(sortedItems(state.cart))===JSON.stringify(sortedItems(intent.payload.items));
   if(unchanged){state.cart=[];persistCart();renderCart()}
   if(JSON.stringify(customerBefore)===JSON.stringify(intent.payload.customer)&&JSON.stringify(customerSnapshot())===JSON.stringify(customerBefore))$("#checkout-form")?.reset();
