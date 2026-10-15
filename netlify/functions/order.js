@@ -77,7 +77,7 @@ function buildWhatsAppMessage(orderId, items, total) {
     "",
     "Nama Pemesan:",
     "Alamat Pengiriman:",
-    "Metode Pembayaran: (OVO / ShopeePay / DANA)",
+    `Metode Pembayaran: (${STORE.paymentMethods.join(" / ")})`,
     "",
     "_Mohon info ongkirnya ya kak._"
   );

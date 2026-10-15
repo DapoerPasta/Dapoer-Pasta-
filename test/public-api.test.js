@@ -79,6 +79,36 @@ test("checkout recalculates prices and preserves the existing tracking/WhatsApp 
   assert.match(whatsapp.searchParams.get("text"), /No\. Antrian: \*A008\* \(2026-10-09 WIB\)/);
 });
 
+test("bank transfer checkout reaches persistence and keeps its payment method in confirmation and WhatsApp", async () => {
+  let saved;
+  const handler = loadHandler("order", { saveOrder: async order => { saved = order; return true; } });
+  const body = checkout();
+  body.customer.paymentMethod = "Transfer Bank";
+  const res = response();
+  await handler(request(body), res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(saved.customer.paymentMethod, "Transfer Bank");
+  assert.equal(saved.total, 74000);
+  assert.equal(res.body.order.customer.paymentMethod, "Transfer Bank");
+  assert.equal(res.body.order.total, 74000);
+  assert.match(new URL(res.body.whatsappUrl).searchParams.get("text"), /Pembayaran: Transfer Bank/);
+});
+
+test("unsupported payment methods are rejected before an order can be saved", async () => {
+  let writes = 0;
+  const handler = loadHandler("order", { saveOrder: async () => { writes++; return true; } });
+  for (const method of ["", "Unavailable bank"]) {
+    const body = checkout();
+    body.customer.paymentMethod = method;
+    const res = response();
+    await handler(request(body), res);
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.order, undefined);
+    assert.equal(res.body.whatsappUrl, undefined);
+  }
+  assert.equal(writes, 0);
+});
+
 test("checkout cannot write orders from foreign origins, oversized bodies, or exhausted limits", async () => {
   let writes = 0;
   const handler = loadHandler("order", { saveOrder: async () => { writes++; return true; } });

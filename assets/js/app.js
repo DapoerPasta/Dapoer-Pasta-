@@ -217,7 +217,7 @@ async function openCheckout(){
 }
 function customerSnapshot(){return {name:cleanText($("#checkout-name").value,80),phone:cleanText($("#checkout-phone").value,24).replace(/[^0-9+\- ()]/g,""),address:cleanText($("#checkout-address").value,500),paymentMethod:cleanText($("#checkout-payment").value,30),notes:cleanText($("#checkout-notes").value,300)}}
 function validateCustomer(customer){
-  const checks=[["name",customer.name.length>=2,"Tulis nama lengkap minimal 2 karakter."],["phone",customer.phone.replace(/\D/g,"").length>=8,"Tulis nomor WhatsApp yang benar, minimal 8 angka."],["address",customer.address.length>=5,"Tulis alamat pengiriman minimal 5 karakter."],["payment",["OVO","ShopeePay","DANA"].includes(customer.paymentMethod),"Pilih metode pembayaran yang tersedia."]];
+  const checks=[["name",customer.name.length>=2,"Tulis nama lengkap minimal 2 karakter."],["phone",customer.phone.replace(/\D/g,"").length>=8,"Tulis nomor WhatsApp yang benar, minimal 8 angka."],["address",customer.address.length>=5,"Tulis alamat pengiriman minimal 5 karakter."],["payment",["OVO","ShopeePay","DANA","Transfer Bank"].includes(customer.paymentMethod),"Pilih metode pembayaran yang tersedia."]];
   for(const[id]of checks){const field=$("#checkout-"+id);field?.setCustomValidity?.("");field?.removeAttribute?.("aria-invalid")}
   const invalid=checks.find(([,valid])=>!valid);if(!invalid)return true;
   const field=$("#checkout-"+invalid[0]);field?.setCustomValidity?.(invalid[2]);field?.setAttribute?.("aria-invalid","true");checkoutNotice(invalid[2]);field?.focus?.();field?.reportValidity?.();return false;

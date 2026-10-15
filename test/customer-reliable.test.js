@@ -25,6 +25,19 @@ function customer(fetch,{local=new Map(),session=new Map(),failStorage=false,fai
 }
 const plain=value=>JSON.parse(JSON.stringify(value));
 
+test("fresh bank-transfer checkout posts the selected method and reviewed total",async()=>{
+  const sent=[];const ui=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[product()]});const payload=JSON.parse(options.body);sent.push(payload);return success(payload)});
+  await ui.loadMenu();ui.addToCart(ID);ui.addToCart(ID);ui.fill();ui.element("#checkout-payment").value="Transfer Bank";await ui.submit();
+  assert.equal(sent.length,1);assert.equal(sent[0].customer.paymentMethod,"Transfer Bank");assert.equal(sent[0].expectedTotal,74000);assert.deepEqual(sent[0].items,[{id:ID,quantity:2}]);
+  assert.equal(ui.element("#checkout-success").hidden,false);assert.equal(ui.loadIntent(),null);assert.equal(ui.state.cart.length,0);
+});
+
+test("unavailable payment methods block fresh checkout before posting or saving an intent",async()=>{
+  let posts=0;const ui=customer(async(url,options)=>{if(url==="/api/menu")return reply({products:[product()]});posts++;return success(JSON.parse(options.body))});
+  await ui.loadMenu();ui.addToCart(ID);ui.fill();ui.element("#checkout-payment").value="Unavailable bank";await ui.submit();
+  assert.equal(posts,0);assert.equal(ui.loadIntent(),null);assert.equal(ui.state.cart.length,1);assert.match(ui.element("#checkout-payment").validationMessage,/Pilih metode pembayaran/);
+});
+
 test("corrupt cart entries are rejected, duplicates merged, and catalog replaces stored price and name",async()=>{
   const local=new Map([["dapoer-pasta-cart",JSON.stringify([null,{id:ID,quantity:1,name:"Fake",price:1},{id:ID,quantity:2,price:999999},{id:"bad!",quantity:1},{id:ID,quantity:-2},{id:ID,quantity:"8"},{id:ID,quantity:Infinity}])]]);
   const ui=customer(async()=>reply({products:[product()]}),{local});await ui.loadMenu();

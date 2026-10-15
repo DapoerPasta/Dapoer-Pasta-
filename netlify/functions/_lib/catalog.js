@@ -2,7 +2,7 @@ const STORE = Object.freeze({
   name: "Dapoer Pasta",
   whatsapp: "6285175391181",
   instagram: "Dapoer.Pasta",
-  paymentMethods: ["OVO", "ShopeePay", "DANA"]
+  paymentMethods: ["OVO", "ShopeePay", "DANA", "Transfer Bank"]
 });
 
 const PRODUCTS = Object.freeze([

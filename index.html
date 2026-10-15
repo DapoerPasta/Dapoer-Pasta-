@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="/assets/css/style.css?v=20261005-checkoutpro">
   <script src="/assets/js/order-recovery.js?v=20261014-simple-hero" defer></script>
-  <script src="/assets/js/app.js?v=20261015-customer" defer></script>
+  <script src="/assets/js/app.js?v=20261015-bank-payment" defer></script>
   <link rel="stylesheet" href="/assets/css/stock.css?v=20261007-stock">
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <link rel="stylesheet" href="/assets/css/storefront-motion.css?v=20261008-depth">
@@ -187,7 +187,7 @@
           <h2>Pesanan tercatat, lalu lanjut ke WhatsApp.</h2>
           <p>Pilih menu, checkout di website agar pesanan masuk dashboard dan mendapatkan live tracking, lalu lanjutkan konfirmasi ke WhatsApp admin.</p>
           <div class="payment-methods">
-            <span>OVO</span><span>ShopeePay</span><span>DANA</span>
+            <span>OVO</span><span>ShopeePay</span><span>DANA</span><span>Transfer Bank</span>
           </div>
         </div>
       </div>
@@ -290,7 +290,7 @@
         <label>Alamat pengiriman<textarea id="checkout-address" minlength="5" maxlength="500" required rows="3" autocomplete="street-address"></textarea></label>
         <label>Metode pembayaran
           <select id="checkout-payment" required>
-            <option value="">Pilih pembayaran</option><option value="OVO">OVO</option><option value="ShopeePay">ShopeePay</option><option value="DANA">DANA</option>
+            <option value="">Pilih pembayaran</option><option value="OVO">OVO</option><option value="ShopeePay">ShopeePay</option><option value="DANA">DANA</option><option value="Transfer Bank">Transfer Bank</option>
           </select>
         </label>
         <label>Catatan pesanan <span>(opsional)</span><textarea id="checkout-notes" maxlength="300" rows="2" placeholder="Contoh: kirim sore hari"></textarea></label>

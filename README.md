@@ -359,6 +359,12 @@ tetap dipakai. Validasi formulir mengikuti data yang diperiksa server: nama
 minimal dua karakter, nomor WhatsApp minimal delapan digit, dan alamat minimal
 lima karakter, dengan petunjuk pada kolom yang perlu diperbaiki.
 
+Pilihan pembayaran customer adalah **OVO**, **ShopeePay**, **DANA**, dan
+**Transfer Bank**. Pilihan disimpan bersama pesanan dan diteruskan ke pesan
+WhatsApp, dashboard admin, struk, serta rincian laporan keuangan. Untuk
+Transfer Bank, pelanggan mengonfirmasi rekening tujuan dan pembayaran
+melalui WhatsApp admin.
+
 Semua tindakan stok dari dashboard juga memakai UUID yang dipertahankan saat
 hasil koneksi belum pasti. Percobaan ulang memeriksa hasil tindakan yang sama,
 kemudian memuat persediaan terbaru. Mengubah isi tindakan dengan UUID yang
