@@ -39,6 +39,8 @@ async function fixture() {
   sql.query = async (text, values = []) => (await pool.query(text, values)).rows;
   const db = load("../api/_lib/db", { "@neondatabase/serverless": { neon: () => sql } });
   const guard = createRequestGuard({ getSql: () => sql, environment: {} });
+  // A fresh recovery migration cache belongs to this isolated test schema.
+  load("../api/_lib/customer-recovery-db", {});
   const handlers = {};
   for (const name of ["order", "track", "receipt", "admin/orders", "admin/status"]) {
     const prefix = name.startsWith("admin/") ? "../_lib/" : "./_lib/";
@@ -170,5 +172,77 @@ describe("same-order additions through actual APIs and PostgreSQL", { skip: !dat
     assert.equal(movements.filter(row => row.source === "order").length, 2);
     assert(movements.some(row => row.source === "order" && row.reason.includes(body.requestId)));
     assert.equal(movements.filter(row => row.source === "cancellation").length, 2);
+  });
+
+  test("pickup accepts an empty shipping address and has a confirmed zero fee", async () => {
+    const { pool, handlers } = await fixture();
+    const result = await call(handlers.order, { body: { requestId: crypto.randomUUID(), expectedTotal: first.price,
+      items: [{ id: first.id, quantity: 1 }], shippingFee: 999999, customer: { name: "Pickup customer", phone: "081234567899",
+        address: "", deliveryMethod: "pickup", notes: "", paymentMethod: "DANA" } } });
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.order.deliveryMethod, "pickup");
+    assert.equal(result.body.order.shippingFee, 0);
+    assert.equal(result.body.order.grandTotal, first.price);
+    assert.equal(result.body.order.shippingConfirmed, true);
+    assert.equal((await pool.query("SELECT address FROM orders")).rows[0].address, "");
+    const text = new URL(result.body.whatsappUrl).searchParams.get("text");
+    assert.match(text, /Ambil sendiri/); assert.doesNotMatch(text, /999\.999/);
+  });
+
+  test("one quoted shipping fee survives menu additions and reaches receipts and financial sales", async () => {
+    const { pool, db, handlers, finance } = await fixture();
+    const saved = await purchase(handlers), observed = await version(pool, saved.id);
+    const quote = { action: "set-shipping", id: saved.id, shippingFee: 15000, requestId: crypto.randomUUID(), expectedStatus: observed.status, expectedUpdatedAt: observed.version };
+    assert.equal((await call(handlers["admin/orders"], { body: quote })).statusCode, 401);
+    const quoted = await call(handlers["admin/orders"], { body: quote, admin: true });
+    assert.equal(quoted.statusCode, 200);
+    assert.equal(quoted.body.order.itemsSubtotal, first.price);
+    assert.equal(quoted.body.order.grandTotal, first.price + 15000);
+    assert.equal((await call(handlers["admin/orders"], { body: quote, admin: true })).body.order.total, first.price + 15000);
+    const added = await call(handlers.order, { body: additionBody(saved) });
+    assert.equal(added.body.order.total, first.price + extra.price + 15000);
+    assert.equal(added.body.order.itemsSubtotal, first.price + extra.price);
+    assert.equal(added.body.order.shippingFee, 15000);
+    const receipt = await call(handlers.receipt, { admin: true, query: { id: saved.id } });
+    assert.equal(receipt.body.order.total, first.price + extra.price + 15000);
+    assert.equal(receipt.body.order.itemsSubtotal, receipt.body.order.items.reduce((sum, item) => sum + item.subtotal, 0));
+    await db.updateOrderStatus(saved.id, "selesai");
+    const report = await finance.getFinanceReport({ period: "daily", date: todayInJakarta() });
+    assert.equal(report.summary.completedSales, first.price + extra.price + 15000);
+    assert.equal(report.summary.completedCount, 1);
+    assert.equal((await pool.query("SELECT COUNT(*)::integer AS count FROM orders")).rows[0].count, 1);
+  });
+
+  test("another device recovers an existing order only after the admin issues a code to its stored phone", async () => {
+    const { pool, handlers } = await fixture();
+    const saved = await purchase(handlers);
+    const request = await call(handlers.track, { body: { action: "request-recovery", phone: "+62 812-3456-7899", requestId: crypto.randomUUID() } });
+    assert.equal(request.statusCode, 200);
+    assert.equal(request.body.status, "awaiting-admin");
+    assert.match(request.body.challengeId, /^[a-f0-9]{48}$/);
+    assert.doesNotMatch(JSON.stringify(request.body), /DP-|trackingUrl|Local private/);
+    const action = { action: "send-recovery-code", challengeId: request.body.challengeId, requestId: crypto.randomUUID() };
+    assert.equal((await call(handlers["admin/orders"], { body: action })).statusCode, 401);
+    const waiting = await call(handlers.track, { body: { action: "verify-recovery", challengeId: request.body.challengeId, code: "000000", requestId: crypto.randomUUID() } });
+    assert.equal(waiting.body.status, "awaiting-admin");
+    const listed = await call(handlers["admin/orders"], { admin: true, query: { view: "recovery-requests" } });
+    assert.equal(listed.statusCode, 200); assert.equal(listed.body.requests.length, 1);
+    const issued = await call(handlers["admin/orders"], { body: action, admin: true });
+    assert.equal(issued.statusCode, 200);
+    const link = new URL(issued.body.whatsappUrl);
+    assert.equal(link.hostname, "wa.me"); assert.equal(link.pathname, "/6281234567899");
+    const code = /Kode verifikasi Anda: (\d{6})/.exec(link.searchParams.get("text"))[1];
+    const wrong = await call(handlers.track, { body: { action: "verify-recovery", challengeId: request.body.challengeId, code: code === "000000" ? "111111" : "000000", requestId: crypto.randomUUID() } });
+    assert.equal(wrong.body.status, "invalid"); assert.equal(wrong.body.remainingAttempts, 4); assert.equal(wrong.body.orders, undefined);
+    const verification = { action: "verify-recovery", challengeId: request.body.challengeId, code, requestId: crypto.randomUUID() };
+    const verified = await call(handlers.track, { body: verification });
+    assert.equal(verified.statusCode, 200); assert.equal(verified.body.status, "verified");
+    assert.equal(verified.body.orders.length, 1); assert.equal(verified.body.orders[0].id, saved.id);
+    for (const privateValue of ["Local private buyer", "081234567899", "Local private shipping address", "Private note"]) assert(!JSON.stringify(verified.body).includes(privateValue));
+    assert.equal(new URL(verified.body.orders[0].trackingUrl, "http://shop.example.test").searchParams.get("token"), saved.token);
+    assert.equal((await call(handlers.track, { body: verification })).body.orders.length, 1);
+    await pool.query("UPDATE orders SET tracking_token=$2 WHERE id=$1", [saved.id, crypto.randomBytes(24).toString("hex")]);
+    assert.equal((await call(handlers.track, { body: verification })).body.orders.length, 0, "retry cannot restore a revoked tracking URL");
+    assert.equal((await pool.query("SELECT COUNT(*)::integer AS count FROM orders")).rows[0].count, 1);
   });
 });

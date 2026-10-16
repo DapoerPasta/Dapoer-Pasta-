@@ -13,6 +13,8 @@ Website Dapoer Pasta berjalan di Vercel dengan frontend statis, Vercel Functions
 - Nomor order unik
 - Nomor antrean harian WIB yang tersimpan pada setiap pesanan
 - Tambah menu pada pesanan yang sama, dengan persetujuan admin bila sudah diproses
+- Pilihan diantar atau ambil sendiri, ongkir admin, dan total akhir terperinci
+- Pemulihan pesanan di perangkat lain melalui kode WhatsApp yang dikirim admin
 - Struk customer thermal 58/80 mm, nota A4, dan unduhan PDF
 - Checkout diteruskan ke WhatsApp
 - Dashboard private di `/admin/`
@@ -323,6 +325,66 @@ Print/PDF admin memeriksa ulang
 nota; kesalahan akses membersihkan pratinjau dan menonaktifkan cetak/unduh.
 Tidak ada endpoint Vercel, kredensial, atau dependensi aplikasi baru.
 
+## Pengambilan dan Ongkir
+
+Saat checkout customer memilih **Diantar** atau **Ambil sendiri**. Alamat
+wajib diisi untuk pengantaran; ambil sendiri tidak memerlukan alamat dan
+ongkirnya selalu Rp0. Checkout lama tanpa pilihan pengambilan tetap dianggap
+diantar. Customer tidak dapat menetapkan ongkir melalui payload checkout.
+
+Untuk pengantaran, ongkir awal berstatus **Menunggu konfirmasi admin**.
+Dashboard menyediakan isian ongkir pada pesanan baru atau diproses. Admin dapat
+menetapkan nominal, termasuk Rp0 untuk gratis ongkir. Perubahan memakai UUID
+dan versi pesanan yang diamati; retry tidak menambahkan nominal yang sama dua
+kali. Mengubah ongkir mengganti nominal sebelumnya. Pesanan yang sudah dikirim,
+selesai, atau dibatalkan tidak menerima perubahan ongkir.
+
+`orders.total` berisi subtotal menu ditambah ongkir yang telah ditetapkan.
+`shipping_fee` bernilai `NULL` sebelum ditetapkan, sehingga berbeda dari
+ongkir Rp0 yang sudah dikonfirmasi. Respons publik menambahkan
+`deliveryMethod`, `itemsSubtotal`, `shippingFee`, `shippingConfirmed`, dan
+`grandTotal`; total akhir bernilai `null` selama ongkir belum diketahui.
+Tampilan customer, WhatsApp, nota admin, PDF thermal/A4, dan laporan keuangan
+mengikuti nominal terbaru. Tambah menu mempertahankan ongkir yang sudah ada.
+Jurnal stok tidak berubah karena penetapan ongkir tidak mengubah persediaan.
+
+## Pemulihan Pesanan di HP Lain
+
+Customer membuka **Cari pesanan saya** di footer atau `/track/`, memasukkan
+nomor WhatsApp yang dipakai saat checkout, lalu meminta kode. Permintaan publik
+selalu memberikan respons umum tanpa menunjukkan apakah nomor memiliki pesanan.
+Format nomor Indonesia `08…`, `628…`, dan `+628…` dinormalisasi ke nomor yang sama.
+
+Admin membuka bagian **Pemulihan pesanan**, memilih **Siapkan kode**, lalu
+**Buka WhatsApp & kirim kode**. Admin tetap harus menekan **Kirim** di WhatsApp.
+Tujuan pesan diambil dari nomor pada pesanan yang tersimpan; browser customer
+tidak dapat mengganti tujuan pengiriman. Pengiriman otomatis melalui WhatsApp
+API tidak diaktifkan dan tidak memerlukan kredensial layanan tambahan.
+
+Customer memasukkan kode 6 angka pada perangkat baru. Kode berlaku 10 menit
+sejak permintaan dibuat, dengan maksimal lima percobaan. Retry yang memakai
+UUID sama tidak menghitung percobaan dua kali atau memperpanjang masa berlaku.
+Kode hanya dapat digunakan setelah admin menyiapkannya. Database menyimpan
+hash kode; kode diturunkan menggunakan `ADMIN_SESSION_SECRET` yang sudah ada.
+Tautan pesanan hanya diberikan setelah verifikasi berhasil dan tetap diperiksa
+ketika token pesanan dicabut.
+
+Hasil pemulihan berisi paling banyak 20 pesanan aktif dari 30 hari terakhir,
+beserta ringkasan, antrean, status, dan tautan tracking. Nama, alamat, catatan,
+serta struk admin tidak ikut ditampilkan. Memilih pesanan membuka pesanan yang
+sama tanpa checkout baru; pilihan tersebut dapat menjadi pengingat pada
+perangkat baru setelah tracking diverifikasi. Formulir pemulihan memakai
+penyimpanan sesi terbatas, tanpa menyimpan nomor atau kode secara permanen.
+
+Alur ini memakai `POST /api/track` dengan `action: "request-recovery"` atau
+`"verify-recovery"`; daftar permintaan tersedia pada
+`GET /api/admin/orders?view=recovery-requests`. Admin menyiapkan kode melalui
+`POST /api/admin/orders` dengan `action: "send-recovery-code"` dan mengubah
+ongkir melalui `action: "set-shipping"`. Sesi admin, pemeriksaan asal, batas
+payload, serta pembatasan permintaan berdasarkan IP dan nomor/challenge tetap
+berlaku. Tidak ada endpoint Vercel baru, status pembayaran baru, atau pembatalan
+pesanan otomatis yang ditambahkan.
+
 ## Tambah Menu pada Pesanan Aktif
 
 Customer membuka **Lacak pesanan → Tambah Menu**, atau memakai tombol
@@ -533,6 +595,10 @@ Dengan konfigurasi database lokal yang sama, jalankan
 untuk memeriksa tambahan menu bersamaan, retry, persetujuan, pembatalan,
 perubahan harga, jurnal stok, serta alur API sampai struk dan laporan keuangan.
 Suite ini hanya berjalan ketika variabel database pengujian lokal tersedia.
+Suite `test/fulfillment-postgres.test.js` dan
+`test/customer-recovery-postgres.test.js` memakai konfigurasi lokal yang sama
+untuk menguji ongkir, pengambilan, batas percobaan kode, masa berlaku, dan
+pemulihan pesanan tanpa membuka data sebelum verifikasi.
 
 Suite riwayat stok membuktikan migrasi saldo awal tanpa transaksi rekaan,
 pencatatan atomik pesanan/pembatalan, UUID dan konflik stok, batas periode WIB,

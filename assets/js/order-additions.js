@@ -32,6 +32,7 @@
       && Array.isArray(value.items) && value.items.length > 0 && value.items.length <= 100
       && value.items.every(item => item && typeof item.name === "string" && item.name.trim() && Number.isSafeInteger(item.quantity) && item.quantity > 0 && Number.isSafeInteger(item.subtotal) && item.subtotal >= 0)
       && (value.canAddItems === undefined || typeof value.canAddItems === "boolean")
+      && !!window.DapoerOrderRecovery?.billing(value)
       && window.DapoerOrderRecovery?.validAdditions?.(value.additions) !== false;
   }
   function notice(message, error = false) {
@@ -62,8 +63,10 @@
       : "Tambahkan menu tanpa mengisi formulir lagi. Nomor pesanan dan antrean tetap sama. Stok serta total diperbarui setelah tambahan berhasil disimpan.";
     $("#addition-current-total").textContent = amount(order?.total);
     $("#addition-subtotal").textContent = amount(unknown ? intent.expectedTotal : subtotal());
-    $("#addition-combined-label").textContent = order?.status === "diproses" ? "Perkiraan total jika disetujui" : "Total setelah ditambah";
+    const charges = window.DapoerOrderRecovery?.billing(order);
+    $("#addition-combined-label").textContent = `${order?.status === "diproses" ? "Perkiraan total jika disetujui" : "Total setelah ditambah"}${charges && !charges.shippingConfirmed ? " (belum ongkir)" : ""}`;
     $("#addition-combined-total").textContent = amount((order?.total || 0) + (unknown ? intent.expectedTotal : subtotal()));
+    if ($("#addition-shipping-note")) $("#addition-shipping-note").textContent = charges?.deliveryMethod === "pickup" ? "Ambil sendiri · tanpa ongkir. Pembayaran tetap dikonfirmasi admin." : charges?.shippingConfirmed ? `Sudah termasuk ongkir ${amount(charges.shippingFee)}; ongkir dihitung satu kali. Pembayaran tetap dikonfirmasi admin.` : "Ongkir menunggu konfirmasi admin dan belum masuk perkiraan total. Pembayaran tetap dikonfirmasi admin.";
     for (const [productId, row] of rows) {
       const product = menu.find(item => item.id === productId), quantity = selected.get(productId) || 0;
       row.minus.disabled = !canEdit || !quantity;

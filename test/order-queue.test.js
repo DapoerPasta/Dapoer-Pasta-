@@ -54,7 +54,7 @@ test("saveOrder preserves its boolean contract and returns queue metadata from o
   const sql = async (parts, ...values) => {
     const text = parts.join("?");
     calls.push({ text, values });
-    return /SELECT dapoer_save_order_with_queue/.test(text) ? [{ saved }] : [];
+    return /SELECT dapoer_save_order_fulfillment_recorded/.test(text) ? [{ saved }] : [];
   };
   const originalLoad = Module._load;
   process.env.DATABASE_URL = "postgresql://unit-test-only.invalid/queue";
@@ -75,7 +75,8 @@ test("saveOrder preserves its boolean contract and returns queue metadata from o
     assert.equal(order.queueLabel, "A042");
     assert.equal(order.queueDate, "2026-10-09");
     assert.equal(order.createdAt, saved.createdAt);
-    assert.equal(calls.filter(call => /SELECT dapoer_save_order_with_queue/.test(call.text)).length, 1);
+    assert.equal(calls.filter(call => /SELECT dapoer_save_order_fulfillment_recorded/.test(call.text)).length, 1);
+    assert.equal(calls.find(call => /SELECT dapoer_save_order_fulfillment_recorded/.test(call.text)).values.at(-1), "delivery");
     assert.equal(calls.filter(call => /^\s*SELECT queue_number/.test(call.text)).length, 0);
   } finally {
     if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;

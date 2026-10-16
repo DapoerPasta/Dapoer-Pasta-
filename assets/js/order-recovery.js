@@ -2,6 +2,7 @@
   "use strict";
   const WHATSAPP_KEY = "dapoer-order-whatsapp-v1";
   const CURRENT_KEY = "dapoer-current-order-v2";
+  const SELECT_KEY = "dapoer-phone-recovery-selection-v1";
   const MAX_AGE = 24 * 60 * 60 * 1000;
   const activeStatuses = ["baru", "diproses", "dikirim"];
   let whatsappOrder = null, currentOrder = null, volatileCurrent = false, legacyBlocked = false;
@@ -35,8 +36,21 @@
     if (!tracking || tracking.id !== value?.id || !Number.isSafeInteger(value.total) || value.total < 1 || !fresh(value.savedAt)) return null;
     return { id: tracking.id, token: tracking.token, trackingUrl: tracking.url, total: value.total,
       queueNumber: Number.isSafeInteger(value.queueNumber) && value.queueNumber > 0 ? value.queueNumber : null,
-      queueDate: queueDate(value.queueDate), savedAt: value.savedAt };
+      queueDate: queueDate(value.queueDate), savedAt: value.savedAt,
+      ...(typeof value.billingKey === "string" && /^(delivery|pickup):\d+:(pending|\d+)$/.test(value.billingKey) ? { billingKey: value.billingKey } : {}) };
   }
+  function billing(order) {
+    if (!Number.isSafeInteger(order?.total) || order.total < 1) return null;
+    const legacy = ["deliveryMethod", "itemsSubtotal", "shippingFee", "shippingConfirmed", "grandTotal"].every(key => order[key] === undefined);
+    if (legacy) return { deliveryMethod: "delivery", itemsSubtotal: order.total, shippingFee: null, shippingConfirmed: false, grandTotal: null, total: order.total };
+    const method = order.deliveryMethod;
+    if (!["delivery", "pickup"].includes(method) || !Number.isSafeInteger(order.itemsSubtotal) || order.itemsSubtotal < 1 || typeof order.shippingConfirmed !== "boolean") return null;
+    if (order.shippingConfirmed) {
+      if (!Number.isSafeInteger(order.shippingFee) || order.shippingFee < 0 || !Number.isSafeInteger(order.itemsSubtotal + order.shippingFee) || order.total !== order.itemsSubtotal + order.shippingFee || order.grandTotal !== order.total || (method === "pickup" && order.shippingFee !== 0)) return null;
+    } else if (method !== "delivery" || order.shippingFee !== null || order.grandTotal !== null || order.total !== order.itemsSubtotal) return null;
+    return { deliveryMethod: method, itemsSubtotal: order.itemsSubtotal, shippingFee: order.shippingFee, shippingConfirmed: order.shippingConfirmed, grandTotal: order.grandTotal, total: order.total };
+  }
+  function billingKey(order) { const value = billing(order); return value ? `${value.deliveryMethod}:${value.itemsSubtotal}:${value.shippingConfirmed ? value.shippingFee : "pending"}` : null; }
   function sameOrder(a, b) { return !!a && !!b && a.id === b.id && a.token === b.token; }
   function compareUpdatedAt(a, b) {
     const version = value => {
@@ -93,12 +107,13 @@
   function remember({ order, trackingUrl, whatsappUrl }) {
     const tracking = safeOrderUrl(trackingUrl, "/track/");
     if (!tracking || tracking.id !== order?.id) return null;
-    const record = validatedOrder({ id: order.id, trackingUrl: tracking.url, total: order.total, queueNumber: order.queueNumber, queueDate: order.queueDate, savedAt: Date.now() });
+    if (!billing(order)) return null;
+    const record = validatedOrder({ id: order.id, trackingUrl: tracking.url, total: order.total, queueNumber: order.queueNumber, queueDate: order.queueDate, savedAt: Date.now(), billingKey: billingKey(order) });
     const url = safeWhatsApp(whatsappUrl);
     if (!record || !url) return null;
     currentOrder = record; legacyBlocked = true;
     try { localStorage.setItem(CURRENT_KEY, JSON.stringify(record)); volatileCurrent = false; } catch { volatileCurrent = true; }
-    whatsappOrder = { id: tracking.id, token: tracking.token, url, savedAt: record.savedAt };
+    whatsappOrder = { id: tracking.id, token: tracking.token, url, savedAt: record.savedAt, billingKey: billingKey(order) };
     try { sessionStorage.setItem(WHATSAPP_KEY, JSON.stringify(whatsappOrder)); } catch {}
     return { ...record };
   }
@@ -111,6 +126,30 @@
     try { const stored = read(sessionStorage, WHATSAPP_KEY); if (sameOrder(stored, target)) sessionStorage.removeItem(WHATSAPP_KEY); } catch {}
     if (sameOrder(whatsappOrder, target)) whatsappOrder = null;
   }
+  function selectRecovered({ id, token, expiresAt } = {}) {
+    const until = Date.parse(expiresAt);
+    if (!orderId(id) || !tokenValue(token) || !Number.isFinite(until) || until <= Date.now() || until > Date.now() + 11 * 60 * 1000) return false;
+    const current = getCurrent();
+    try { sessionStorage.setItem(SELECT_KEY, JSON.stringify({ id, token, expiresAt, previous: current ? { id: current.id, token: current.token, savedAt: current.savedAt } : null })); return true; } catch { return false; }
+  }
+  function adoptSelected({ id, token, order } = {}) {
+    let selected;
+    try { selected = read(sessionStorage, SELECT_KEY); } catch { return null; }
+    if (!selected) return null;
+    const until = Date.parse(selected.expiresAt);
+    if (!Number.isFinite(until) || until <= Date.now() || until > Date.now() + 11 * 60 * 1000) {
+      try { sessionStorage.removeItem(SELECT_KEY); } catch {} return null;
+    }
+    if (!sameOrder(selected, { id, token })) return null;
+    try { sessionStorage.removeItem(SELECT_KEY); } catch {}
+    const current = getCurrent();
+    // A new checkout created while the selected tracking request was in flight
+    // must keep its own confirmation reminder.
+    if (current ? !sameOrder(current, selected.previous) || current.savedAt !== selected.previous?.savedAt : !!selected.previous) return null;
+    if (order?.id !== id || !activeStatuses.includes(order.status) || !billing(order) || !validAdditions(order.additions)) return null;
+    const whatsappUrl = fallbackWhatsApp(id, token, order);
+    return whatsappUrl ? remember({ order, trackingUrl: `/track/?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`, whatsappUrl }) : null;
+  }
   function fallbackWhatsApp(id, token, order) {
     if (order?.id !== id || !activeStatuses.includes(order.status) || !Number.isSafeInteger(order.total) || order.total < 1) return null;
     const amount = value => `Rp ${Number(value).toLocaleString("id-ID")}`;
@@ -122,7 +161,11 @@
     for (const item of (Array.isArray(order.items) ? order.items : []).slice(0, 100)) {
       if (text(item?.name) && Number.isSafeInteger(item.quantity) && item.quantity > 0) lines.push(`${text(item.name)} × ${item.quantity}`);
     }
-    lines.push("", `*TOTAL PESANAN: ${amount(order.total)}*`);
+    const charges = billing(order);
+    if (!charges) return null;
+    lines.push("", `Penerimaan: ${charges.deliveryMethod === "pickup" ? "Ambil sendiri" : "Diantar"}`, `Subtotal menu: ${amount(charges.itemsSubtotal)}`,
+      `Ongkir: ${charges.deliveryMethod === "pickup" ? "Rp 0 (ambil sendiri)" : charges.shippingConfirmed ? amount(charges.shippingFee) : "Menunggu konfirmasi admin"}`,
+      charges.shippingConfirmed ? `*TOTAL PESANAN: ${amount(charges.total)}*` : `*TOTAL PESANAN: ${amount(charges.itemsSubtotal)} (belum termasuk ongkir)*`);
     const pending = Array.isArray(order.additions) ? order.additions.filter(item => item?.status === "pending") : [];
     for (const addition of pending) {
       lines.push("", "*PERMINTAAN TAMBAHAN — MENUNGGU PERSETUJUAN ADMIN*");
@@ -131,7 +174,7 @@
       }
       if (Number.isSafeInteger(addition.total) && addition.total > 0) lines.push(`Subtotal tambahan: ${amount(addition.total)} (belum masuk total pesanan dan belum perlu dibayar)`);
     }
-    lines.push("", "Data pemesan dan alamat sudah diisi pada pesanan ini.", `Lacak status: ${window.location.origin}/track/?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`, "", "Mohon periksa pesanan dan konfirmasi pembayaran serta ongkirnya ya kak.");
+    lines.push("", charges.deliveryMethod === "pickup" ? "Data pemesan sudah tersimpan. Saya akan mengambil pesanan sendiri." : "Data pemesan dan alamat sudah diisi pada pesanan ini.", `Lacak status: ${window.location.origin}/track/?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`, "", "Mohon periksa pesanan dan konfirmasi total pembayarannya ya kak.");
     return `https://api.whatsapp.com/send?phone=6285175391181&text=${encodeURIComponent(lines.join("\n"))}`;
   }
   function loadWhatsAppOrder() {
@@ -176,17 +219,17 @@
   }
   function getWhatsAppUrl({ id, token, order } = {}) {
     if (!orderId(id) || !tokenValue(token)) return null;
-    if (order && (order.id !== id || !activeStatuses.includes(order.status) || !Number.isSafeInteger(order.total) || order.total < 1 || !validAdditions(order.additions))) return null;
+    if (order && (order.id !== id || !activeStatuses.includes(order.status) || !billing(order) || !validAdditions(order.additions))) return null;
     if (order) syncOrder({ id, token, order });
     loadWhatsAppOrder();
     if (sameOrder(whatsappOrder, { id, token }) && fresh(whatsappOrder.savedAt)) return safeWhatsApp(whatsappOrder.url) || (order ? fallbackWhatsApp(id, token, order) : null);
     return order ? fallbackWhatsApp(id, token, order) : null;
   }
   function syncOrder({ id, token, order } = {}) {
-    if (!orderId(id) || !tokenValue(token) || order?.id !== id || !activeStatuses.includes(order.status) || !Number.isSafeInteger(order.total) || order.total < 1 || !validAdditions(order.additions)) return null;
+    if (!orderId(id) || !tokenValue(token) || order?.id !== id || !activeStatuses.includes(order.status) || !billing(order) || !validAdditions(order.additions)) return null;
     const previous = getCurrent();
     if (sameOrder(previous, { id, token })) {
-      const record = validatedOrder({ ...previous, total: order.total, queueNumber: order.queueNumber, queueDate: order.queueDate });
+      const record = validatedOrder({ ...previous, total: order.total, queueNumber: order.queueNumber, queueDate: order.queueDate, billingKey: billingKey(order) });
       if (record && JSON.stringify(record) !== JSON.stringify(previous)) {
         currentOrder = record;
         try { localStorage.setItem(CURRENT_KEY, JSON.stringify(record)); volatileCurrent = false; } catch { volatileCurrent = true; }
@@ -194,11 +237,14 @@
     }
     // Original checkout messages include the old total. Once an addition exists,
     // always build WhatsApp from the verified current order, including pending requests.
-    if ((Array.isArray(order.additions) && order.additions.length) || (sameOrder(previous, { id, token }) && previous.total !== order.total)) {
+    let savedWhatsApp = whatsappOrder;
+    try { savedWhatsApp = read(sessionStorage, WHATSAPP_KEY) || savedWhatsApp; } catch {}
+    const changedBilling = order.deliveryMethod !== undefined && ((sameOrder(previous, { id, token }) && previous.billingKey !== billingKey(order)) || (sameOrder(savedWhatsApp, { id, token }) && savedWhatsApp.billingKey !== billingKey(order)));
+    if ((Array.isArray(order.additions) && order.additions.length) || changedBilling || (sameOrder(previous, { id, token }) && previous.total !== order.total)) {
       if (sameOrder(whatsappOrder, { id, token })) whatsappOrder = null;
       try { if (sameOrder(read(sessionStorage, WHATSAPP_KEY), { id, token })) sessionStorage.removeItem(WHATSAPP_KEY); } catch {}
     }
     return sameOrder(currentOrder, { id, token }) ? { ...currentOrder } : null;
   }
-  window.DapoerOrderRecovery = Object.freeze({ remember, getCurrent, getLegacyReference, recoverLegacy, forget, getWhatsAppUrl, syncOrder, validAdditions, compareUpdatedAt, safeOrderUrl, safeWhatsApp, currentKey: CURRENT_KEY });
+  window.DapoerOrderRecovery = Object.freeze({ remember, getCurrent, getLegacyReference, recoverLegacy, forget, selectRecovered, adoptSelected, getWhatsAppUrl, syncOrder, validAdditions, billing, compareUpdatedAt, safeOrderUrl, safeWhatsApp, currentKey: CURRENT_KEY });
 }());

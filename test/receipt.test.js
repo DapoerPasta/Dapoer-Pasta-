@@ -44,6 +44,12 @@ function handlerFor(endpoint, options = {}) {
     },
     "./_lib/order-queue": require("../api/_lib/order-queue"),
     "./_lib/order-additions": require("../api/_lib/order-additions"),
+    "./_lib/fulfillment": require("../api/_lib/fulfillment"),
+    "./_lib/customer-recovery": require("../api/_lib/customer-recovery"),
+    "./_lib/customer-recovery-db": {
+      requestRecovery() { throw new Error("Tracking GET must not request recovery"); },
+      verifyRecoveryCode() { throw new Error("Tracking GET must not verify recovery"); }
+    },
     "./_lib/auth": {
       verifySession(req) {
         calls.auth.push(req);
@@ -188,7 +194,9 @@ test("tracking uses a public allowlist even for an authenticated admin", async (
   assert.equal(res.statusCode, 200);
   assertPrivateHeaders(res);
   assertNoCustomerData(res.body.order);
-  assert.deepEqual(Object.keys(res.body.order).sort(), ["id", "items", "total", "status", "paymentMethod", "createdAt", "updatedAt", "queueNumber", "queueDate", "queueLabel", "additions"].sort());
+  assert.deepEqual(Object.keys(res.body.order).sort(), ["id", "items", "total", "status", "paymentMethod", "createdAt", "updatedAt", "queueNumber", "queueDate", "queueLabel", "additions", "deliveryMethod", "shippingFee", "itemsSubtotal", "grandTotal", "shippingConfirmed"].sort());
+  assert.equal(res.body.order.shippingFee, null);
+  assert.equal(res.body.order.grandTotal, null);
   assert.deepEqual(res.body.order.additions, []);
   assert.equal(res.body.order.queueLabel, "A012");
   assert.deepEqual(res.body.order.items, [{ id: "pasta", name: "Pasta", price: 37000, quantity: 2, subtotal: 74000 }]);
@@ -206,6 +214,20 @@ test("tracking additions never expose internal fingerprints or customer data", a
   assert(!JSON.stringify(res.body).includes("private-fingerprint"));
   assert.deepEqual(Object.keys(res.body.order.additions[0]).sort(), ["id", "status", "items", "total", "createdAt", "updatedAt"].sort());
   assert.deepEqual(res.body.order.additions[0].items, [{ id: "pasta", name: "Pasta", price: 37000, quantity: 2, subtotal: 74000 }]);
+});
+
+test("admin receipt includes one confirmed shipping fee and customer tracking exposes only public totals", async () => {
+  const order = { ...savedOrder, total: "89000", delivery_method: "delivery", shipping_fee: "15000" };
+  const receipt = await invoke("receipt", { order }, { headers: { cookie: "test_admin=valid" } });
+  assert.equal(receipt.res.statusCode, 200);
+  assert.equal(receipt.res.body.order.total, 89000);
+  assert.equal(receipt.res.body.order.itemsSubtotal, 74000);
+  assert.equal(receipt.res.body.order.shippingFee, 15000);
+  assert.equal(receipt.res.body.order.grandTotal, 89000);
+  const track = await invoke("track", { order });
+  assert.equal(track.res.body.order.total, 89000);
+  assert.equal(track.res.body.order.shippingConfirmed, true);
+  assertNoCustomerData(track.res.body.order);
 });
 
 for (const endpoint of ["receipt", "track"]) {
@@ -238,9 +260,9 @@ for (const endpoint of ["receipt", "track"]) {
   });
 
   test(`${endpoint}: unsupported method keeps privacy headers`, async () => {
-    const { res, calls } = await invoke(endpoint, {}, { method: "POST" });
+    const { res, calls } = await invoke(endpoint, {}, { method: "PUT" });
     assert.equal(res.statusCode, 405);
-    assert.equal(res.headers.allow, "GET");
+    assert.equal(res.headers.allow, endpoint === "track" ? "GET, POST" : "GET");
     assertPrivateHeaders(res);
     assert.deepEqual(calls.database, []);
   });

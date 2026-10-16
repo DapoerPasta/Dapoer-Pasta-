@@ -4,6 +4,7 @@ const { saveOrder, requestOrderAddition } = require("./_lib/db");
 const { guardRequest } = require("./_lib/security");
 const { queueMetadata } = require("./_lib/order-queue");
 const { requestId, expectedTotal } = require("./_lib/operations");
+const { normalizeDeliveryMethod, fulfillmentMetadata } = require("./_lib/fulfillment");
 const { additionRequest, publicAddition, publicOrder, trackingUrl: additionTrackingUrl,
   additionWhatsAppUrl, ADDITION_CONFLICTS } = require("./_lib/order-additions");
 
@@ -35,20 +36,21 @@ function cleanText(value, max) {
 }
 
 function normalizeCustomer(input) {
+  const deliveryMethod = normalizeDeliveryMethod(input?.deliveryMethod);
   const name = cleanText(input?.name, 80);
   const phone = cleanText(input?.phone, 24).replace(/[^0-9+\- ()]/g, "");
-  const address = cleanText(input?.address, 500);
+  const address = deliveryMethod === "pickup" ? "" : cleanText(input?.address, 500);
   const notes = cleanText(input?.notes, 300);
   const paymentMethod = cleanText(input?.paymentMethod, 30);
 
-  if (name.length < 2 || phone.replace(/\D/g, "").length < 8 || address.length < 5) {
+  if (name.length < 2 || phone.replace(/\D/g, "").length < 8 || (deliveryMethod === "delivery" && address.length < 5)) {
     throw new Error("INVALID_CUSTOMER");
   }
   if (!STORE.paymentMethods.includes(paymentMethod)) {
     throw new Error("INVALID_PAYMENT");
   }
 
-  return { name, phone, address, notes, paymentMethod };
+  return { name, phone, address, notes, paymentMethod, deliveryMethod };
 }
 
 const rupiah = (value) => `Rp ${Number(value).toLocaleString("id-ID")}`;
@@ -60,6 +62,7 @@ function createOrderId() {
 }
 
 function buildMessage(order, trackingUrl) {
+  const fulfillment = fulfillmentMetadata(order);
   const lines = [
     "Halo Admin Dapoer Pasta, saya mau pesan:",
     "",
@@ -67,7 +70,8 @@ function buildMessage(order, trackingUrl) {
     order.queueLabel ? `No. Antrian: *${order.queueLabel}* (${order.queueDate} WIB)` : "",
     `Nama: *${order.customer.name}*`,
     `WhatsApp: ${order.customer.phone}`,
-    `Alamat: ${order.customer.address}`,
+    `Penerimaan: ${fulfillment.deliveryMethod === "pickup" ? "Ambil sendiri" : "Diantar"}`,
+    fulfillment.deliveryMethod === "delivery" ? `Alamat: ${order.customer.address}` : "",
     `Pembayaran: ${order.customer.paymentMethod}`,
     order.customer.notes ? `Catatan: ${order.customer.notes}` : "",
     ""
@@ -83,11 +87,16 @@ function buildMessage(order, trackingUrl) {
   });
 
   lines.push(
-    `*TOTAL PESANAN: ${rupiah(order.total)}*`,
+    `Subtotal menu: ${rupiah(fulfillment.itemsSubtotal)}`,
+    fulfillment.deliveryMethod === "pickup" ? "Ongkir: Rp 0 (ambil sendiri)" : fulfillment.shippingConfirmed
+      ? `Ongkir: ${rupiah(fulfillment.shippingFee)}` : "Ongkir: menunggu konfirmasi admin",
+    fulfillment.shippingConfirmed ? `*TOTAL AKHIR: ${rupiah(fulfillment.grandTotal)}*`
+      : `*TOTAL PESANAN: ${rupiah(fulfillment.itemsSubtotal)} (belum termasuk ongkir)*`,
     "",
     trackingUrl ? `Lacak status: ${trackingUrl}` : "",
     "",
-    "_Mohon konfirmasi pesanan dan info ongkirnya ya kak._"
+    fulfillment.deliveryMethod === "pickup" ? "_Mohon konfirmasi pesanan dan waktu pengambilan ya kak._"
+      : "_Mohon konfirmasi pesanan dan info ongkirnya ya kak._"
   );
 
   return lines.join("\n");
@@ -156,6 +165,7 @@ module.exports = async function handler(req, res) {
     id: createOrderId(),
     trackingToken,
     customer,
+    deliveryMethod: customer.deliveryMethod,
     items,
     total,
     requestId: operationId,
@@ -198,7 +208,8 @@ module.exports = async function handler(req, res) {
   const whatsappUrl = `https://api.whatsapp.com/send?phone=${STORE.whatsapp}&text=${encodeURIComponent(message)}`;
 
   return res.status(200).json({
-    order: { id: order.id, items: order.items, total: order.total, customer: order.customer, ...queueMetadata(order) },
+    order: { id: order.id, items: order.items, total: order.total, customer: order.customer,
+      ...queueMetadata(order), ...fulfillmentMetadata(order) },
     persisted,
     whatsappUrl,
     trackingUrl

@@ -179,6 +179,35 @@ test("receipt dates and currency use WIB without shifting the daily queue date",
   assert.equal(files.money(74000), "Rp 74.000");
 });
 
+test("receipt validates shipping totals, pickup fee and unquoted delivery independently from menu subtotal", () => {
+  const files = builder();
+  const confirmed = files.normalize(order({ total: 89000, deliveryMethod: "delivery", shippingFee: 15000, itemsSubtotal: 74000, grandTotal: 89000, shippingConfirmed: true }));
+  assert.equal(confirmed.itemsSubtotal, 74000); assert.equal(confirmed.shippingFee, 15000); assert.equal(confirmed.grandTotal, 89000);
+  const pickup = files.normalize(order({ deliveryMethod: "pickup", shippingFee: 0 }));
+  assert.equal(pickup.shippingConfirmed, true); assert.equal(pickup.deliveryLabel, "Ambil sendiri"); assert.equal(pickup.grandTotal, 74000);
+  const pending = files.normalize(order({ shippingFee: null }));
+  assert.equal(pending.shippingConfirmed, false); assert.equal(pending.grandTotal, null);
+  for (const values of [{ shippingFee: 15000 }, { total: 89000, shippingFee: 12000 }, { shippingFee: -1 }, { shippingFee: "0" },
+    { deliveryMethod: "pickup", shippingFee: 5000, total: 79000 }, { shippingFee: 0, shippingConfirmed: false },
+    { shippingFee: null, grandTotal: 74000 }, { deliveryMethod: "other" }, { itemsSubtotal: 1 }]) {
+    assert.throws(() => files.normalize(order(values)), /Data nota tidak valid/);
+  }
+});
+
+test("thermal and A4 PDFs show menu subtotal, shipping and final total exactly once", async () => {
+  const files = builder();
+  for (const paper of ["58", "80", "a4"]) {
+    const result = await files.build(order({ total: 89000, shippingFee: 15000, deliveryMethod: "delivery", itemsSubtotal: 74000, grandTotal: 89000, shippingConfirmed: true }), { paper });
+    const pdf = readPdf(Buffer.from(await result.blob.arrayBuffer()));
+    assert.match(pdf.text, /Diantar/); assert.match(pdf.text, /Ongkir/); assert.match(pdf.text, /Rp 15\.000/); assert.match(pdf.text, /TOTAL AKHIR/);
+    assert.equal((pdf.text.match(/Rp 89\.000/g) || []).length, 1);
+    assert.doesNotMatch(pdf.text, /Menunggu konfirmasi|Belum termasuk ongkir/);
+    assertFits(pdf, paper === "58" ? 5 : paper === "80" ? 4 : 14);
+  }
+  const pending = readPdf(Buffer.from(await (await files.build(order(), { paper: "58" })).blob.arrayBuffer()));
+  assert.match(pending.text.replace(/\n/g, " "), /Menunggu konfirmasi admin/); assert.match(pending.text, /SUBTOTAL MENU/);
+});
+
 test("58 mm, 80 mm and A4 downloads are real PDFs with exact physical widths and Unicode fonts", async () => {
   const files = builder();
   for (const paper of ["58", "80", "a4"]) {
@@ -252,8 +281,8 @@ test("long 100-item thermal orders paginate, retaining first and last items and 
     assert.ok(subtotal > start, "item subtotal exists");
     assert.ok(pdf.runs.slice(start, subtotal + 1).every(run => run.page === pdf.runs[start].page), "an item's name, quantity and subtotal stay on the same page");
   }
-  const totalIndex = pdf.runs.findIndex(run => run.text === "TOTAL");
-  assert.equal(pdf.runs[totalIndex].page, pdf.runs[totalIndex + 1].page, "TOTAL label and amount stay together");
+  const totalIndex = pdf.runs.findIndex(run => run.text === "SUBTOTAL MENU");
+  assert.equal(pdf.runs[totalIndex].page, pdf.runs[totalIndex + 1].page, "Subtotal label and amount stay together");
   assertFits(pdf, 5);
 });
 

@@ -10,10 +10,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/track.css?v=20261016-additions">
-  <script src="/assets/js/order-recovery.js?v=20261016-additions" defer></script>
-  <script src="/assets/js/order-additions.js?v=20261016-additions" defer></script>
-  <script src="/assets/js/track.js?v=20261016-additions" defer></script>
+  <link rel="stylesheet" href="/assets/css/track.css?v=20261016-delivery-recovery">
+  <link rel="stylesheet" href="/assets/css/phone-recovery.css?v=20261016-delivery-recovery">
+  <script src="/assets/js/order-recovery.js?v=20261016-delivery-recovery" defer></script>
+  <script src="/assets/js/order-additions.js?v=20261016-delivery-recovery" defer></script>
+  <script src="/assets/js/track.js?v=20261016-delivery-recovery" defer></script>
+  <script src="/assets/js/phone-recovery.js?v=20261016-delivery-recovery" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
 </head>
@@ -36,8 +38,10 @@
         <div class="track-queue" id="track-queue" hidden><div><span>Nomor antrean</span><strong id="track-queue-number">—</strong></div><p id="track-queue-date"></p></div>
         <div class="order-meta">
           <div><span>Nomor Pesanan</span><strong id="track-order-id">—</strong></div>
-          <div><span>Total</span><strong id="track-total">Rp 0</strong></div>
+          <div><span id="track-total-label">Total</span><strong id="track-total">Rp 0</strong></div>
         </div>
+
+        <section class="track-billing" aria-label="Penerimaan dan rincian tagihan"><div><span>Penerimaan</span><strong id="track-delivery">—</strong></div><div><span>Subtotal menu</span><strong id="track-items-subtotal">—</strong></div><div><span>Ongkir</span><strong id="track-shipping">—</strong></div><div><span>Total akhir</span><strong id="track-grand-total">—</strong></div><p id="track-shipping-note"></p></section>
 
         <div class="current-status">
           <span>Status saat ini</span>
@@ -72,7 +76,7 @@
               <div><span>Total pesanan saat ini</span><strong id="addition-current-total">Rp 0</strong></div>
               <div><span>Subtotal tambahan</span><strong id="addition-subtotal">Rp 0</strong></div>
               <div><span id="addition-combined-label">Total setelah ditambah</span><strong id="addition-combined-total">Rp 0</strong></div>
-              <small>Belum termasuk ongkir. Pembayaran tetap dikonfirmasi admin.</small>
+              <small id="addition-shipping-note">Ongkir menunggu konfirmasi admin. Pembayaran tetap dikonfirmasi admin.</small>
             </div>
             <p id="addition-notice" class="addition-notice" role="status" aria-live="polite" hidden></p>
             <button id="addition-submit" class="addition-submit" type="submit" disabled>Tambahkan ke Pesanan</button>
@@ -89,7 +93,17 @@
       <button id="track-retry" class="track-retry" type="button" hidden>Coba perbarui status</button>
     </section>
 
+    <section id="phone-recovery" class="phone-recovery" aria-labelledby="phone-recovery-title" hidden>
+      <p class="eyebrow">Tetap di pesanan yang sama</p><h2 id="phone-recovery-title">Cari pesanan saya</h2>
+      <p class="phone-recovery-intro">Pindah HP atau kehilangan tautan? Verifikasi nomor WhatsApp untuk mendapatkan kembali tautan pesanan, tanpa memesan ulang.</p>
+      <form id="phone-recovery-request"><label>Nomor WhatsApp saat memesan<input id="phone-recovery-phone" type="tel" inputmode="tel" autocomplete="tel" minlength="8" maxlength="24" placeholder="08xxxxxxxxxx" required></label><button id="phone-recovery-request-submit" type="submit">Minta Kode Verifikasi</button></form>
+      <section id="phone-recovery-challenge" hidden><p id="phone-recovery-instructions">Admin akan mengirim kode melalui WhatsApp ke nomor yang digunakan saat memesan. Hubungi admin agar permintaan Anda dapat diperiksa.</p><a id="phone-recovery-whatsapp" class="phone-recovery-whatsapp" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Minta kode ke admin</a><p id="phone-recovery-expiry"></p><form id="phone-recovery-verify"><label>Kode verifikasi<input id="phone-recovery-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="6 digit dari admin" required></label><button id="phone-recovery-verify-submit" type="submit">Lihat Pesanan Saya</button></form></section>
+      <button id="phone-recovery-restart" class="phone-recovery-secondary" type="button" hidden>Gunakan nomor lain / minta kode baru</button>
+      <p id="phone-recovery-notice" class="phone-recovery-notice" role="status" aria-live="polite" hidden></p><section id="phone-recovery-results" aria-label="Pesanan yang terverifikasi" hidden><h3>Pesanan Anda</h3><p>Pilih pesanan untuk melihat status dan melanjutkan konfirmasi WhatsApp.</p><div id="phone-recovery-orders"></div><button id="phone-recovery-clear" class="phone-recovery-secondary" type="button">Tutup hasil verifikasi</button></section>
+    </section>
+
     <p class="track-help">Butuh bantuan? <a href="https://api.whatsapp.com/send/?phone=6285175391181" target="_blank" rel="noopener noreferrer">Hubungi WhatsApp Dapoer Pasta</a></p>
+    <p class="track-help"><a href="/track/">Cari pesanan saya dari perangkat lain</a></p>
   </main>
 </body>
 </html>

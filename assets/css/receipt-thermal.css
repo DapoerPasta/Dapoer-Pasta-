@@ -36,9 +36,8 @@ body:not([data-paper-size="a4"]) .receipt-item { display: block; font-size: .7re
 body:not([data-paper-size="a4"]) .receipt-item small { color: #000; font-size: .65rem; }
 body:not([data-paper-size="a4"]) .receipt-item strong { display: block; text-align: right; margin-top: 1mm; font-size: .7rem; white-space: normal; overflow-wrap: normal; }
 body:not([data-paper-size="a4"]) #receipt-total { font-weight: 700; }
-body:not([data-paper-size="a4"]) .receipt-summary > div:first-child { font-size: .78rem; }
-body:not([data-paper-size="a4"]) .receipt-summary > div:first-child { display: block; }
-body:not([data-paper-size="a4"]) .receipt-summary > div:first-child strong { display: block; margin-top: 1mm; overflow-wrap: normal; white-space: nowrap; }
+body:not([data-paper-size="a4"]) .receipt-grand-total { font-size: .78rem; display: block; }
+body:not([data-paper-size="a4"]) .receipt-grand-total strong { display: block; margin-top: 1mm; overflow-wrap: normal; white-space: nowrap; }
 body:not([data-paper-size="a4"]) :is(.receipt-extra, .receipt-extra + .divider, .receipt-privacy) { display: none; }
 body:not([data-paper-size="a4"])[data-customer-protected="true"] .receipt-customer-row { display: none; }
 body:not([data-paper-size="a4"]) footer p { font-size: .72rem; line-height: 1.6; }

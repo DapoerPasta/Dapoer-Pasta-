@@ -12,13 +12,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="/assets/css/style.css?v=20261005-checkoutpro">
-  <script src="/assets/js/order-recovery.js?v=20261016-additions" defer></script>
-  <script src="/assets/js/app.js?v=20261016-additions" defer></script>
+  <script src="/assets/js/order-recovery.js?v=20261016-delivery-recovery" defer></script>
+  <script src="/assets/js/app.js?v=20261016-delivery-recovery" defer></script>
   <link rel="stylesheet" href="/assets/css/stock.css?v=20261007-stock">
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <link rel="stylesheet" href="/assets/css/storefront-motion.css?v=20261008-depth">
   <link rel="stylesheet" href="/assets/css/storefront-depth.css?v=20261009-coin">
-  <link rel="stylesheet" href="/assets/css/storefront-reliable.css?v=20261016-additions">
+  <link rel="stylesheet" href="/assets/css/storefront-reliable.css?v=20261016-delivery-recovery">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
   <script src="/assets/js/storefront-depth.js?v=20261008-depth" defer></script>
 </head>
@@ -218,6 +218,7 @@
         <a href="#menu">Menu</a>
         <a href="#tentang">Tentang Kami</a>
         <a href="#pembayaran">Pembayaran</a>
+        <a href="/track/">Cari pesanan saya</a>
       </div>
       <div>
         <h3>Kontak</h3>
@@ -284,6 +285,7 @@
         <p class="eyebrow">Pesanan Anda tersimpan</p>
         <h3 id="checkout-success-title" tabindex="-1">Terima kasih sudah memesan.</h3>
         <p id="checkout-success-order"></p>
+        <div id="checkout-success-billing" class="checkout-success-billing" hidden></div>
         <div id="checkout-success-queue" class="checkout-success-queue" hidden></div>
         <p>Konfirmasikan pesanan dan ongkir melalui WhatsApp. Pesanan tercatat; pembayaran tetap perlu dikonfirmasi admin.</p>
         <p class="checkout-resume-hint">Jika layar ini tertutup, gunakan <strong>Lanjutkan konfirmasi</strong> untuk membuka kembali pesanan yang sama.</p>
@@ -298,14 +300,15 @@
         <p class="checkout-draft-hint">Isian dipulihkan saat halaman dimuat ulang dalam tab ini. Setelah pesanan tersimpan, konfirmasi dapat dilanjutkan tanpa mengisi ulang.</p>
         <label>Nama lengkap<input id="checkout-name" minlength="2" maxlength="80" required autocomplete="name"></label>
         <label>Nomor WhatsApp<input id="checkout-phone" type="tel" inputmode="tel" minlength="8" maxlength="24" required autocomplete="tel" placeholder="08xxxxxxxxxx"></label>
-        <label>Alamat pengiriman<textarea id="checkout-address" minlength="5" maxlength="500" required rows="3" autocomplete="street-address"></textarea></label>
+        <label class="checkout-delivery-choice">Cara menerima pesanan<select id="checkout-delivery" required><option value="delivery">Diantar ke alamat saya</option><option value="pickup">Ambil sendiri</option></select><small id="checkout-delivery-help">Ongkir ditetapkan admin setelah alamat diperiksa.</small></label>
+        <label id="checkout-address-label">Alamat pengiriman<textarea id="checkout-address" minlength="5" maxlength="500" required rows="3" autocomplete="street-address"></textarea></label>
         <label>Metode pembayaran
           <select id="checkout-payment" required>
             <option value="">Pilih pembayaran</option><option value="OVO">OVO</option><option value="ShopeePay">ShopeePay</option><option value="DANA">DANA</option><option value="Transfer Bank">Transfer Bank</option>
           </select>
         </label>
         <label>Catatan pesanan <span>(opsional)</span><textarea id="checkout-notes" maxlength="300" rows="2" placeholder="Contoh: kirim sore hari"></textarea></label>
-        <div class="checkout-summary"><span>Total pesanan</span><strong id="checkout-total">Rp 0</strong><small>Belum termasuk ongkir. Admin akan mengonfirmasi melalui WhatsApp.</small></div>
+        <div class="checkout-summary"><span id="checkout-total-label">Subtotal menu</span><strong id="checkout-total">Rp 0</strong><small id="checkout-shipping-note">Ongkir menunggu konfirmasi admin. Total akhir akan tampil di halaman Lacak pesanan.</small></div>
         <button class="checkout-submit" id="checkout-submit" type="submit"><i class="fa-solid fa-check" aria-hidden="true"></i> Simpan Pesanan</button>
         <button class="checkout-retry" id="checkout-retry" type="button" hidden>Periksa kembali pesanan sebelumnya</button>
       </form>

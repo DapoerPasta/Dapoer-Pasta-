@@ -29,7 +29,10 @@ function orderFingerprint(order) {
     items: order.items.map(({ id, quantity }) => ({ id, quantity })).sort((a, b) => a.id.localeCompare(b.id)),
     customer: { name: order.customer.name, phone: order.customer.phone, address: order.customer.address,
       notes: order.customer.notes, paymentMethod: order.customer.paymentMethod },
-    expectedTotal: order.expectedTotal ?? null
+    expectedTotal: order.expectedTotal ?? null,
+    // Keep old/default delivery hashes byte-for-byte compatible. Pickup must
+    // conflict with a replay of the same UUID made for a delivery checkout.
+    ...((order.deliveryMethod ?? order.customer.deliveryMethod) === "pickup" ? { deliveryMethod: "pickup" } : {})
   });
 }
 

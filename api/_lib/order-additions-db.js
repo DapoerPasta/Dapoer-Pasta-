@@ -68,7 +68,8 @@ async function ensureOrderAdditionsSchema(sql) {
           'order',jsonb_build_object('id',o.id,'status',o.status,'items',o.items,'total',o.total,
             'paymentMethod',o.payment_method,'queueNumber',o.queue_number,'queueDate',o.queue_date,
             'createdAt',o.created_at,'updatedAt',o.updated_at,'additions',dapoer_order_additions_json(o.id),
-            'canAddItems',o.stock_reserved AND o.status IN('baru','diproses')))
+            'canAddItems',o.stock_reserved AND o.status IN('baru','diproses'))
+            ||dapoer_fulfillment_metadata(o.delivery_method,o.shipping_fee,o.total))
         FROM orders o JOIN order_additions a ON a.order_id=o.id WHERE o.id=p_id AND a.id=p_addition
       $function$;
 

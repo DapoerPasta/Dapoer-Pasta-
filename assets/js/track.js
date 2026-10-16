@@ -11,11 +11,14 @@
   document.addEventListener("DOMContentLoaded", () => {
     initialized = true;
     $("#track-retry").addEventListener("click", loadStatus);
-    if (!validLink) return showError("Link tracking tidak valid.");
+    if (!validLink) {
+      if (!id && !token) { $("#track-loading").hidden = true; return; }
+      return showError("Link tracking tidak valid. Gunakan Cari pesanan saya untuk meminta tautan kembali.");
+    }
     if (!document.hidden) loadStatus();
   });
   document.addEventListener("visibilitychange", () => {
-    if (!initialized) return;
+    if (!initialized || !validLink) return;
     if (document.hidden) pause();
     else loadStatus();
   });
@@ -84,6 +87,7 @@
       && Array.isArray(order.items) && order.items.length > 0 && order.items.length <= 100
       && order.items.every(item => item && typeof item.name === "string" && item.name.trim() && Number.isSafeInteger(item.quantity) && item.quantity > 0 && Number.isSafeInteger(item.subtotal) && item.subtotal >= 0)
       && (order.canAddItems === undefined || typeof order.canAddItems === "boolean")
+      && !!window.DapoerOrderRecovery?.billing(order)
       && window.DapoerOrderRecovery?.validAdditions?.(order.additions) !== false;
   }
 
@@ -104,10 +108,21 @@
     const validQueueDate = queueDate && Number.isFinite(queueDate.getTime()) && queueDate.toISOString().slice(0, 10) === order.queueDate;
     $("#track-queue-date").textContent = validQueueDate ? `${queueDate.toLocaleDateString("id-ID", { timeZone: "UTC", day: "numeric", month: "long", year: "numeric" })} · WIB` : "";
     $("#track-total").textContent = rupiah(order.total);
-    $("#track-status").textContent = order.status;
+    const charges = window.DapoerOrderRecovery.billing(order);
+    if ($("#track-total-label")) $("#track-total-label").textContent = charges.shippingConfirmed ? "Total akhir" : "Subtotal menu";
+    if ($("#track-delivery")) $("#track-delivery").textContent = charges.deliveryMethod === "pickup" ? "Ambil sendiri" : "Diantar ke alamat pemesan";
+    if ($("#track-items-subtotal")) $("#track-items-subtotal").textContent = rupiah(charges.itemsSubtotal);
+    if ($("#track-shipping")) $("#track-shipping").textContent = charges.deliveryMethod === "pickup" ? "Rp 0 · ambil sendiri" : charges.shippingConfirmed ? rupiah(charges.shippingFee) : "Menunggu konfirmasi admin";
+    if ($("#track-grand-total")) $("#track-grand-total").textContent = charges.shippingConfirmed ? rupiah(charges.grandTotal) : "Menunggu penetapan ongkir";
+    if ($("#track-shipping-note")) $("#track-shipping-note").textContent = charges.shippingConfirmed ? "Total akhir sudah termasuk ongkir. Pembayaran tetap dikonfirmasi admin." : "Subtotal menu belum termasuk ongkir. Admin akan menetapkan ongkir, lalu total akhir diperbarui di halaman ini.";
+    const dispatch = document.querySelector('.step[data-status="dikirim"]');
+    if (dispatch) { const title = dispatch.querySelector?.("strong"), hint = dispatch.querySelector?.("small"); if (title) title.textContent = charges.deliveryMethod === "pickup" ? "Siap diambil" : "Dikirim"; if (hint) hint.textContent = charges.deliveryMethod === "pickup" ? "Pesanan siap diambil oleh pemesan" : "Pesanan dalam proses pengiriman"; }
+    const statusName = order.status === "dikirim" && charges.deliveryMethod === "pickup" ? "Siap diambil" : order.status;
+    $("#track-status").textContent = statusName;
     $("#track-updated").textContent = `Diperbarui ${new Date(order.updatedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} WIB`;
 
     const terminal = ["dibatalkan", "selesai"].includes(order.status);
+    window.DapoerOrderRecovery?.adoptSelected?.({ id, token, order });
     if (terminal) window.DapoerOrderRecovery?.forget?.({ id, token });
     const recoveryUrl = window.DapoerOrderRecovery?.getWhatsAppUrl({ id, token, order });
     const canConfirm = !!recoveryUrl && !terminal;

@@ -9,7 +9,7 @@ function cleanText(value,max){return typeof value==="string"?value.replace(/[\u0
 document.addEventListener("DOMContentLoaded",init);
 
 async function init(){
-  bindUI();restoreCheckoutDraft();observeReveal();renderCart();restoreIntentNotice();refreshOrderRecovery();
+  bindUI();restoreCheckoutDraft();updateDeliveryChoice();observeReveal();renderCart();restoreIntentNotice();refreshOrderRecovery();
   setInterval(()=>{if(!document.hidden)loadMenu()},15000);
   document.addEventListener("visibilitychange",()=>{if(document.hidden)saveCheckoutDraft();else{loadMenu();refreshOrderRecovery()}});
   window.addEventListener("online",()=>{if(!document.hidden){loadMenu();refreshOrderRecovery()}});
@@ -35,6 +35,7 @@ function bindUI(){
   $("#checkout-retry")?.addEventListener("click",retryPendingCheckout);
   $("#checkout-done")?.addEventListener("click",()=>toggleCheckout(false));
   $("#order-confirmation-open")?.addEventListener("click",resumeOrderConfirmation);
+  $("#checkout-delivery")?.addEventListener("change",()=>{updateDeliveryChoice();saveCheckoutDraft()});
   for(const id of ["name","phone","address","payment","notes"]){for(const event of ["input","change"])$("#checkout-"+id)?.addEventListener(event,saveCheckoutDraft)}
   $("#open-chat")?.addEventListener("click",()=>{const open=!$("#chat-box")?.classList.contains("open");$("#chat-box")?.classList.toggle("open",open);$("#open-chat")?.setAttribute("aria-expanded",String(open));renderOrderRecovery();if(open)$("#chat-input")?.focus()});
   $("#close-chat")?.addEventListener("click",closeChat);
@@ -224,20 +225,30 @@ async function openCheckout(){
     $("#checkout-total").textContent=rupiah(cartTotal());toggleCheckout(true);
   }finally{if(navigation===state.dialogGeneration){state.checkoutOpening=false;renderCart()}}
 }
-function customerSnapshot(){return {name:cleanText($("#checkout-name").value,80),phone:cleanText($("#checkout-phone").value,24).replace(/[^0-9+\- ()]/g,""),address:cleanText($("#checkout-address").value,500),paymentMethod:cleanText($("#checkout-payment").value,30),notes:cleanText($("#checkout-notes").value,300)}}
+function deliveryChoice(){return $("#checkout-delivery")?.value==="pickup"?"pickup":"delivery"}
+function updateDeliveryChoice(){
+  const pickup=deliveryChoice()==="pickup",address=$("#checkout-address"),label=$("#checkout-address-label");
+  if(label)label.hidden=pickup;if(address){address.required=!pickup;address.disabled=pickup;address.setCustomValidity?.("");address.removeAttribute?.("aria-invalid")}
+  if($("#checkout-delivery-help"))$("#checkout-delivery-help").textContent=pickup?"Tanpa ongkir. Waktu dan lokasi pengambilan dikonfirmasi melalui WhatsApp.":"Ongkir ditetapkan admin setelah alamat diperiksa.";
+  if($("#checkout-total-label"))$("#checkout-total-label").textContent=pickup?"Total pesanan":"Subtotal menu";
+  if($("#checkout-shipping-note"))$("#checkout-shipping-note").textContent=pickup?"Ambil sendiri · ongkir Rp 0. Konfirmasikan waktu pengambilan melalui WhatsApp.":"Ongkir menunggu konfirmasi admin. Total akhir akan tampil di halaman Lacak pesanan.";
+}
+function customerSnapshot(){return {deliveryMethod:deliveryChoice(),name:cleanText($("#checkout-name").value,80),phone:cleanText($("#checkout-phone").value,24).replace(/[^0-9+\- ()]/g,""),address:deliveryChoice()==="pickup"?"":cleanText($("#checkout-address").value,500),paymentMethod:cleanText($("#checkout-payment").value,30),notes:cleanText($("#checkout-notes").value,300)}}
 function saveCheckoutDraft(){
   const customer=customerSnapshot();
-  try{if(Object.values(customer).some(Boolean))sessionStorage.setItem(DRAFT_KEY,JSON.stringify({savedAt:Date.now(),customer}));else sessionStorage.removeItem(DRAFT_KEY)}catch{}
+  try{if(customer.deliveryMethod==="pickup"||Object.entries(customer).some(([key,value])=>key!=="deliveryMethod"&&Boolean(value)))sessionStorage.setItem(DRAFT_KEY,JSON.stringify({savedAt:Date.now(),customer}));else sessionStorage.removeItem(DRAFT_KEY)}catch{}
 }
 function restoreCheckoutDraft(){
   let draft;
   try{draft=JSON.parse(sessionStorage.getItem(DRAFT_KEY)||"null")}catch{}
   if(!draft&&loadIntent())draft={savedAt:Date.now(),customer:loadIntent().payload.customer};
   if(!draft||!Number.isFinite(draft.savedAt)||draft.savedAt>Date.now()+60000||Date.now()-draft.savedAt>=DRAFT_MAX_AGE||!draft.customer||["name","phone","address","paymentMethod","notes"].some(key=>typeof draft.customer[key]!=="string")){try{sessionStorage.removeItem(DRAFT_KEY)}catch{}return}
+  if($("#checkout-delivery")&&draft.customer.deliveryMethod==="pickup")$("#checkout-delivery").value="pickup";
   for(const[id,key,max]of [["name","name",80],["phone","phone",24],["address","address",500],["payment","paymentMethod",30],["notes","notes",300]]){
     const field=$("#checkout-"+id),value=cleanText(draft.customer[key],max);
     if(field&&!field.value&&(id!=="payment"||["OVO","ShopeePay","DANA","Transfer Bank"].includes(value)))field.value=value;
   }
+  updateDeliveryChoice();
 }
 function renderOrderRecovery(){
   const root=$("#order-confirmation"),button=$("#order-confirmation-open"),summary=$("#order-confirmation-summary"),message=$("#order-confirmation-message");
@@ -256,7 +267,7 @@ function updateSavedConfirmation(record,whatsapp,message,order){
   if(!record||state.success?.id!==record.id||state.success?.token!==record.token)return;
   const link=$("#checkout-whatsapp-link");if(link){link.hidden=!whatsapp;if(whatsapp)link.href=whatsapp;else link.removeAttribute("href")}
   const addition=$("#checkout-add-menu-link");if(addition){addition.hidden=!whatsapp||!canAddToSavedOrder(order);if(!addition.hidden)addition.href=record.trackingUrl+"#tambah-menu";else addition.removeAttribute("href")}
-  if(order){state.success={...state.success,total:order.total};$("#checkout-success-order").textContent=`${record.id} · ${rupiah(order.total)}`}
+  if(order){state.success={...state.success,total:order.total};$("#checkout-success-order").textContent=`${record.id} · ${rupiah(order.total)}`;renderSavedBilling(order)}
   if(message)checkoutNotice(message);
   else if(whatsapp&&state.modal==="checkout-modal")checkoutNotice(state.cart.length?"Perubahan terbaru di keranjang tetap disimpan untuk pesanan berikutnya.":"");
 }
@@ -286,7 +297,7 @@ async function refreshOrderRecovery(){
       if(turn!==state.recoveryGeneration||!stillCurrent)return null;
       if(!result.response.ok){if([400,401,403,404].includes(result.response.status)){updateSavedConfirmation(record,null,"Tautan pesanan ini tidak dapat diverifikasi. Hubungi admin untuk memeriksa pesanan yang sudah tersimpan.");window.DapoerOrderRecovery?.forget(record);state.recovery=null;return null}throw new Error("recovery unavailable")}
       const order=result.data.order;
-      if(order?.id!==record.id||!Number.isSafeInteger(order.total)||order.total<1||!["baru","diproses","dikirim","selesai","dibatalkan"].includes(order.status)||typeof order.updatedAt!=="string"||!Number.isFinite(new Date(order.updatedAt).getTime())||!Array.isArray(order.items)||!order.items.length||order.items.length>100||order.items.some(item=>!item||typeof item.name!=="string"||!item.name.trim()||!Number.isSafeInteger(item.quantity)||item.quantity<1||!Number.isSafeInteger(item.subtotal)||item.subtotal<0)||(order.canAddItems!==undefined&&typeof order.canAddItems!=="boolean")||window.DapoerOrderRecovery?.validAdditions?.(order.additions)===false)throw new Error("recovery invalid");
+      if(order?.id!==record.id||!Number.isSafeInteger(order.total)||order.total<1||!["baru","diproses","dikirim","selesai","dibatalkan"].includes(order.status)||typeof order.updatedAt!=="string"||!Number.isFinite(new Date(order.updatedAt).getTime())||!Array.isArray(order.items)||!order.items.length||order.items.length>100||order.items.some(item=>!item||typeof item.name!=="string"||!item.name.trim()||!Number.isSafeInteger(item.quantity)||item.quantity<1||!Number.isSafeInteger(item.subtotal)||item.subtotal<0)||(order.canAddItems!==undefined&&typeof order.canAddItems!=="boolean")||window.DapoerOrderRecovery?.validAdditions?.(order.additions)===false||!window.DapoerOrderRecovery?.billing(order))throw new Error("recovery invalid");
       if(["selesai","dibatalkan"].includes(order.status)){updateSavedConfirmation(record,null,order.status==="dibatalkan"?"Pesanan ini sudah dibatalkan. Konfirmasi WhatsApp untuk pesanan ini dinonaktifkan.":"Pesanan ini sudah selesai. Anda tetap dapat melihat status melalui Lacak pesanan.");window.DapoerOrderRecovery?.forget(record);state.recovery=null;return null}
       const confirmedRecord=record.legacy?window.DapoerOrderRecovery?.recoverLegacy({id:record.id,token:record.token,order}):record;
       if(!confirmedRecord)throw new Error("recovery invalid");
@@ -308,20 +319,20 @@ async function resumeOrderConfirmation(){
   showCheckoutSuccess(recovery.record,recovery.whatsapp,recovery.record.total,!!state.cart.length,true);
 }
 function validateCustomer(customer){
-  const checks=[["name",customer.name.length>=2,"Tulis nama lengkap minimal 2 karakter."],["phone",customer.phone.replace(/\D/g,"").length>=8,"Tulis nomor WhatsApp yang benar, minimal 8 angka."],["address",customer.address.length>=5,"Tulis alamat pengiriman minimal 5 karakter."],["payment",["OVO","ShopeePay","DANA","Transfer Bank"].includes(customer.paymentMethod),"Pilih metode pembayaran yang tersedia."]];
+  const checks=[["name",customer.name.length>=2,"Tulis nama lengkap minimal 2 karakter."],["phone",customer.phone.replace(/\D/g,"").length>=8,"Tulis nomor WhatsApp yang benar, minimal 8 angka."],["address",customer.deliveryMethod==="pickup"||customer.address.length>=5,"Tulis alamat pengiriman minimal 5 karakter."],["payment",["OVO","ShopeePay","DANA","Transfer Bank"].includes(customer.paymentMethod),"Pilih metode pembayaran yang tersedia."]];
   for(const[id]of checks){const field=$("#checkout-"+id);field?.setCustomValidity?.("");field?.removeAttribute?.("aria-invalid")}
   const invalid=checks.find(([,valid])=>!valid);if(!invalid)return true;
   const field=$("#checkout-"+invalid[0]);field?.setCustomValidity?.(invalid[2]);field?.setAttribute?.("aria-invalid","true");checkoutNotice(invalid[2]);field?.focus?.();field?.reportValidity?.();return false;
 }
 function sortedItems(items){return items.map(item=>({id:item.id,quantity:item.quantity})).sort((a,b)=>a.id.localeCompare(b.id))}
-function canonicalPayload(payload,withTotal=true){return JSON.stringify({items:sortedItems(payload.items),customer:{name:payload.customer.name,phone:payload.customer.phone,address:payload.customer.address,paymentMethod:payload.customer.paymentMethod,notes:payload.customer.notes},...(withTotal?{expectedTotal:payload.expectedTotal}:{})})}
+function canonicalPayload(payload,withTotal=true){return JSON.stringify({items:sortedItems(payload.items),customer:{deliveryMethod:payload.customer.deliveryMethod||"delivery",name:payload.customer.name,phone:payload.customer.phone,address:payload.customer.address,paymentMethod:payload.customer.paymentMethod,notes:payload.customer.notes},...(withTotal?{expectedTotal:payload.expectedTotal}:{})})}
 function uuid(){
   const secure=window.crypto||globalThis.crypto;if(secure?.randomUUID)return secure.randomUUID();
   const bytes=new Uint8Array(16);if(secure?.getRandomValues)secure.getRandomValues(bytes);else for(let i=0;i<16;i++)bytes[i]=Math.floor(Math.random()*256);
   bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;const hex=Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("");return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
 function validIntent(value){
-  if(!value||!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value.requestId||"")||!Number.isSafeInteger(value.payload?.expectedTotal)||value.payload.expectedTotal<1||!Array.isArray(value.payload.items)||!value.payload.items.length||value.payload.items.some(item=>typeof item?.id!=="string"||!/^[a-z0-9-]{1,80}$/.test(item.id)||!Number.isSafeInteger(item.quantity)||item.quantity<1)||!value.payload.customer||["name","phone","address","paymentMethod","notes"].some(key=>typeof value.payload.customer[key]!=="string"))return null;
+  if(!value||!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value.requestId||"")||!Number.isSafeInteger(value.payload?.expectedTotal)||value.payload.expectedTotal<1||!Array.isArray(value.payload.items)||!value.payload.items.length||value.payload.items.some(item=>typeof item?.id!=="string"||!/^[a-z0-9-]{1,80}$/.test(item.id)||!Number.isSafeInteger(item.quantity)||item.quantity<1)||!value.payload.customer||(value.payload.customer.deliveryMethod!==undefined&&!["delivery","pickup"].includes(value.payload.customer.deliveryMethod))||["name","phone","address","paymentMethod","notes"].some(key=>typeof value.payload.customer[key]!=="string"))return null;
   return value;
 }
 function loadIntent(){if(state.intent)return state.intent;try{state.intent=validIntent(JSON.parse(sessionStorage.getItem(INTENT_KEY)||"null"))}catch{}return state.intent}
@@ -384,7 +395,7 @@ async function postCheckout(intent,snapshot,cartBefore,customerBefore){
     throw new Error(data.error||"Pesanan belum mendapat konfirmasi. Coba lagi untuk melanjutkan pesanan yang sama.");
   }
   const whatsapp=window.DapoerOrderRecovery?.safeWhatsApp(data.whatsappUrl);
-  if(!whatsapp||!Array.isArray(data.order?.items)||!data.order.items.length||!Number.isSafeInteger(data.order.total)||data.order.total<1||data.order.total!==intent.payload.expectedTotal||data.persisted===false)throw new Error("Pesanan belum mendapat konfirmasi lengkap. Periksa kembali pesanan yang sama.");
+  if(!whatsapp||!Array.isArray(data.order?.items)||!data.order.items.length||!Number.isSafeInteger(data.order.total)||data.order.total<1||(window.DapoerOrderRecovery?.billing(data.order)?.itemsSubtotal)!==intent.payload.expectedTotal||data.persisted===false)throw new Error("Pesanan belum mendapat konfirmasi lengkap. Periksa kembali pesanan yang sama.");
   const record=window.DapoerOrderRecovery?.remember(data);
   if(!record)throw new Error("Pesanan belum mendapat konfirmasi lengkap. Periksa kembali pesanan yang sama.");
   clearIntent(intent.requestId);
@@ -392,18 +403,22 @@ async function postCheckout(intent,snapshot,cartBefore,customerBefore){
   const unchanged=JSON.stringify(sortedItems(state.cart))===cartBefore&&JSON.stringify(sortedItems(state.cart))===JSON.stringify(sortedItems(intent.payload.items));
   if(unchanged){state.cart=[];persistCart();renderCart()}
   if(JSON.stringify(customerBefore)===JSON.stringify(intent.payload.customer)&&JSON.stringify(customerSnapshot())===JSON.stringify(customerBefore))$("#checkout-form")?.reset();
-  saveCheckoutDraft();
+  updateDeliveryChoice();saveCheckoutDraft();
   state.recoveryGeneration++;state.recoveryRequest?.controller?.abort();state.recoveryRequest=null;
-  state.recovery={record,status:"ready",whatsapp,order:null};
+  state.recovery={record,status:"ready",whatsapp,order:data.order};
   showCheckoutSuccess(record,whatsapp,data.order.total,!unchanged);loadMenu();
   // Checkout idempotency preserves its original snapshot. Tracking supplies the
   // current total if another tab has since added menus or changed the status.
   refreshOrderRecovery();
 }
+function renderSavedBilling(order){
+  const node=$("#checkout-success-billing"),charges=window.DapoerOrderRecovery?.billing(order);if(!node)return;node.hidden=!charges;if(!charges)return;
+  node.textContent=`${charges.deliveryMethod==="pickup"?"Ambil sendiri":"Diantar"} · Subtotal menu ${rupiah(charges.itemsSubtotal)} · ${charges.deliveryMethod==="pickup"?"Ongkir Rp 0":charges.shippingConfirmed?`Ongkir ${rupiah(charges.shippingFee)}`:"Ongkir menunggu konfirmasi admin"}${charges.shippingConfirmed?` · Total akhir ${rupiah(charges.total)}`:". Total akhir akan diperbarui setelah ongkir ditetapkan."}`;
+}
 function showCheckoutSuccess(record,whatsapp,total,cartPreserved,restored=false){
   state.success=record;checkoutNotice(cartPreserved?"Perubahan terbaru di keranjang tetap disimpan untuk pesanan berikutnya.":"");
   $("#checkout-form").hidden=true;$("#checkout-success").hidden=false;$("#checkout-title").textContent="Pesanan Tersimpan";
-  $("#checkout-success-order").textContent=`${record.id} · ${rupiah(total)}`;
+  $("#checkout-success-order").textContent=`${record.id} · ${rupiah(total)}`;renderSavedBilling(state.recovery?.order);
   const queue=$("#checkout-success-queue");queue.hidden=!record.queueNumber;queue.textContent=record.queueNumber?`Nomor antrean A${String(record.queueNumber).padStart(3,"0")}${record.queueDate?` · ${record.queueDate} WIB`:""}`:"";
   $("#checkout-whatsapp-link").hidden=false;$("#checkout-whatsapp-link").href=whatsapp;$("#checkout-tracking-link").href=record.trackingUrl;
   const addition=$("#checkout-add-menu-link");if(addition){addition.hidden=!canAddToSavedOrder(state.recovery?.order);if(!addition.hidden)addition.href=record.trackingUrl+"#tambah-menu";else addition.removeAttribute("href")}

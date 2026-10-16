@@ -303,7 +303,8 @@ describe("real PostgreSQL daily queue allocation and migration", { skip: !databa
     await db.ensureSchema();
     await pool.query("UPDATE inventory SET stock=9");
     const rows = (await pool.query("SELECT row_to_json(orders) AS value FROM orders ORDER BY id")).rows.map(row => row.value);
-    assert.deepEqual(rows.map(({ queue_number, queue_date, ...value }) => value), before);
+    assert.deepEqual(rows.map(({ queue_number, queue_date, delivery_method, shipping_fee, ...value }) => value), before);
+    assert.ok(rows.every(row => row.delivery_method === "delivery" && row.shipping_fee === null));
     assert.deepEqual(rows.map(row => [row.id, row.queue_number, row.queue_date]),
       [["day1", 1, "2026-01-01"], ["day2-a", 1, "2026-01-02"], ["day2-z", 2, "2026-01-02"], ["day3", 1, "2026-01-03"]]);
     for (let attempt = 0; attempt < 3; attempt++) await loadDb(sql).ensureSchema();

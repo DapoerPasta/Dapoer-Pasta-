@@ -1,6 +1,7 @@
 const { STORE, PRODUCTS } = require("./catalog");
 const { queueMetadata } = require("./order-queue");
 const { operationError, requestId, expectedTotal } = require("./operations");
+const { fulfillmentMetadata } = require("./fulfillment");
 
 const ADDITION_STATUSES = new Set(["applied", "pending", "approved", "rejected", "expired"]);
 
@@ -81,6 +82,7 @@ function publicOrder(order = {}) {
     ...queueMetadata(order),
     items: publicItems(order.items),
     total: Number(order.total),
+    ...fulfillmentMetadata(order),
     status: order.status,
     paymentMethod: order.paymentMethod ?? order.payment_method,
     createdAt: order.createdAt ?? order.created_at,
@@ -100,6 +102,7 @@ function trackingUrl(req, id, token) {
 const rupiah = value => `Rp ${Number(value).toLocaleString("id-ID")}`;
 
 function additionWhatsAppUrl(order, addition, url) {
+  const fulfillment = fulfillmentMetadata(order);
   const pending = addition.status === "pending";
   const applied = ["applied", "approved"].includes(addition.status);
   const lines = [
@@ -109,12 +112,17 @@ function additionWhatsAppUrl(order, addition, url) {
     order.queueLabel ? `No. Antrian: *${order.queueLabel}* (${order.queueDate} WIB)` : "",
     `Referensi tambahan: ${addition.id}`,
     order.paymentMethod ? `Pembayaran: ${order.paymentMethod}` : "",
+    `Penerimaan: ${fulfillment.deliveryMethod === "pickup" ? "Ambil sendiri" : "Diantar"}`,
     "",
     ...addition.items.map(item => `${item.quantity}x ${item.name} — ${rupiah(item.subtotal)}`),
     `Nilai tambahan: ${rupiah(addition.total)}`,
     pending ? "*MENUNGGU PERSETUJUAN ADMIN*" : applied ? "*TAMBAHAN SUDAH MASUK KE PESANAN*" : "*TAMBAHAN TIDAK DITERAPKAN*",
-    pending ? `Total pesanan saat ini: ${rupiah(order.total)} (belum termasuk tambahan).` : `*TOTAL PESANAN TERBARU: ${rupiah(order.total)}*`,
-    pending ? "Tambahan belum dikonfirmasi dan belum perlu dibayar. Mohon tunggu persetujuan admin serta konfirmasi total pembayaran." : "Mohon konfirmasi total pembayaran dan ongkir terbaru ya kak.",
+    `Subtotal menu saat ini: ${rupiah(fulfillment.itemsSubtotal)}${pending ? " (belum termasuk tambahan)" : ""}`,
+    fulfillment.deliveryMethod === "pickup" ? "Ongkir: Rp 0 (ambil sendiri)" : fulfillment.shippingConfirmed
+      ? `Ongkir: ${rupiah(fulfillment.shippingFee)}` : "Ongkir: menunggu konfirmasi admin",
+    fulfillment.shippingConfirmed ? `${pending ? "Total pesanan saat ini" : "*TOTAL PESANAN TERBARU"}: ${rupiah(fulfillment.grandTotal)}${pending ? " (belum termasuk tambahan)." : "*"}`
+      : `${pending ? "Total pesanan saat ini" : "*TOTAL PESANAN TERBARU"}: ${rupiah(fulfillment.itemsSubtotal)} (belum termasuk ongkir${pending ? " dan tambahan" : ""})${pending ? "." : "*"}. Total akhir menunggu ongkir admin.`,
+    pending ? "Tambahan belum dikonfirmasi dan belum perlu dibayar. Mohon tunggu persetujuan admin serta konfirmasi total pembayaran." : "Mohon konfirmasi total pembayaran terbaru ya kak.",
     `Lacak status: ${url}`
   ].filter(Boolean);
   return `https://api.whatsapp.com/send?phone=${STORE.whatsapp}&text=${encodeURIComponent(lines.join("\n"))}`;

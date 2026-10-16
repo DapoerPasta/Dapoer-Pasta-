@@ -9,14 +9,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/admin.css?v=20261016-additions">
+  <link rel="stylesheet" href="/assets/css/admin.css?v=20261016-delivery-recovery">
   <link rel="stylesheet" href="/assets/css/admin-history.css">
   <link rel="stylesheet" href="/assets/css/admin-stock.css?v=20261014-reliable">
   <link rel="stylesheet" href="/assets/css/admin-stock-history.css?v=20261015-stock-history">
   <link rel="stylesheet" href="/assets/css/admin-finance.css?v=20261009-export">
   <script src="/assets/js/admin-session.js?v=20261014-reliable" defer></script>
-  <script src="/assets/js/admin.js?v=20261016-additions" defer></script>
+  <script src="/assets/js/admin.js?v=20261016-delivery-recovery" defer></script>
   <script src="/assets/js/admin-history-loader.js" defer></script>
+  <script src="/assets/js/admin-recovery.js?v=20261016-delivery-recovery" defer></script>
   <script src="/assets/js/admin-stock.js?v=20261015-stock-history" defer></script>
   <script src="/assets/js/finance-export-files.js?v=20261009-export" defer></script>
   <script src="/assets/js/stock-history-files.js?v=20261015-stock-history" defer></script>
@@ -70,6 +71,7 @@
         <nav class="sidebar-nav" aria-label="Navigasi admin">
           <a class="active" href="#overview"><span>⌂</span> Overview</a>
           <a href="#orders"><span>▤</span> Pesanan</a>
+          <a href="#recovery"><span>↺</span> Pemulihan Pesanan</a>
           <a href="#stock"><span>▦</span> Stok Menu</a>
           <a href="#finance"><span>▥</span> Keuangan</a>
           <a href="/" target="_blank" rel="noopener"><span>↗</span> Lihat Website</a>
@@ -237,6 +239,19 @@
               <p id="expense-message" class="expense-message" role="status" aria-live="polite"></p><div class="expense-editor-actions"><button id="expense-cancel" type="button">Batal</button><button id="expense-save" type="submit">Simpan pengeluaran</button></div>
             </form>
           </dialog>
+        </section>
+
+        <section class="recovery-section" id="recovery" aria-labelledby="recovery-heading">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Bantuan Customer</p>
+              <h2 id="recovery-heading">Pemulihan pesanan</h2>
+              <p>Siapkan kode untuk nomor WhatsApp yang tercatat pada pesanan. Buka WhatsApp, lalu tekan Kirim agar customer menerima kode.</p>
+            </div>
+            <button id="refresh-recovery" type="button">↻ Refresh permintaan</button>
+          </div>
+          <p id="recovery-caption" class="recovery-caption" role="status" aria-live="polite">Permintaan dimuat setelah login.</p>
+          <div id="recovery-requests" class="recovery-requests"></div>
         </section>
 
         <section class="orders-section" id="orders">

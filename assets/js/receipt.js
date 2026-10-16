@@ -133,9 +133,13 @@
     $("#receipt-queue-number").textContent = order.queueLabel;
     $("#receipt-queue-date").textContent = order.queueDate ? files.dateLabel(order.queueDate) : "Nomor antrean belum tersedia untuk pesanan ini.";
     $("#receipt-total").textContent = files.money(order.total);
+    $("#receipt-total-label").textContent = order.shippingConfirmed ? "Total akhir" : "Subtotal menu";
+    $("#receipt-delivery").textContent = order.deliveryLabel;
+    $("#receipt-subtotal").textContent = files.money(order.itemsSubtotal);
+    $("#receipt-shipping").textContent = order.shippingConfirmed ? files.money(order.shippingFee) : "Menunggu konfirmasi admin";
     $("#receipt-method").textContent = order.paymentMethod;
     $("#receipt-phone").textContent = order.customerPhone || "—";
-    $("#receipt-address").textContent = order.address || "—";
+    $("#receipt-address").textContent = order.address || (order.deliveryMethod === "pickup" ? "Ambil sendiri" : "—");
     $("#receipt-notes").textContent = order.notes || "Tidak ada";
     const root = $("#receipt-items"); root.replaceChildren();
     order.items.forEach(item => {
@@ -160,7 +164,7 @@
     document.body.dataset.privatePrintAuthorized = "false";
     $("#receipt-content").hidden = true;
     $("#receipt-items").replaceChildren();
-    for (const field of ["id", "customer", "date", "status", "queue-number", "queue-date", "total", "method", "phone", "address", "notes"]) $("#receipt-" + field).textContent = "—";
+    for (const field of ["id", "customer", "date", "status", "queue-number", "queue-date", "total", "total-label", "delivery", "subtotal", "shipping", "method", "phone", "address", "notes"]) $("#receipt-" + field).textContent = "—";
     updateControls();
   }
 

@@ -27,13 +27,25 @@
       if (!Number.isSafeInteger(sum)) invalid();
       return { name: clean(item.name, 300), quantity: item.quantity, price: item.price, subtotal: item.subtotal };
     });
-    if (sum !== order.total) invalid();
+    const deliveryMethod = order.deliveryMethod ?? "delivery";
+    if (!["delivery", "pickup"].includes(deliveryMethod)) invalid();
+    const rawFee = order.shippingFee ?? null;
+    if (rawFee !== null && (!Number.isSafeInteger(rawFee) || rawFee < 0 || rawFee > 100000000)) invalid();
+    if (deliveryMethod === "pickup" && rawFee !== null && rawFee !== 0) invalid();
+    const shippingFee = deliveryMethod === "pickup" ? 0 : rawFee;
+    const shippingConfirmed = shippingFee !== null;
+    if (sum + (shippingFee ?? 0) !== order.total || !Number.isSafeInteger(sum + (shippingFee ?? 0))) invalid();
+    if (order.itemsSubtotal !== undefined && order.itemsSubtotal !== sum) invalid();
+    if (order.shippingConfirmed !== undefined && order.shippingConfirmed !== shippingConfirmed) invalid();
+    if (order.grandTotal !== undefined && order.grandTotal !== (shippingConfirmed ? order.total : null)) invalid();
     const protectedData = order.customerDataProtected !== false;
     const absentQueue = order.queueNumber == null && order.queueDate == null;
     if (!absentQueue && (!Number.isSafeInteger(order.queueNumber) || order.queueNumber < 1 || !validDay(order.queueDate))) invalid();
     return {
       id: order.id, createdAt: created.toISOString(), status: order.status,
       statusLabel: STATUSES[order.status], total: order.total,
+      deliveryMethod, deliveryLabel: deliveryMethod === "pickup" ? "Ambil sendiri" : "Diantar",
+      itemsSubtotal: sum, shippingFee, shippingConfirmed, grandTotal: shippingConfirmed ? order.total : null,
       paymentMethod: clean(order.paymentMethod, 100) || "—", items,
       queueNumber: absentQueue ? null : order.queueNumber,
       queueDate: absentQueue ? null : order.queueDate,
@@ -155,6 +167,7 @@
     rule(); pair("Order ID", order.id);
     if (!order.customerDataProtected && order.customerName) pair("Pelanggan", order.customerName);
     pair("Tanggal", createdLabel(order.createdAt)); pair("Status", order.statusLabel);
+    pair("Pengambilan", order.deliveryLabel);
     rule(); text("DETAIL PESANAN", base, true);
     order.items.forEach(item => {
       keepTogether(() => {
@@ -164,14 +177,18 @@
       });
     });
     rule();
-    if (thermal) keepTogether(() => { text("TOTAL", base, true, "left", .4); text(money(order.total), base + 1, true, "right", 1.5); });
-    else pair("TOTAL", money(order.total), true, base + 1);
+    pair("Subtotal menu", money(order.itemsSubtotal));
+    pair("Ongkir", order.shippingConfirmed ? money(order.shippingFee) : "Menunggu konfirmasi admin");
+    const totalLabel = order.shippingConfirmed ? "TOTAL AKHIR" : "SUBTOTAL MENU";
+    if (thermal) keepTogether(() => { text(totalLabel, base, true, "left", .4); text(money(order.total), base + 1, true, "right", 1.5); });
+    else pair(totalLabel, money(order.total), true, base + 1);
+    if (!order.shippingConfirmed) text("Belum termasuk ongkir. Total akhir menunggu konfirmasi admin.", thermal ? 6.5 : 8);
     pair("Metode bayar", order.paymentMethod);
     text("Metode pembayaran bukan konfirmasi pembayaran lunas.", thermal ? 6.5 : 8);
     if (!thermal) {
       rule();
       if (order.customerDataProtected) text("Data pelanggan dilindungi. Nota ini menampilkan detail dan status pesanan.", 9);
-      else { pair("WhatsApp", order.customerPhone || "—"); pair("Alamat", order.address || "—"); pair("Catatan", order.notes || "Tidak ada"); }
+      else { pair("WhatsApp", order.customerPhone || "—"); pair("Alamat", order.address || (order.deliveryMethod === "pickup" ? "Ambil sendiri" : "—")); pair("Catatan", order.notes || "Tidak ada"); }
     }
     rule(); text("Terima kasih sudah memesan di Dapoer Pasta.", base, true, "center");
     text("Simpan nota ini sebagai ringkasan dan referensi pesanan Anda.", thermal ? 6.5 : 8, false, "center");

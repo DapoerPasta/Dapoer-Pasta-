@@ -2,6 +2,7 @@ const { getPublicOrderStatus, getOrderById } = require("./_lib/db");
 const { verifySession } = require("./_lib/auth");
 const { guardRequest } = require("./_lib/security");
 const { queueMetadata } = require("./_lib/order-queue");
+const { fulfillmentMetadata } = require("./_lib/fulfillment");
 
 function privacyHeaders(res) {
   res.setHeader("Cache-Control", "private, no-store");
@@ -54,6 +55,7 @@ module.exports = async function handler(req, res) {
       ...queueMetadata(order),
       items: publicItems(order.items),
       total: Number(order.total),
+      ...fulfillmentMetadata(order),
       status: order.status,
       paymentMethod: order.payment_method,
       createdAt: order.created_at,

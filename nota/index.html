@@ -12,10 +12,10 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/receipt.css?v=20261009-thermal">
   <link rel="stylesheet" href="/assets/css/receipt-privacy.css">
-  <link rel="stylesheet" href="/assets/css/receipt-thermal.css?v=20261015-admin-receipts">
-  <script src="/assets/js/receipt-print-files.js?v=20261009-thermal" defer></script>
+  <link rel="stylesheet" href="/assets/css/receipt-thermal.css?v=20261016-fulfillment">
+  <script src="/assets/js/receipt-print-files.js?v=20261016-fulfillment" defer></script>
   <script src="/assets/js/admin-session.js?v=20261014-reliable" defer></script>
-  <script src="/assets/js/receipt.js?v=20261015-admin-receipts" defer></script>
+  <script src="/assets/js/receipt.js?v=20261016-fulfillment" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
 </head>
@@ -78,7 +78,10 @@
       <div class="divider"></div>
 
       <section class="receipt-summary">
-        <div><span>Total Harga</span><strong id="receipt-total">Rp 0</strong></div>
+        <div><span>Pengambilan</span><strong id="receipt-delivery">—</strong></div>
+        <div><span>Subtotal menu</span><strong id="receipt-subtotal">Rp 0</strong></div>
+        <div><span>Ongkir</span><strong id="receipt-shipping">—</strong></div>
+        <div class="receipt-grand-total"><span id="receipt-total-label">Total akhir</span><strong id="receipt-total">Rp 0</strong></div>
         <div><span>Metode Bayar</span><strong id="receipt-method">—</strong></div>
       </section>
       <p class="receipt-payment-note">Metode pembayaran bukan konfirmasi pembayaran lunas.</p>

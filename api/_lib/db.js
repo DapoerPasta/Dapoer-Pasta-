@@ -7,6 +7,8 @@ const { ensureOperationsSchema, rethrowOperationError, requestId, expectedTotal,
   orderFingerprint, validateExpectedStatus } = require("./operations");
 const { ensureOrderAdditionsSchema, requestOrderAddition: requestAddition,
   reviewOrderAddition: reviewAddition } = require("./order-additions-db");
+const { normalizeDeliveryMethod, validateShippingUpdate } = require("./fulfillment");
+const { ensureFulfillmentSchema, updateOrderShipping: updateShipping } = require("./fulfillment-db");
 
 let schemaPromise;
 let schemaDatabaseUrl;
@@ -206,6 +208,7 @@ async function ensureSchema() {
         $function$
       `;
       await ensureOperationsSchema(sql);
+      await ensureFulfillmentSchema(sql);
       await ensureOrderAdditionsSchema(sql);
     }).catch(error => {
       schemaPromise = undefined;
@@ -227,28 +230,22 @@ function rethrowStockError(error) {
 }
 
 async function saveOrder(order) {
+  const deliveryMethod = normalizeDeliveryMethod(order.deliveryMethod ?? order.customer?.deliveryMethod);
   const operationId = requestId(order.requestId === null ? undefined : order.requestId);
   const displayedTotal = expectedTotal(order.expectedTotal === null ? undefined : order.expectedTotal);
   const intentFingerprint = orderFingerprint({ ...order, expectedTotal: displayedTotal });
   const sql = await ensureSchema();
   if (!sql) throw stockError("DATABASE_NOT_CONFIGURED");
   try {
-    const rows = operationId || displayedTotal !== null ? await sql`
-    SELECT dapoer_save_order_once_recorded(
+    const rows = await sql`
+    SELECT dapoer_save_order_fulfillment_recorded(
       ${order.id}, ${order.customer.name}, ${order.customer.phone},
       ${order.customer.address}, ${order.customer.notes},
       ${order.customer.paymentMethod}, ${JSON.stringify(order.items)}::jsonb,
       ${order.total}::bigint, ${order.trackingToken},
-      ${operationId}::uuid, ${intentFingerprint}, ${displayedTotal}::bigint
+      ${operationId}::uuid, ${intentFingerprint}, ${displayedTotal}::bigint, ${deliveryMethod}
     ) AS saved
-    ` : await sql`
-    SELECT dapoer_save_order_with_queue_recorded(
-      ${order.id}, ${order.customer.name}, ${order.customer.phone},
-      ${order.customer.address}, ${order.customer.notes},
-      ${order.customer.paymentMethod}, ${JSON.stringify(order.items)}::jsonb,
-      ${order.total}::bigint, ${order.trackingToken}
-    ) AS saved
-  `;
+    `;
     const saved = rows[0]?.saved;
     if (!saved) throw new Error("ORDER_SAVE_UNCONFIRMED");
     if (saved.id) Object.assign(order, saved);
@@ -268,7 +265,7 @@ async function listOrders(limit = 100) {
   const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
   return sql`
     SELECT id, customer_name, customer_phone, address, notes,
-           payment_method, items, total, status, tracking_token, queue_number, queue_date, created_at, updated_at,
+           payment_method, items, total, status, delivery_method, shipping_fee, tracking_token, queue_number, queue_date, created_at, updated_at,
            dapoer_order_additions_json(id) AS additions
     FROM orders
     ORDER BY created_at DESC
@@ -292,7 +289,7 @@ async function listOrdersByDate(options = {}) {
       WHERE created_at >= ${start}::timestamptz AND created_at < ${end}::timestamptz
     ), page_orders AS (
       SELECT id, customer_name, customer_phone, address, notes,
-             payment_method, items, total, status, tracking_token, queue_number, queue_date, created_at, updated_at,
+             payment_method, items, total, status, delivery_method, shipping_fee, tracking_token, queue_number, queue_date, created_at, updated_at,
              dapoer_order_additions_json(id) AS additions
       FROM orders
       WHERE created_at >= ${start}::timestamptz AND created_at < ${end}::timestamptz
@@ -325,7 +322,7 @@ async function getPublicOrderStatus(id, trackingToken) {
   const sql = await ensureSchema();
   if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
   const rows = await sql`
-    SELECT id, customer_name, customer_phone, address, notes, items, total, status, payment_method, queue_number, queue_date, created_at, updated_at, stock_reserved,
+    SELECT id, customer_name, customer_phone, address, notes, items, total, status, payment_method, delivery_method, shipping_fee, queue_number, queue_date, created_at, updated_at, stock_reserved,
            dapoer_order_additions_json(id) AS additions
     FROM orders
     WHERE id = ${id} AND tracking_token = ${trackingToken}
@@ -339,7 +336,7 @@ async function getOrderById(id) {
   if (!sql) throw new Error("DATABASE_NOT_CONFIGURED");
   const rows = await sql`
     SELECT id, customer_name, customer_phone, address, notes, items, total, status,
-           payment_method, queue_number, queue_date, created_at, updated_at,
+           payment_method, delivery_method, shipping_fee, queue_number, queue_date, created_at, updated_at,
            dapoer_order_additions_json(id) AS additions
     FROM orders WHERE id = ${id} LIMIT 1
   `;
@@ -368,5 +365,10 @@ async function reviewOrderAddition(input) {
   return reviewAddition(input, await ensureSchema());
 }
 
+async function updateOrderShipping(input) {
+  const validated = validateShippingUpdate(input);
+  return updateShipping(validated, await ensureSchema());
+}
+
 module.exports = { getSql, ensureSchema, saveOrder, listOrders, listOrdersByDate, getPublicOrderStatus, getOrderById, updateOrderStatus,
-  requestOrderAddition, reviewOrderAddition };
+  requestOrderAddition, reviewOrderAddition, updateOrderShipping };
