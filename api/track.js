@@ -1,21 +1,11 @@
 const { getPublicOrderStatus } = require("./_lib/db");
 const { guardRequest } = require("./_lib/security");
-const { queueMetadata } = require("./_lib/order-queue");
+const { publicOrder } = require("./_lib/order-additions");
 
 function privacyHeaders(res) {
   res.setHeader("Cache-Control", "private, no-store");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("X-Robots-Tag", "noindex, nofollow");
-}
-
-function publicItems(items) {
-  return (Array.isArray(items) ? items : []).map(item => ({
-    id: typeof item?.id === "string" ? item.id : "",
-    name: typeof item?.name === "string" ? item.name : "",
-    price: Number(item?.price) || 0,
-    quantity: Number(item?.quantity) || 0,
-    subtotal: Number(item?.subtotal) || 0
-  }));
 }
 
 module.exports = async function handler(req, res) {
@@ -40,18 +30,7 @@ module.exports = async function handler(req, res) {
     const order = await getPublicOrderStatus(id, token);
     if (!order) return res.status(404).json({ error: "Pesanan tidak ditemukan." });
 
-    return res.status(200).json({
-      order: {
-        id: order.id,
-        ...queueMetadata(order),
-        items: publicItems(order.items),
-        total: Number(order.total),
-        status: order.status,
-        paymentMethod: order.payment_method,
-        createdAt: order.created_at,
-        updatedAt: order.updated_at
-      }
-    });
+    return res.status(200).json({ order: publicOrder(order) });
   } catch (error) {
     if (error?.message === "DATABASE_NOT_CONFIGURED") {
       return res.status(503).json({ error: "Tracking pesanan belum tersedia." });

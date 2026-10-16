@@ -45,13 +45,17 @@
     const controller = new AbortController(), turn = generation;
     request = controller;
     $("#track-retry").disabled = true;
-    let timedOut = false, permanentFailure = false;
-    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 12000);
+    let timedOut = false, permanentFailure = false, timeout;
     try {
-      const response = await fetch(`/api/track?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`, {
-        headers: { Accept: "application/json" }, cache: "no-store", credentials: "same-origin", signal: controller.signal
-      });
-      const data = await response.json();
+      const { response, data } = await Promise.race([
+        (async () => {
+          const response = await fetch(`/api/track?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`, {
+            headers: { Accept: "application/json" }, cache: "no-store", credentials: "same-origin", signal: controller.signal
+          });
+          return { response, data: await response.json() };
+        })(),
+        new Promise((_, reject) => { timeout = setTimeout(() => { timedOut = true; controller.abort(); reject(new Error("Status pesanan belum dapat diperiksa.")); }, 12000); })
+      ]);
       if (turn !== generation || controller.signal.aborted) return;
       if (!response.ok) {
         permanentFailure = [400, 401, 403, 404].includes(response.status);
@@ -75,13 +79,16 @@
 
   function validOrder(order) {
     return order && order.id === id && [...statuses, "dibatalkan"].includes(order.status)
-      && Number.isSafeInteger(order.total) && order.total >= 0
+      && Number.isSafeInteger(order.total) && order.total > 0
       && typeof order.updatedAt === "string" && Number.isFinite(new Date(order.updatedAt).getTime())
-      && Array.isArray(order.items) && order.items.length > 0
-      && order.items.every(item => item && typeof item.name === "string" && Number.isSafeInteger(item.quantity) && item.quantity > 0 && Number.isSafeInteger(item.subtotal) && item.subtotal >= 0);
+      && Array.isArray(order.items) && order.items.length > 0 && order.items.length <= 100
+      && order.items.every(item => item && typeof item.name === "string" && item.name.trim() && Number.isSafeInteger(item.quantity) && item.quantity > 0 && Number.isSafeInteger(item.subtotal) && item.subtotal >= 0)
+      && (order.canAddItems === undefined || typeof order.canAddItems === "boolean")
+      && window.DapoerOrderRecovery?.validAdditions?.(order.additions) !== false;
   }
 
   function render(order) {
+    if (shownOrder && window.DapoerOrderRecovery.compareUpdatedAt(order.updatedAt, shownOrder.updatedAt) < 0) return;
     const previousStatus = shownOrder?.status;
     shownOrder = order;
     $("#track-loading").hidden = true;
@@ -124,9 +131,13 @@
       row.append(name, subtotal); root.append(row);
     });
     if (previousStatus && previousStatus !== order.status) document.title = `Status: ${order.status} | Dapoer Pasta`;
+    window.DapoerOrderAdditions?.update?.(order);
   }
 
   function showError(message, transient = false) {
+    window.DapoerOrderAdditions?.unavailable?.();
+    $("#track-whatsapp-recovery").hidden = true;
+    $("#track-whatsapp-link").removeAttribute("href");
     $("#track-loading").hidden = true;
     $("#track-retry").hidden = !validLink;
     if (shownOrder && transient) {
@@ -143,4 +154,13 @@
     $("#track-error").hidden = false;
     $("#track-error").textContent = message;
   }
+  window.DapoerTrack = Object.freeze({
+    update: order => {
+      if (!validOrder(order)) { showError("Data tambahan belum dapat diverifikasi. Perbarui status sebelum melanjutkan."); return false; }
+      // A GET started before an addition must never replace its newer result.
+      pause(); render(order); schedule(); return true;
+    },
+    refresh: loadStatus,
+    unavailable: () => showError("Pesanan belum dapat diverifikasi. Perbarui status untuk melanjutkan.")
+  });
 })();

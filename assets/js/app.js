@@ -252,12 +252,15 @@ function renderOrderRecovery(){
   message.textContent=state.recovery.status==="offline"?"Pesanan tetap tersimpan. Sambungkan internet, lalu lanjutkan konfirmasi.":"Data pemesan sudah tersimpan. Lanjutkan konfirmasi melalui WhatsApp.";
   message.hidden=state.recovery.status!=="offline";
 }
-function updateSavedConfirmation(record,whatsapp,message){
+function updateSavedConfirmation(record,whatsapp,message,order){
   if(!record||state.success?.id!==record.id||state.success?.token!==record.token)return;
   const link=$("#checkout-whatsapp-link");if(link){link.hidden=!whatsapp;if(whatsapp)link.href=whatsapp;else link.removeAttribute("href")}
+  const addition=$("#checkout-add-menu-link");if(addition){addition.hidden=!whatsapp||!canAddToSavedOrder(order);if(!addition.hidden)addition.href=record.trackingUrl+"#tambah-menu";else addition.removeAttribute("href")}
+  if(order){state.success={...state.success,total:order.total};$("#checkout-success-order").textContent=`${record.id} · ${rupiah(order.total)}`}
   if(message)checkoutNotice(message);
   else if(whatsapp&&state.modal==="checkout-modal")checkoutNotice(state.cart.length?"Perubahan terbaru di keranjang tetap disimpan untuk pesanan berikutnya.":"");
 }
+function canAddToSavedOrder(order){return !order||["baru","diproses"].includes(order.status)&&order.canAddItems!==false&&window.DapoerOrderRecovery?.validAdditions?.(order.additions)!==false&&(order.additions||[]).length<100&&!(order.additions||[]).some(addition=>addition.status==="pending")}
 async function refreshOrderRecovery(){
   let record=window.DapoerOrderRecovery?.getCurrent();
   if(!record){const legacy=window.DapoerOrderRecovery?.getLegacyReference();if(legacy)record={...legacy,trackingUrl:`/track/?id=${encodeURIComponent(legacy.id)}&token=${encodeURIComponent(legacy.token)}`,legacy:true}}
@@ -283,14 +286,14 @@ async function refreshOrderRecovery(){
       if(turn!==state.recoveryGeneration||!stillCurrent)return null;
       if(!result.response.ok){if([400,401,403,404].includes(result.response.status)){updateSavedConfirmation(record,null,"Tautan pesanan ini tidak dapat diverifikasi. Hubungi admin untuk memeriksa pesanan yang sudah tersimpan.");window.DapoerOrderRecovery?.forget(record);state.recovery=null;return null}throw new Error("recovery unavailable")}
       const order=result.data.order;
-      if(order?.id!==record.id||!Number.isSafeInteger(order.total)||order.total<1||!["baru","diproses","dikirim","selesai","dibatalkan"].includes(order.status)||typeof order.updatedAt!=="string"||!Number.isFinite(new Date(order.updatedAt).getTime())||!Array.isArray(order.items)||!order.items.length||order.items.some(item=>!item||typeof item.name!=="string"||!item.name.trim()||!Number.isSafeInteger(item.quantity)||item.quantity<1||!Number.isSafeInteger(item.subtotal)||item.subtotal<0))throw new Error("recovery invalid");
+      if(order?.id!==record.id||!Number.isSafeInteger(order.total)||order.total<1||!["baru","diproses","dikirim","selesai","dibatalkan"].includes(order.status)||typeof order.updatedAt!=="string"||!Number.isFinite(new Date(order.updatedAt).getTime())||!Array.isArray(order.items)||!order.items.length||order.items.length>100||order.items.some(item=>!item||typeof item.name!=="string"||!item.name.trim()||!Number.isSafeInteger(item.quantity)||item.quantity<1||!Number.isSafeInteger(item.subtotal)||item.subtotal<0)||(order.canAddItems!==undefined&&typeof order.canAddItems!=="boolean")||window.DapoerOrderRecovery?.validAdditions?.(order.additions)===false)throw new Error("recovery invalid");
       if(["selesai","dibatalkan"].includes(order.status)){updateSavedConfirmation(record,null,order.status==="dibatalkan"?"Pesanan ini sudah dibatalkan. Konfirmasi WhatsApp untuk pesanan ini dinonaktifkan.":"Pesanan ini sudah selesai. Anda tetap dapat melihat status melalui Lacak pesanan.");window.DapoerOrderRecovery?.forget(record);state.recovery=null;return null}
       const confirmedRecord=record.legacy?window.DapoerOrderRecovery?.recoverLegacy({id:record.id,token:record.token,order}):record;
       if(!confirmedRecord)throw new Error("recovery invalid");
       const whatsapp=window.DapoerOrderRecovery?.getWhatsAppUrl({id:record.id,token:record.token,order});
       if(!whatsapp)throw new Error("recovery invalid");
       const verified={...confirmedRecord,total:order.total,queueNumber:Number.isSafeInteger(order.queueNumber)&&order.queueNumber>0?order.queueNumber:null,queueDate:typeof order.queueDate==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(order.queueDate)?order.queueDate:null};
-      state.recovery={record:verified,order,status:"ready",whatsapp};updateSavedConfirmation(record,whatsapp);return state.recovery;
+      state.recovery={record:verified,order,status:"ready",whatsapp};updateSavedConfirmation(verified,whatsapp,null,order);return state.recovery;
     }catch{if(turn===state.recoveryGeneration){state.recovery={record,status:"offline",order:null};updateSavedConfirmation(record,null,"Status belum dapat diperiksa. Sambungkan internet, lalu tutup layar ini dan tekan Lanjutkan konfirmasi untuk mencoba kembali.")}return null}
     finally{clearTimeout(timeout);if(state.recoveryRequest===request)state.recoveryRequest=null;renderOrderRecovery()}
   })();
@@ -393,6 +396,9 @@ async function postCheckout(intent,snapshot,cartBefore,customerBefore){
   state.recoveryGeneration++;state.recoveryRequest?.controller?.abort();state.recoveryRequest=null;
   state.recovery={record,status:"ready",whatsapp,order:null};
   showCheckoutSuccess(record,whatsapp,data.order.total,!unchanged);loadMenu();
+  // Checkout idempotency preserves its original snapshot. Tracking supplies the
+  // current total if another tab has since added menus or changed the status.
+  refreshOrderRecovery();
 }
 function showCheckoutSuccess(record,whatsapp,total,cartPreserved,restored=false){
   state.success=record;checkoutNotice(cartPreserved?"Perubahan terbaru di keranjang tetap disimpan untuk pesanan berikutnya.":"");
@@ -400,6 +406,7 @@ function showCheckoutSuccess(record,whatsapp,total,cartPreserved,restored=false)
   $("#checkout-success-order").textContent=`${record.id} · ${rupiah(total)}`;
   const queue=$("#checkout-success-queue");queue.hidden=!record.queueNumber;queue.textContent=record.queueNumber?`Nomor antrean A${String(record.queueNumber).padStart(3,"0")}${record.queueDate?` · ${record.queueDate} WIB`:""}`:"";
   $("#checkout-whatsapp-link").hidden=false;$("#checkout-whatsapp-link").href=whatsapp;$("#checkout-tracking-link").href=record.trackingUrl;
+  const addition=$("#checkout-add-menu-link");if(addition){addition.hidden=!canAddToSavedOrder(state.recovery?.order);if(!addition.hidden)addition.href=record.trackingUrl+"#tambah-menu";else addition.removeAttribute("href")}
   toggleCheckout(true);if(!restored)showToast(`Pesanan ${record.id} tersimpan.`);
 }
 async function sendChat(e){

@@ -8,20 +8,29 @@ const { webcrypto } = require("node:crypto");
 const ID="chicken-pop-corn-250gr",TOKEN="a".repeat(48);
 const product=(stock=20,price=37000)=>({id:ID,name:"Chicken pop corn 250gr",price,stock,image:"/assets/images/menu/chicken-pop-corn-1200.webp",imageFallback:"/8.png",imageSrcset:"/assets/images/menu/chicken-pop-corn-720.webp 720w, /assets/images/menu/chicken-pop-corn-1200.webp 1200w",imageWidth:1200,imageHeight:1698,badge:"Casa",description:"Ayam"});
 const reply=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
-const success=(payload,id="DP-TEST-001")=>reply({order:{id,items:payload.items,total:payload.expectedTotal,queueNumber:7,queueDate:"2026-10-14"},trackingUrl:`/track/?id=${id}&token=${TOKEN}`,whatsappUrl:"https://api.whatsapp.com/send?phone=6285175391181&text=Konfirmasi"});
+const success=(payload,id="DP-TEST-001")=>reply({order:{id,items:payload.items.map(item=>({...item,name:product().name,price:payload.expectedTotal/payload.items.reduce((sum,item)=>sum+item.quantity,0),subtotal:payload.expectedTotal*item.quantity/payload.items.reduce((sum,item)=>sum+item.quantity,0)})),total:payload.expectedTotal,status:"baru",updatedAt:"2026-10-16T00:00:00.000Z",queueNumber:7,queueDate:"2026-10-14"},trackingUrl:`/track/?id=${id}&token=${TOKEN}`,whatsappUrl:"https://api.whatsapp.com/send?phone=6285175391181&text=Konfirmasi"});
 function storage(map,fail=false,failWrites=false){return{getItem(key){if(fail)throw new Error("denied");return map.get(key)||null},setItem(key,value){if(fail||failWrites)throw new Error("denied");map.set(key,String(value))},removeItem(key){if(fail||failWrites)throw new Error("denied");map.delete(key)}}}
-function customer(fetch,{local=new Map(),session=new Map(),failStorage=false,failWrites=false}={}){
+function customer(fetch,{local=new Map(),session=new Map(),failStorage=false,failWrites=false,checkoutTracking=true}={}){
   const elements=new Map(),opened=[],events=new Map(),timeouts=new Map(),intervals=[],location={origin:"https://example.com"},document={hidden:false,activeElement:null,addEventListener(type,fn){events.set(`document:${type}`,fn)},querySelectorAll(){return[]}};
   function node(){const classes=new Set(),listeners=new Map();return{children:[],value:"",textContent:"",hidden:false,disabled:false,isConnected:true,inert:false,validationMessage:"",attributes:{},classList:{add(x){classes.add(x)},remove(x){classes.delete(x)},toggle(x,on){on?classes.add(x):classes.delete(x)},contains(x){return classes.has(x)}},append(...children){this.children.push(...children)},replaceChildren(...children){this.children=children;this.replacements=(this.replacements||0)+1},addEventListener(type,fn){listeners.set(type,fn)},emit(type,event={}){return listeners.get(type)?.({target:this,...event})},setAttribute(key,value){this.attributes[key]=String(value)},removeAttribute(key){delete this.attributes[key];delete this[key]},setCustomValidity(message){this.validationMessage=message},reportValidity(){return !this.validationMessage},querySelector(){return null},focus(){document.activeElement=this},reset(){for(const id of ["name","phone","address","payment","notes"])document.querySelector(`#checkout-${id}`).value=""}}}
   document.createElement=node;document.body=node();document.querySelector=selector=>{if(!elements.has(selector))elements.set(selector,node());return elements.get(selector)};
   const window={location,crypto:webcrypto,open(...args){opened.push(args)},addEventListener(type,fn){events.set(`window:${type}`,fn)}};
   let timerId=0;
-  const context=vm.createContext({window,document,fetch,URL,TextEncoder,Uint8Array,AbortController,localStorage:storage(local,failStorage,failWrites),sessionStorage:storage(session,failStorage,failWrites),setTimeout(fn,delay){const id=++timerId;timeouts.set(id,{fn,delay});return id},clearTimeout(id){timeouts.delete(id)},setInterval(fn,delay){intervals.push({fn,delay});return intervals.length}});
+  // Checkout fixtures behave like a persisted order: the new verification GET
+  // reads that snapshot. Tracking-specific cases supply their own changing API.
+  const persisted=new Map();
+  async function transport(url,options){
+    if(checkoutTracking&&url.startsWith("/api/track?")){const query=new URL(url,location.origin),saved=persisted.get(query.searchParams.get("id"));if(saved)return reply({order:saved})}
+    const response=await fetch(url,options);
+    if(url==="/api/order"&&response.ok){const data=await response.json();if(data.order?.id)persisted.set(data.order.id,data.order)}
+    return response;
+  }
+  const context=vm.createContext({window,document,fetch:transport,URL,TextEncoder,Uint8Array,AbortController,localStorage:storage(local,failStorage,failWrites),sessionStorage:storage(session,failStorage,failWrites),setTimeout(fn,delay){const id=++timerId;timeouts.set(id,{fn,delay});return id},clearTimeout(id){timeouts.delete(id)},setInterval(fn,delay){intervals.push({fn,delay});return intervals.length}});
   vm.runInContext(fs.readFileSync(path.join(__dirname,"../assets/js/order-recovery.js"),"utf8"),context);
   vm.runInContext(fs.readFileSync(path.join(__dirname,"../assets/js/app.js"),"utf8")+"\nglobalThis.api={state,init,loadMenu,addToCart,updateQuantity,renderCart,submitCheckout,retryPendingCheckout,loadIntent,openCheckout,toggleCart,toggleCheckout,toggleMobileMenu,handleDialogKeyboard,refreshOrderRecovery,resumeOrderConfirmation,renderOrderRecovery,saveCheckoutDraft,restoreCheckoutDraft};",context);
   const ui={...context.api,element:document.querySelector,opened,location,local,session,events,intervals,document,recovery:window.DapoerOrderRecovery,emit(type,event={}){return events.get(`window:${type}`)?.(event)},runTimeout(delay){const timer=[...timeouts].find(([,item])=>item.delay===delay);assert.ok(timer,`A ${delay}ms deadline must be scheduled`);timeouts.delete(timer[0]);timer[1].fn()}};
   ui.fill=(name="Customer")=>{for(const[key,value]of Object.entries({name,phone:"081234567890",address:"Jalan contoh 123",payment:"DANA",notes:""}))ui.element(`#checkout-${key}`).value=value};
-  ui.submit=()=>ui.submitCheckout({preventDefault(){}});return ui;
+  ui.submit=async()=>{await ui.submitCheckout({preventDefault(){}});await ui.state.recoveryRequest?.promise};return ui;
 }
 const plain=value=>JSON.parse(JSON.stringify(value));
 
@@ -206,19 +215,52 @@ const currentRecord=(extra={})=>({id:"DP-TEST-001",token:TOKEN,trackingUrl:`/tra
 const trackedOrder=(extra={})=>({id:"DP-TEST-001",status:"baru",total:37000,queueNumber:7,queueDate:"2026-10-15",paymentMethod:"Transfer Bank",createdAt:"2026-10-15T01:00:00Z",updatedAt:"2026-10-15T01:00:00Z",items:[{id:ID,name:"Chicken pop corn 250gr",quantity:1,subtotal:37000}],...extra});
 const savedLocal=()=>new Map([[CURRENT_KEY,JSON.stringify(currentRecord())]]);
 
+test("an old checkout replay verifies the current amended total before exposing WhatsApp",async()=>{
+  const sent=[];let release,reads=0;const waiting=new Promise(resolve=>{release=resolve});
+  const ui=customer(async(url,options)=>{
+    if(url==="/api/menu")return reply({products:[product()]});
+    if(url.startsWith("/api/track?")){reads++;return waiting}
+    const payload=JSON.parse(options.body);sent.push(payload);if(sent.length===1)throw new Error("lost checkout response");return success(payload);
+  },{checkoutTracking:false});
+  await ui.loadMenu();ui.addToCart(ID);ui.fill();await ui.submit();
+  await ui.retryPendingCheckout();
+  assert.equal(sent.length,2);assert.deepEqual(sent[0],sent[1]);assert.equal(reads,1);
+  assert.equal(ui.loadIntent(),null);assert.equal(ui.element("#checkout-whatsapp-link").hidden,true);assert.equal(ui.element("#checkout-whatsapp-link").href,undefined);
+  release(reply({order:trackedOrder({total:67000,queueDate:"2026-10-14",updatedAt:"2026-10-16T01:00:00.000123Z",items:[{id:ID,name:"Chicken pop corn 250gr",quantity:1,subtotal:37000},{id:"pasta-brulee-oval-2pcs",name:"Pasta oval",quantity:1,subtotal:30000}]})}));
+  await ui.state.recoveryRequest.promise;
+  assert.equal(ui.state.success.id,"DP-TEST-001");assert.equal(ui.state.cart.length,0);
+  assert.match(ui.element("#checkout-success-order").textContent,/Rp 67\.000/);
+  const text=new URL(ui.element("#checkout-whatsapp-link").href).searchParams.get("text");
+  assert.match(text,/TOTAL PESANAN: Rp 67\.000/);assert.match(text,/Pasta oval/);assert.doesNotMatch(text,/TOTAL PESANAN: Rp 37\.000/);
+  assert.equal(JSON.parse(ui.local.get(CURRENT_KEY)).total,67000);
+});
+
+test("a saved checkout stays recoverable without another POST when its verification read is unavailable",async()=>{
+  let posts=0,available=false;
+  const ui=customer(async(url,options)=>{
+    if(url==="/api/menu")return reply({products:[product()]});
+    if(url.startsWith("/api/track?"))return available?reply({order:trackedOrder()}):reply({error:"unavailable"},503);
+    posts++;return success(JSON.parse(options.body));
+  },{checkoutTracking:false});
+  await ui.loadMenu();ui.addToCart(ID);ui.fill();await ui.submit();
+  assert.equal(ui.loadIntent(),null);assert.equal(ui.element("#checkout-whatsapp-link").hidden,true);assert.equal(ui.state.success.id,"DP-TEST-001");
+  ui.toggleCheckout(false);assert.equal(ui.element("#order-confirmation").hidden,false);
+  available=true;await ui.resumeOrderConfirmation();assert.equal(posts,1);assert.equal(ui.element("#checkout-whatsapp-link").hidden,false);assert.equal(ui.state.modal,"checkout-modal");
+});
+
 test("closing a saved checkout leaves one reminder and resuming confirms the original order without posting again",async()=>{
   let posts=0,reads=0;
   const ui=customer(async(url,options)=>{
     if(url==="/api/menu")return reply({products:[product()]});
     if(url.startsWith("/api/track?")){reads++;return reply({order:trackedOrder()})}
     posts++;return success(JSON.parse(options.body));
-  });
+  },{checkoutTracking:false});
   await ui.loadMenu();ui.addToCart(ID);ui.fill();await ui.submit();
   assert.equal(ui.element("#order-confirmation").hidden,true,"the saved-order modal hides the reminder");
   ui.toggleCheckout(false);assert.equal(ui.element("#order-confirmation").hidden,false);
   assert.match(ui.element("#order-confirmation-summary").textContent,/Antrean A007/);
   await ui.resumeOrderConfirmation();
-  assert.equal(posts,1);assert.equal(reads,1);assert.equal(ui.state.modal,"checkout-modal");assert.equal(ui.element("#order-confirmation").hidden,true);
+  assert.equal(posts,1);assert.equal(reads,2);assert.equal(ui.state.modal,"checkout-modal");assert.equal(ui.element("#order-confirmation").hidden,true);
   assert.equal(ui.element("#checkout-whatsapp-link").href,"https://api.whatsapp.com/send?phone=6285175391181&text=Konfirmasi");
   assert.equal(ui.element("#checkout-name").value,"");assert.equal(ui.loadIntent(),null);
 });
@@ -334,7 +376,7 @@ for(const state of ["dibatalkan","selesai","revoked","expired","outage"])test(`r
     if(url==="/api/menu")return reply({products:[product()]});
     if(url.startsWith("/api/track?")){if(status==="revoked")return reply({error:"not found"},404);if(status==="outage")return reply({error:"unavailable"},503);return reply({order:trackedOrder({status})})}
     return success(JSON.parse(options.body));
-  });
+  },{checkoutTracking:false});
   await ui.init();ui.addToCart(ID);ui.fill();await ui.submit();assert.equal(ui.element("#checkout-whatsapp-link").hidden,false);
   if(state==="expired"){const record=JSON.parse(ui.local.get(CURRENT_KEY));record.savedAt=Date.now()-86400001;ui.local.set(CURRENT_KEY,JSON.stringify(record))}else status=state;
   ui.events.get("document:visibilitychange")();await ui.state.recoveryRequest?.promise;
@@ -352,7 +394,7 @@ test("a pre-upgrade WhatsApp session becomes a current confirmation only after a
   release(reply({order:trackedOrder({total:30000,items:[{name:"Pasta brulee oval 2 pcs",quantity:1,subtotal:30000}]})}));await first;await duplicate;
   const current=JSON.parse(local.get(CURRENT_KEY));assert.equal(current.total,30000);assert.equal(current.savedAt,originalStamp);assert.equal(current.queueNumber,7);assert.equal(ui.element("#order-confirmation").hidden,false);assert.equal(ui.state.modal,null);assert.doesNotMatch(JSON.stringify([...local.values()]),/PRIVATE_ORIGINAL_FORM/);
   assert.match(ui.recovery.getWhatsAppUrl(current),/PRIVATE_ORIGINAL_FORM/);assert.notEqual(JSON.parse(session.get(WA_KEY)).legacyRecoveryPending,true);
-  const reloaded=customer(async()=>reply({order:trackedOrder()}),{local,session});await reloaded.resumeOrderConfirmation();assert.equal(reloaded.state.modal,"checkout-modal");assert.equal(JSON.parse(local.get(CURRENT_KEY)).savedAt,originalStamp);assert.match(reloaded.element("#checkout-whatsapp-link").href,/PRIVATE_ORIGINAL_FORM/);
+  const reloaded=customer(async()=>reply({order:trackedOrder({total:30000,items:[{name:"Pasta brulee oval 2 pcs",quantity:1,subtotal:30000}]})}),{local,session});await reloaded.resumeOrderConfirmation();assert.equal(reloaded.state.modal,"checkout-modal");assert.equal(JSON.parse(local.get(CURRENT_KEY)).savedAt,originalStamp);assert.match(reloaded.element("#checkout-whatsapp-link").href,/PRIVATE_ORIGINAL_FORM/);
 });
 
 for(const condition of ["cancelled","completed","revoked","mismatched","malformed"])test(`a ${condition} pre-upgrade session cannot become a saved confirmation`,async()=>{

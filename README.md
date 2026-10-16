@@ -12,6 +12,7 @@ Website Dapoer Pasta berjalan di Vercel dengan frontend statis, Vercel Functions
 - Pesanan disimpan ke Postgres
 - Nomor order unik
 - Nomor antrean harian WIB yang tersimpan pada setiap pesanan
+- Tambah menu pada pesanan yang sama, dengan persetujuan admin bila sudah diproses
 - Struk customer thermal 58/80 mm, nota A4, dan unduhan PDF
 - Checkout diteruskan ke WhatsApp
 - Dashboard private di `/admin/`
@@ -322,6 +323,47 @@ Print/PDF admin memeriksa ulang
 nota; kesalahan akses membersihkan pratinjau dan menonaktifkan cetak/unduh.
 Tidak ada endpoint Vercel, kredensial, atau dependensi aplikasi baru.
 
+## Tambah Menu pada Pesanan Aktif
+
+Customer membuka **Lacak pesanan → Tambah Menu**, atau memakai tombol
+**Tambah Menu** dari layar pesanan tersimpan. Customer memilih jumlah tambahan
+tanpa mengisi nama, nomor WhatsApp, atau alamat lagi. Nomor pesanan dan antrean
+tetap sama. Harga menu yang sudah dipesan tetap dipertahankan; menu tambahan
+memakai harga katalog terbaru, dengan subtotal tambahan dan total gabungan
+ditampilkan sebelum konfirmasi.
+
+Pada status **baru**, tambahan langsung masuk ke pesanan setelah stok diperiksa.
+Pada status **diproses**, tambahan menjadi **menunggu persetujuan admin**.
+Permintaan tersebut belum mengurangi stok atau menambah tagihan. Admin melihat
+rincian tambahan pada kartu pesanan, lalu memilih **Setujui** atau **Tolak**.
+Persetujuan memeriksa kembali harga, stok, dan versi pesanan sebelum mengubah
+total serta stok dalam satu transaksi. Customer dapat mengonfirmasi tambahan
+dan total terbaru melalui WhatsApp; pesan untuk permintaan yang masih menunggu
+persetujuan menjelaskan bahwa tambahan belum perlu dibayar.
+
+Hanya satu permintaan tambahan boleh menunggu persetujuan pada setiap pesanan.
+Pesanan **dikirim**, **selesai**, atau **dibatalkan** tidak menerima tambahan;
+permintaan yang belum diputuskan berakhir ketika pesanan mencapai status itu.
+Pesanan lama yang stoknya tidak pernah dipesan melalui sistem tidak menerima
+tambahan agar pembatalannya tidak mengembalikan stok yang belum pernah dipotong.
+
+`POST /api/order` memakai `action: "add-items"`, ID dan token tracking,
+`requestId` UUID, daftar `{id, quantity}`, serta `expectedTotal` untuk subtotal
+tambahan. Endpoint checkout biasa tetap menerima format sebelumnya.
+`POST /api/admin/orders` memakai `action: "review-addition"`, ID pesanan,
+`additionId`, `decision` (`approve`/`reject`), UUID permintaan, dan pasangan
+`expectedStatus`/`expectedUpdatedAt`. Sesi admin dan pemeriksaan asal permintaan
+tetap diwajibkan. Endpoint Vercel baru tidak diperlukan.
+
+UUID tambahan disimpan sementara agar retry setelah koneksi terputus memakai
+permintaan yang sama. Database menyimpan UUID dan fingerprint secara atomik;
+retry tidak mengurangi stok atau menambah menu dua kali. Riwayat tambahan
+tersimpan pada `order_additions`. Perubahan stok memakai jurnal stok yang sama,
+beserta nomor pesanan dan alasan tambahan. Struk admin dan laporan keuangan
+membaca item serta total pesanan yang sudah diperbarui. Item dengan harga lama
+dan harga baru tetap terpisah bila harganya berbeda. Jumlah baris item dibatasi
+100 agar nota tetap dapat dicetak.
+
 ## Pemulihan Koneksi dan Alur Operasional
 
 Checkout memakai satu `requestId` UUID untuk satu pesanan. Jika respons hilang,
@@ -337,6 +379,10 @@ Halaman sukses menyediakan **Konfirmasi di WhatsApp** dan **Lacak pesanan**.
 Struk hanya dibuka dan dicetak oleh admin. Pembukaan WhatsApp dilakukan dengan
 klik langsung agar tetap bekerja setelah koneksi lambat. Beranda tetap memakai
 satu tombol gold **Pilih Menu & Pesan**.
+Setelah checkout tersimpan, tracking memeriksa total terbaru sebelum tautan
+WhatsApp ditampilkan. Replay checkout lama tidak memakai total awal ketika menu
+sudah ditambahkan. Jika pemeriksaan gagal, pesanan tetap tercatat dan konfirmasi
+dapat dilanjutkan melalui pengingat setelah koneksi pulih.
 
 Jika layar sukses tidak sengaja ditutup, pengingat **Lanjutkan konfirmasi**
 membuka kembali pesanan yang sama setelah statusnya diperiksa melalui tracking.
@@ -481,6 +527,12 @@ mencakup checkout bersamaan, reset WIB, migrasi riwayat, kompatibilitas instance
 lama, pembatalan, dan rollback nomor bersama stok. `npm test` juga memeriksa
 penolakan struk customer, akses nota admin, validasi struk, PDF, pembatalan unduhan,
 serta pemulihan konfirmasi dan isian formulir tanpa menggandakan pesanan.
+
+Dengan konfigurasi database lokal yang sama, jalankan
+`node --test test/order-additions-postgres.test.js test/order-additions-flow-postgres.test.js`
+untuk memeriksa tambahan menu bersamaan, retry, persetujuan, pembatalan,
+perubahan harga, jurnal stok, serta alur API sampai struk dan laporan keuangan.
+Suite ini hanya berjalan ketika variabel database pengujian lokal tersedia.
 
 Suite riwayat stok membuktikan migrasi saldo awal tanpa transaksi rekaan,
 pencatatan atomik pesanan/pembatalan, UUID dan konflik stok, batas periode WIB,

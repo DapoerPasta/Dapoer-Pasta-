@@ -43,6 +43,7 @@ function handlerFor(endpoint, options = {}) {
       }
     },
     "./_lib/order-queue": require("../api/_lib/order-queue"),
+    "./_lib/order-additions": require("../api/_lib/order-additions"),
     "./_lib/auth": {
       verifySession(req) {
         calls.auth.push(req);
@@ -187,10 +188,24 @@ test("tracking uses a public allowlist even for an authenticated admin", async (
   assert.equal(res.statusCode, 200);
   assertPrivateHeaders(res);
   assertNoCustomerData(res.body.order);
-  assert.deepEqual(Object.keys(res.body.order).sort(), ["id", "items", "total", "status", "paymentMethod", "createdAt", "updatedAt", "queueNumber", "queueDate", "queueLabel"].sort());
+  assert.deepEqual(Object.keys(res.body.order).sort(), ["id", "items", "total", "status", "paymentMethod", "createdAt", "updatedAt", "queueNumber", "queueDate", "queueLabel", "additions"].sort());
+  assert.deepEqual(res.body.order.additions, []);
   assert.equal(res.body.order.queueLabel, "A012");
   assert.deepEqual(res.body.order.items, [{ id: "pasta", name: "Pasta", price: 37000, quantity: 2, subtotal: 74000 }]);
   assert.deepEqual(calls.guard, [{ scope: "track", methods: ["GET"] }]);
+});
+
+test("tracking additions never expose internal fingerprints or customer data", async () => {
+  const addition = { id: "aca49630-304b-4c73-8912-94694588cdda", status: "pending",
+    items: savedOrder.items, total: 74000, created_at: savedOrder.created_at, updated_at: savedOrder.updated_at,
+    fingerprint: "private-fingerprint", customer_name: savedOrder.customer_name,
+    address: savedOrder.address, tracking_token: savedOrder.tracking_token };
+  const { res } = await invoke("track", { order: { ...savedOrder, additions: [addition] } });
+  assert.equal(res.statusCode, 200);
+  assertNoCustomerData(res.body.order);
+  assert(!JSON.stringify(res.body).includes("private-fingerprint"));
+  assert.deepEqual(Object.keys(res.body.order.additions[0]).sort(), ["id", "status", "items", "total", "createdAt", "updatedAt"].sort());
+  assert.deepEqual(res.body.order.additions[0].items, [{ id: "pasta", name: "Pasta", price: 37000, quantity: 2, subtotal: 74000 }]);
 });
 
 for (const endpoint of ["receipt", "track"]) {

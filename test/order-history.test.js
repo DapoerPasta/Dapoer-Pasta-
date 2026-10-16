@@ -112,9 +112,9 @@ test("history access authenticates before query validation or any database read 
   assert.equal(denied.headers["cache-control"], "private, no-store");
   assert.equal(reads, 0);
   const unsupported = response();
-  await handler(authenticatedRequest({ method: "POST" }), unsupported);
+  await handler(authenticatedRequest({ method: "PUT" }), unsupported);
   assert.equal(unsupported.statusCode, 405);
-  assert.equal(unsupported.headers.allow, "GET");
+  assert.equal(unsupported.headers.allow, "GET, POST");
   assert.equal(reads, 0);
 });
 

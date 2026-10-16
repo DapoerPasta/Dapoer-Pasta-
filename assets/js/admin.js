@@ -2,7 +2,7 @@
 const ORDER_TIME_ZONE="Asia/Jakarta";
 const ORDER_PAGE_SIZE=100;
 const STATUS_FLOW=["baru","diproses","dikirim","selesai"];
-const state={cards:new Map(),drafts:new Map(),pendingStatuses:new Map(),sessionGeneration:0,lastSuccess:0,readError:null,logoutPending:false,cancelConfirmation:null,orders:[],filter:"all",query:"",receiptPaper:"80",initialized:false,pollTimer:null,rolloverTimer:null,selectedDate:todayInWib(),followingToday:true,pageCount:1,pagination:null,summary:null,seenIds:new Set(),generation:0,request:null};
+const state={cards:new Map(),drafts:new Map(),pendingStatuses:new Map(),additionReviews:new Map(),additionNotices:new Map(),sessionGeneration:0,lastSuccess:0,readError:null,logoutPending:false,cancelConfirmation:null,orders:[],filter:"all",query:"",receiptPaper:"80",initialized:false,pollTimer:null,rolloverTimer:null,selectedDate:todayInWib(),followingToday:true,pageCount:1,pagination:null,summary:null,seenIds:new Set(),generation:0,request:null};
 const $=s=>document.querySelector(s);
 const rupiah=v=>`Rp ${Number(v||0).toLocaleString("id-ID")}`;
 function signalAdminEvent(name,detail){
@@ -174,6 +174,8 @@ function expireSession(){
 }
 function showLogin(){
   state.sessionGeneration++;
+  state.additionReviews.forEach(review=>review.controller?.abort());
+  state.additionReviews.clear();state.additionNotices.clear();
   state.pendingStatuses.clear();state.drafts.clear();state.cards.clear();
   finishCancellation(false);
   setPasswordVisibility(false);
@@ -316,6 +318,7 @@ async function loadOrders(silent=false,more=false){
     const fresh=!more&&initialSnapshot&&request.date===todayInWib()
       ?first.orders.filter(order=>!state.seenIds.has(order.id)):[];
     state.orders=mergeOrders(state.orders,received);
+    reconcileAdditionReviews(received);
     received.forEach(order=>state.seenIds.add(order.id));
     state.pageCount=loadedPages;
     state.summary=first.summary;
@@ -384,6 +387,7 @@ function renderOrders(){
   rows.forEach((order,index)=>{
     let row=state.cards.get(order.id);
     if(!row){makeOrderCard(order);row=state.cards.get(order.id)}
+    updateOrderContents(order,row);
     updateStatusRow(order,row);
     if(root.children[index]!==row.card){
       if(typeof root.insertBefore==="function")root.insertBefore(row.card,root.children[index]||null);
@@ -397,7 +401,7 @@ function allowedStatus(current,next){
   return current!=="dibatalkan"&&STATUS_FLOW.includes(current)&&STATUS_FLOW.indexOf(next)>STATUS_FLOW.indexOf(current);
 }
 function chooseStatus(id,value){
-  const order=state.orders.find(order=>order.id===id);if(!order||state.pendingStatuses.has(id)||state.drafts.get(id)?.uncertain)return;
+  const order=state.orders.find(order=>order.id===id);if(!order||state.pendingStatuses.has(id)||hasAdditionReview(id)||state.drafts.get(id)?.uncertain)return;
   if(value===order.status)state.drafts.delete(id);
   else{
     const draft=state.drafts.get(id);
@@ -407,18 +411,19 @@ function chooseStatus(id,value){
 }
 function updateStatusRow(order,row){
   if(!row)return;
-  const draft=state.drafts.get(order.id),pending=state.pendingStatuses.get(order.id);
+  const draft=state.drafts.get(order.id),pending=state.pendingStatuses.get(order.id),reviewing=hasAdditionReview(order.id);
   row.badge.className=`status-badge status-${order.status||"baru"}`;row.badge.textContent=order.status||"baru";
   const changed=!!draft&&(draft.expectedStatus!==order.status||draft.expectedUpdatedAt!==order.updated_at);
   if(changed&&!pending&&!draft.uncertain)draft.conflicted=true;
   row.select.value=draft?.value||order.status;
   Array.from(row.select.children).forEach(option=>option.disabled=!allowedStatus(order.status,option.value)&&option.value!==draft?.value);
-  row.select.disabled=!!pending||!!draft?.uncertain||!!draft?.conflicted||["selesai","dibatalkan"].includes(order.status);
-  row.button.disabled=!!pending||!!draft?.conflicted||!(draft?allowedStatus(draft.expectedStatus,draft.value):false);
+  row.select.disabled=!!pending||reviewing||!!draft?.uncertain||!!draft?.conflicted||["selesai","dibatalkan"].includes(order.status);
+  row.button.disabled=!!pending||reviewing||!!draft?.conflicted||!(draft?allowedStatus(draft.expectedStatus,draft.value):false);
   row.button.textContent=pending?pending.phase==="confirmation"?"Konfirmasi…":"Menyimpan…":"Simpan";
-  row.message.textContent=draft?.conflicted?"Status sudah berubah. Periksa status terbaru sebelum menyimpan.":pending?pending.phase==="confirmation"?"Menunggu konfirmasi pembatalan…":"Perubahan sedang disimpan…":draft?.uncertain?"Hasil belum terkonfirmasi. Simpan lagi untuk memeriksa perubahan yang sama.":draft?"Pilihan belum disimpan.":["selesai","dibatalkan"].includes(order.status)?"Status akhir.":"";
+  row.message.textContent=draft?.conflicted?"Status sudah berubah. Periksa status terbaru sebelum menyimpan.":pending?pending.phase==="confirmation"?"Menunggu konfirmasi pembatalan…":"Perubahan sedang disimpan…":reviewing?"Selesaikan pemeriksaan tambahan sebelum mengubah status.":draft?.uncertain?"Hasil belum terkonfirmasi. Simpan lagi untuk memeriksa perubahan yang sama.":draft?"Pilihan belum disimpan.":["selesai","dibatalkan"].includes(order.status)?"Status akhir.":"";
   row.message.classList.toggle("error",!!draft?.conflicted);
   row.review.hidden=!draft?.conflicted;
+  if(row.additions)updateAdditionRequests(order,row);
 }
 
 function makeEmpty(title,text){
@@ -495,9 +500,163 @@ function makeOrderCard(order){
     statusCell.append(tracking);
   }
 
-  card.append(primary,customer,items,total,statusCell);
-  state.cards.set(order.id,{card,badge,select,button,message,review});
+  const additions=document.createElement("section");additions.className="order-additions";additions.hidden=true;
+  additions.setAttribute("aria-label",`Tambahan pesanan ${order.id}`);
+  card.append(primary,customer,items,total,statusCell,additions);
+  state.cards.set(order.id,{card,badge,select,button,message,review,items,total,additions,additionRows:new Map(),contentKey:null});
   return card;
+}
+
+function hasAdditionReview(id){return Array.from(state.additionReviews.values()).some(review=>review.orderId===id)}
+function orderVersion(value){
+  if(typeof value!=="string")return null;
+  const milliseconds=Date.parse(value);if(!Number.isFinite(milliseconds))return null;
+  const fraction=value.match(/\.(\d+)/)?.[1]||"";
+  return BigInt(milliseconds)*1000n+BigInt(fraction.padEnd(6,"0").slice(3,6));
+}
+function reconcileAdditionReviews(orders){
+  orders.forEach(order=>{
+    state.additionReviews.forEach((review,id)=>{
+      if(review.orderId!==order.id||review.controller)return;
+      const addition=order.additions?.find(item=>item.id===id);
+      if(addition&&addition.status!=="pending"||["dikirim","selesai","dibatalkan"].includes(order.status)){
+        state.additionReviews.delete(id);state.additionNotices.delete(id);
+      }
+    });
+  });
+}
+function updateOrderContents(order,row){
+  if(!row)return;
+  const items=Array.isArray(order.items)?order.items:[];
+  const contentKey=JSON.stringify([items,order.total]);
+  if(contentKey!==row.contentKey){
+    row.items.replaceChildren();
+    items.forEach(item=>{
+      const line=document.createElement("p");line.className="item-line";
+      const name=document.createElement("span");name.textContent=`${item.name} × ${item.quantity}`;
+      const total=document.createElement("strong");total.textContent=rupiah(item.subtotal);
+      line.append(name,total);row.items.append(line);
+    });
+    row.total.textContent=rupiah(order.total);row.contentKey=contentKey;
+  }
+  updateAdditionRequests(order,row);
+}
+function makeAdditionRequest(order,addition){
+  const root=document.createElement("div");root.className="order-addition-request";root.setAttribute("data-addition-id",addition.id);
+  const title=document.createElement("strong");title.className="order-addition-title";title.textContent="Permintaan tambahan menu";
+  const items=document.createElement("div");items.className="order-addition-items";
+  const totals=document.createElement("p");totals.className="order-addition-totals";
+  const message=document.createElement("p");message.className="order-addition-message";message.setAttribute("role","status");message.setAttribute("aria-live","polite");
+  const controls=document.createElement("div");controls.className="order-addition-actions";
+  const approve=document.createElement("button");approve.type="button";approve.className="order-addition-approve";approve.textContent="Setujui tambahan";
+  const reject=document.createElement("button");reject.type="button";reject.className="order-addition-reject";reject.textContent="Tolak";
+  approve.setAttribute("aria-label",`Setujui tambahan untuk ${order.id}`);reject.setAttribute("aria-label",`Tolak tambahan untuk ${order.id}`);
+  approve.addEventListener("click",()=>reviewAddition(order.id,addition.id,"approve"));
+  reject.addEventListener("click",()=>reviewAddition(order.id,addition.id,"reject"));
+  controls.append(approve,reject);root.append(title,items,totals,message,controls);
+  return {root,items,totals,message,approve,reject,contentKey:null};
+}
+function updateAdditionRequests(order,row){
+  const requests=(Array.isArray(order.additions)?order.additions:[]).filter(addition=>addition.status==="pending"&&order.status==="diproses");
+  const visible=new Set(requests.map(addition=>addition.id));
+  row.additionRows.forEach((entry,id)=>{if(!visible.has(id)){entry.root.remove?.();row.additionRows.delete(id)}});
+  row.additions.hidden=!requests.length;
+  requests.forEach(addition=>{
+    let entry=row.additionRows.get(addition.id);
+    if(!entry){entry=makeAdditionRequest(order,addition);row.additionRows.set(addition.id,entry);row.additions.append(entry.root)}
+    const key=JSON.stringify([addition.items,addition.total,order.total]);
+    if(key!==entry.contentKey){
+      entry.items.replaceChildren();
+      (Array.isArray(addition.items)?addition.items:[]).forEach(item=>{
+        const line=document.createElement("p");line.className="item-line";
+        const name=document.createElement("span");name.textContent=`${item.name} × ${item.quantity}`;
+        const total=document.createElement("strong");total.textContent=rupiah(item.subtotal);
+        line.append(name,total);entry.items.append(line);
+      });
+      entry.totals.textContent=`Tambahan ${rupiah(addition.total)} · Total jika disetujui ${rupiah(Number(order.total||0)+Number(addition.total||0))}`;
+      entry.contentKey=key;
+    }
+    const mutation=state.additionReviews.get(addition.id);
+    const busy=!!mutation?.controller;
+    const blocked=!!state.pendingStatuses.get(order.id)||Array.from(state.additionReviews.values()).some(review=>review.orderId===order.id&&review.additionId!==addition.id);
+    entry.approve.disabled=busy||blocked||!!mutation&&mutation.decision!=="approve";
+    entry.reject.disabled=busy||blocked||!!mutation&&mutation.decision!=="reject";
+    entry.approve.textContent=busy&&mutation.decision==="approve"?"Menyetujui…":mutation?.uncertain&&mutation.decision==="approve"?"Periksa persetujuan":"Setujui tambahan";
+    entry.reject.textContent=busy&&mutation.decision==="reject"?"Menolak…":mutation?.uncertain&&mutation.decision==="reject"?"Periksa penolakan":"Tolak";
+    const notice=state.additionNotices.get(addition.id);
+    entry.message.textContent=busy?"Memeriksa stok dan menyimpan keputusan…":mutation?.uncertain?"Hasil belum terkonfirmasi. Tekan Periksa untuk memeriksa keputusan yang sama; tambahan tidak digandakan.":notice||"Stok dan total pesanan berubah setelah disetujui. Penolakan tidak mengubah pesanan.";
+    entry.message.classList.toggle("error",!!notice||!!mutation?.uncertain);
+  });
+}
+function additionErrorMessage(code,fallback){
+  const messages={ORDER_CONFLICT:"Pesanan berubah. Data terbaru dimuat; periksa kembali sebelum mengambil keputusan.",ADDITION_NOT_ALLOWED:"Pesanan sudah tidak menerima tambahan. Data terbaru dimuat.",ADDITION_ALREADY_REVIEWED:"Tambahan ini sudah diputuskan. Data terbaru dimuat.",INSUFFICIENT_STOCK:"Stok tidak mencukupi. Tambahan belum disetujui; periksa stok atau tolak permintaan ini.",PRICE_CHANGED:"Harga menu berubah. Tambahan belum disetujui; minta customer mengirim tambahan dengan harga terbaru.",REQUEST_CONFLICT:"Keputusan untuk permintaan ini sudah berubah. Data terbaru dimuat.",ADDITION_NOT_FOUND:"Permintaan tambahan tidak ditemukan. Data terbaru dimuat."};
+  return messages[code]||fallback||"Tambahan belum dapat diperiksa. Coba lagi.";
+}
+async function reviewAddition(id,additionId,decision){
+  const order=state.orders.find(item=>item.id===id);
+  const addition=order?.additions?.find(item=>item.id===additionId);
+  if(!order||order.status!=="diproses"||!addition||addition.status!=="pending"||state.pendingStatuses.has(id))return;
+  let mutation=state.additionReviews.get(additionId);
+  if(mutation?.controller||mutation&&mutation.decision!==decision||Array.from(state.additionReviews.values()).some(review=>review.orderId===id&&review.additionId!==additionId))return;
+  if(!mutation){
+    if(!order.updated_at||!globalThis.crypto?.randomUUID){showAdminToast("Periksa data terbaru","Refresh halaman sebelum memeriksa tambahan.");return}
+    mutation={orderId:id,additionId,decision,sessionGeneration:state.sessionGeneration,date:state.selectedDate,body:{action:"review-addition",id,additionId,decision,requestId:crypto.randomUUID(),expectedStatus:order.status,expectedUpdatedAt:order.updated_at}};
+    state.additionReviews.set(additionId,mutation);
+  }
+  state.additionNotices.delete(additionId);
+  mutation.controller=new AbortController();mutation.uncertain=false;
+  updateAdditionRequests(order,state.cards.get(id));updateStatusRow(order,state.cards.get(id));
+  let timeout;
+  try{
+    const result=await Promise.race([
+      (async()=>{
+        const res=await fetch("/api/admin/orders",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},cache:"no-store",body:JSON.stringify(mutation.body),signal:mutation.controller.signal});
+        if(mutation.sessionGeneration!==state.sessionGeneration)return null;
+        if(res.status===401){expireSession();return null}
+        return {res,data:await res.json()};
+      })(),
+      new Promise((_,reject)=>{timeout=setTimeout(()=>{mutation.controller?.abort();const error=new Error("Batas waktu konfirmasi terlampaui.");error.name="AbortError";reject(error)},30000)})
+    ]);
+    if(!result)return;
+    const {res,data}=result;
+    if(mutation.sessionGeneration!==state.sessionGeneration)return;
+    if(!res.ok){
+      if(res.status>=500)throw new Error(data.error||"Server belum mengonfirmasi keputusan.");
+      const message=additionErrorMessage(data.code,data.error);
+      state.additionReviews.delete(additionId);state.additionNotices.set(additionId,message);
+      if(mutation.date===state.selectedDate){cancelOrderRequest();await loadOrders(true)}
+      if(mutation.sessionGeneration!==state.sessionGeneration)return;
+      showAdminToast("Periksa tambahan",message);return;
+    }
+    if(!data.addition||data.addition.id!==additionId||data.addition.status!==(decision==="approve"?"approved":"rejected")||!data.order||data.order.id!==id||!Array.isArray(data.order.items)||!Number.isSafeInteger(data.order.total)||data.order.total<=0||typeof data.order.updatedAt!=="string"||!Number.isFinite(Date.parse(data.order.updatedAt))||!["baru","diproses","dikirim","selesai","dibatalkan"].includes(data.order.status))throw new Error("Jawaban server belum lengkap. Periksa kembali keputusan yang sama.");
+    state.additionReviews.delete(additionId);state.additionNotices.delete(additionId);
+    if(mutation.date===state.selectedDate){
+      const target=state.orders.find(item=>item.id===id);
+      const incomingVersion=orderVersion(data.order.updatedAt),currentVersion=orderVersion(target?.updated_at);
+      if(target&&(currentVersion===null||incomingVersion>=currentVersion)){
+        const previousTotal=Number(target.total||0);
+        if(Array.isArray(data.order.items))target.items=data.order.items;
+        if(Number.isSafeInteger(data.order.total)&&data.order.total>0)target.total=data.order.total;
+        if(typeof data.order.updatedAt==="string")target.updated_at=data.order.updatedAt;
+        if(typeof data.order.status==="string")target.status=data.order.status;
+        if(Array.isArray(data.order.additions))target.additions=data.order.additions;
+        else target.additions=target.additions.map(item=>item.id===additionId?data.addition:item);
+        if(state.summary&&target.status!=="dibatalkan")state.summary.orderValue=Number(state.summary.orderValue||0)+Number(target.total||0)-previousTotal;
+        updateStats();renderOrders();
+      }
+    }
+    signalAdminEvent("dapoer:stock-changed",{orderId:id,source:"order-addition",additionId});
+    if(mutation.date===state.selectedDate){cancelOrderRequest();await loadOrders(true)}
+    if(mutation.sessionGeneration!==state.sessionGeneration)return;
+    showAdminToast(data.addition.status==="approved"?"Tambahan disetujui":"Tambahan ditolak",data.addition.status==="approved"?`${id} diperbarui dengan menu tambahan. Nomor antrean tetap sama.`:`${id} tetap menggunakan pesanan sebelumnya.`);
+  }catch(error){
+    if(mutation.sessionGeneration!==state.sessionGeneration)return;
+    mutation.uncertain=true;
+    showAdminToast("Hasil belum terkonfirmasi",error.name==="AbortError"?"Koneksi melewati batas waktu. Periksa keputusan yang sama tanpa mengirim ulang tambahan.":error.message||"Periksa koneksi dan coba lagi.");
+  }finally{
+    clearTimeout(timeout);mutation.controller=null;
+    if(mutation.sessionGeneration===state.sessionGeneration){const latest=state.orders.find(item=>item.id===id);const row=state.cards.get(id);if(latest&&row){updateAdditionRequests(latest,row);updateStatusRow(latest,row)}}
+  }
 }
 
 function finishCancellation(confirmed){
@@ -516,7 +675,7 @@ function confirmCancellation(order){
   });
 }
 async function changeStatus(id,status,button){
-  if(state.pendingStatuses.has(id))return;
+  if(state.pendingStatuses.has(id)||hasAdditionReview(id))return;
   const order=state.orders.find(item=>item.id===id);if(!order)return;
   if(!state.drafts.has(id)&&status!==order.status)chooseStatus(id,status);
   const draft=state.drafts.get(id);

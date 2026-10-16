@@ -1,9 +1,11 @@
 const crypto = require("node:crypto");
 const { STORE, PRODUCTS } = require("./_lib/catalog");
-const { saveOrder } = require("./_lib/db");
+const { saveOrder, requestOrderAddition } = require("./_lib/db");
 const { guardRequest } = require("./_lib/security");
 const { queueMetadata } = require("./_lib/order-queue");
 const { requestId, expectedTotal } = require("./_lib/operations");
+const { additionRequest, publicAddition, publicOrder, trackingUrl: additionTrackingUrl,
+  additionWhatsAppUrl, ADDITION_CONFLICTS } = require("./_lib/order-additions");
 
 function normalizeItems(input) {
   if (!Array.isArray(input) || input.length < 1 || input.length > 20) throw new Error("INVALID_ITEMS");
@@ -91,9 +93,42 @@ function buildMessage(order, trackingUrl) {
   return lines.join("\n");
 }
 
+async function addItems(req, res) {
+  let input;
+  try {
+    input = additionRequest(req.body);
+  } catch (error) {
+    return res.status(400).json({ code: error.code || "INVALID_ADDITION", error: "Data tambahan menu tidak valid. Muat ulang pesanan dan periksa jumlah menu." });
+  }
+  try {
+    const result = await requestOrderAddition(input);
+    if (!result) return res.status(404).json({ error: "Pesanan tidak ditemukan." });
+    const addition = publicAddition(result.addition);
+    const order = publicOrder(result.order);
+    if (!order.additions.some(item => item.id === addition.id)) order.additions.push(addition);
+    const trackingUrl = additionTrackingUrl(req, input.id, input.trackingToken);
+    const whatsappUrl = additionWhatsAppUrl(order, addition, trackingUrl);
+    return res.status(200).json({ addition, order, persisted: true, trackingUrl, whatsappUrl });
+  } catch (error) {
+    const code = error?.code || error?.message;
+    if (ADDITION_CONFLICTS[code]) {
+      return res.status(409).json({ code, error: ADDITION_CONFLICTS[code],
+        ...(code === "PRICE_CHANGED" ? { items: input.items, total: input.total } : {}) });
+    }
+    if (code === "ADDITION_NOT_FOUND") return res.status(404).json({ code, error: "Tambahan menu tidak ditemukan." });
+    console.error("Order addition failed");
+    return res.status(503).json({ error: "Tambahan menu belum dapat disimpan. Coba lagi dengan permintaan yang sama agar tidak terduplikasi." });
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (!(await guardRequest(req, res, { scope: "order", methods: ["POST"] }))) return;
+
+  if (req.body?.action === "add-items") return addItems(req, res);
+  if (req.body && Object.prototype.hasOwnProperty.call(req.body, "action")) {
+    return res.status(400).json({ code: "INVALID_ACTION", error: "Tindakan pesanan tidak valid." });
+  }
 
   let items;
   let customer;

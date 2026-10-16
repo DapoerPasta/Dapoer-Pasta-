@@ -11,4 +11,52 @@
 .track-whatsapp-recovery strong{display:block;color:#245b3e;font-size:.9rem}
 .track-whatsapp-recovery p{margin:7px 0 0;font-size:.78rem;line-height:1.6;color:#41664f}
 .track-whatsapp-recovery .track-action{background:#246443;min-height:44px;display:inline-flex;align-items:center;border-radius:6px}
+.track-items-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.track-items-head h2{margin:0}
+.track-add-menu,.addition-panel button,.addition-quantity input{font-family:inherit}
+.track-add-menu{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:11px 17px;border:1px solid #d4b574;border-radius:8px;background:#f5e6c6;color:var(--wine);font-size:.78rem;font-weight:700;cursor:pointer}
+.track-add-menu:disabled,.addition-panel button:disabled{opacity:.48;cursor:not-allowed}
+.addition-panel{margin-top:26px;padding:24px;border:1px solid #dcc9a6;border-radius:12px;background:linear-gradient(140deg,#fffaf0,#fffdf9 75%);scroll-margin-top:20px}
+.addition-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.addition-heading h2{margin:6px 0 0;color:var(--wine);font:600 2rem/1.05 "Cormorant Garamond",serif}
+.addition-heading>button{flex:0 0 44px;width:44px;min-height:44px;border:1px solid var(--border);border-radius:50%;background:white;color:var(--burgundy);font-size:1.5rem;cursor:pointer}
+.addition-description{margin:15px 0 22px;font-size:.8rem;color:#715f50;line-height:1.7}
+.addition-catalog-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.addition-catalog-head>strong{font-size:.8rem;color:var(--wine)}
+.addition-catalog-head>button{min-height:44px;border:0;border-radius:6px;background:transparent;color:var(--burgundy);font-size:.73rem;font-weight:700;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.addition-menu{display:grid;gap:10px}
+.addition-product{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;padding:16px;background:white;border:1px solid var(--border);border-radius:8px}
+.addition-product>div:first-child{min-width:0}
+.addition-product strong{display:block;font-size:.83rem;line-height:1.5;overflow-wrap:anywhere}
+.addition-product span{display:block;margin-top:4px;font-size:.76rem;color:var(--burgundy)}
+.addition-product small{display:block;margin-top:5px;font-size:.7rem;color:var(--muted)}
+.addition-quantity{display:grid;grid-template-columns:44px 52px 44px;align-items:center;border:1px solid #ddcfba;border-radius:7px;overflow:hidden;background:#fffdf9}
+.addition-quantity button{min-width:44px;min-height:44px;padding:0;border:0;background:#f8f0df;color:var(--burgundy);font-size:1.2rem;font-weight:600;cursor:pointer}
+.addition-quantity input{width:52px;min-width:0;height:44px;padding:0 2px;border:0;border-radius:0;background:white;color:var(--wine);text-align:center;font-size:16px;font-weight:600;appearance:textfield;-moz-appearance:textfield}
+.addition-quantity input::-webkit-inner-spin-button,.addition-quantity input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.addition-quantity input:disabled{opacity:.65;-webkit-text-fill-color:var(--wine)}
+.addition-totals{margin-top:20px;padding-top:14px;border-top:1px solid #dfd0b8;display:grid;gap:12px}
+.addition-totals>div{display:flex;align-items:baseline;justify-content:space-between;gap:16px;font-size:.78rem;color:#715f50}
+.addition-totals strong{color:var(--burgundy);font-size:.86rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.addition-totals>div:nth-child(3){padding-top:12px;border-top:1px dashed #dfd0b8;font-weight:700;color:var(--wine)}
+.addition-totals>div:nth-child(3) strong{font-size:1rem}
+.addition-totals>small{font-size:.7rem;line-height:1.6;color:var(--muted)}
+.addition-notice{margin:18px 0 0;padding:14px;border:1px solid #c5ddcd;border-radius:7px;background:#eff8f1;color:#2e6040;font-size:.78rem;line-height:1.7;overflow-wrap:anywhere}
+.addition-notice.is-error{border-color:#e7c6b7;background:#fff2e9;color:#8d3e28}
+.addition-submit{display:block;width:100%;min-height:48px;margin-top:18px;padding:14px 16px;border:1px solid #d2ad61;border-radius:8px;background:linear-gradient(110deg,#ecd69e,#d2ad61);color:var(--wine);font-size:.82rem;font-weight:700;line-height:1.5;cursor:pointer}
+.addition-history{margin-top:28px}
+.addition-history h2{margin:0 0 14px;color:var(--wine);font:600 1.7rem "Cormorant Garamond",serif}
+.addition-history-items{display:grid;gap:10px}
+.addition-history-item{margin-top:10px;padding:16px;border:1px solid #d5e1d6;border-left:3px solid var(--green);border-radius:7px;background:#f5faf5}
+.addition-history-item>strong{display:block;font-size:.8rem;color:#315d3c;line-height:1.5}
+.addition-history-item p{margin:7px 0;font-size:.77rem;color:#5e6356;line-height:1.7;overflow-wrap:anywhere}
+.addition-history-item>span{display:block;color:#526c50;font-size:.73rem;line-height:1.7}
+.addition-pending{border-color:#e5d0a0;border-left-color:#b58b37;background:#fff8e9}
+.addition-pending>strong,.addition-pending>span{color:#7d5e22}
+.addition-rejected,.addition-expired{border-color:#e5d9cf;border-left-color:#9d8c7c;background:#faf7f3}
+.addition-rejected>strong,.addition-expired>strong,.addition-rejected>span,.addition-expired>span{color:#7b6655}
+.track-add-menu:focus-visible,.addition-panel button:focus-visible,.addition-quantity input:focus-visible{position:relative;z-index:1;outline:3px solid var(--gold);outline-offset:2px}
+#addition-title:focus{outline:0}
+@media(max-width:600px){.addition-panel{padding:18px 15px}.addition-heading h2{font-size:1.8rem}.addition-product{padding:13px;gap:12px}.addition-totals>div{font-size:.74rem;gap:10px}.addition-totals strong{font-size:.8rem}.addition-totals>div:nth-child(3) strong{font-size:.9rem}}
+@media(max-width:420px){.addition-product{grid-template-columns:minmax(0,1fr)}.addition-quantity{justify-self:end}.addition-heading h2{font-size:1.65rem}.addition-panel{padding:17px 13px}.addition-heading{gap:8px}.addition-heading .eyebrow{letter-spacing:1.6px;font-size:.55rem}.addition-totals>div{flex-wrap:wrap;gap:5px 10px}.addition-totals strong{margin-left:auto}.addition-catalog-head{gap:8px}.track-add-menu{width:100%}}
 :is(.track-retry,.track-action):focus-visible{outline:3px solid var(--gold);outline-offset:3px}

@@ -10,9 +10,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/track.css?v=20261015-confirmation">
-  <script src="/assets/js/order-recovery.js?v=20261015-confirmation" defer></script>
-  <script src="/assets/js/track.js?v=20261015-confirmation" defer></script>
+  <link rel="stylesheet" href="/assets/css/track.css?v=20261016-additions">
+  <script src="/assets/js/order-recovery.js?v=20261016-additions" defer></script>
+  <script src="/assets/js/order-additions.js?v=20261016-additions" defer></script>
+  <script src="/assets/js/track.js?v=20261016-additions" defer></script>
   <link rel="stylesheet" href="/assets/css/motion.css?v=20261008-motion">
   <script src="/assets/js/motion.js?v=20261008-motion" defer></script>
 </head>
@@ -57,9 +58,29 @@
         </div>
 
         <div class="track-items">
-          <h2>Ringkasan Pesanan</h2>
+          <div class="track-items-head"><h2>Ringkasan Pesanan</h2><button id="track-add-menu" class="track-add-menu" type="button" aria-controls="tambah-menu" aria-expanded="false" hidden>+ Tambah Menu</button></div>
           <div id="track-items"></div>
         </div>
+
+        <section id="tambah-menu" class="addition-panel" aria-labelledby="addition-title" hidden>
+          <div class="addition-heading"><div><p class="eyebrow">Pesanan yang sama</p><h2 id="addition-title" tabindex="-1">Tambah menu favorit Anda</h2></div><button id="addition-close" type="button" aria-label="Tutup pilihan tambahan">×</button></div>
+          <p id="addition-description" class="addition-description"></p>
+          <form id="addition-form">
+            <div class="addition-catalog-head"><strong>Pilih tambahan</strong><button id="addition-refresh" type="button">Perbarui stok</button></div>
+            <div id="addition-menu" class="addition-menu"></div>
+            <div class="addition-totals">
+              <div><span>Total pesanan saat ini</span><strong id="addition-current-total">Rp 0</strong></div>
+              <div><span>Subtotal tambahan</span><strong id="addition-subtotal">Rp 0</strong></div>
+              <div><span id="addition-combined-label">Total setelah ditambah</span><strong id="addition-combined-total">Rp 0</strong></div>
+              <small>Belum termasuk ongkir. Pembayaran tetap dikonfirmasi admin.</small>
+            </div>
+            <p id="addition-notice" class="addition-notice" role="status" aria-live="polite" hidden></p>
+            <button id="addition-submit" class="addition-submit" type="submit" disabled>Tambahkan ke Pesanan</button>
+            <button id="addition-retry" class="addition-submit" type="button" hidden>Periksa tambahan sebelumnya</button>
+          </form>
+        </section>
+
+        <section id="addition-history" class="addition-history" aria-labelledby="addition-history-title" hidden><h2 id="addition-history-title">Riwayat tambahan</h2><div id="addition-history-items"></div></section>
 
         <div id="cancelled-note" class="cancelled-note" hidden>Pesanan ini dibatalkan. Hubungi admin Dapoer Pasta jika membutuhkan bantuan.</div>
       </div>

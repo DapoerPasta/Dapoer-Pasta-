@@ -38,6 +38,34 @@
       queueDate: queueDate(value.queueDate), savedAt: value.savedAt };
   }
   function sameOrder(a, b) { return !!a && !!b && a.id === b.id && a.token === b.token; }
+  function compareUpdatedAt(a, b) {
+    const version = value => {
+      const milliseconds = typeof value === "string" ? Date.parse(value) : NaN;
+      if (!Number.isFinite(milliseconds)) return null;
+      const fraction = value.match(/\.(\d+)(?:Z|[+-]\d\d:\d\d)$/)?.[1] || "";
+      return BigInt(milliseconds) * 1000000n + BigInt(fraction.slice(3, 9).padEnd(6, "0"));
+    };
+    const left = version(a), right = version(b);
+    return left === null || right === null || left === right ? 0 : left < right ? -1 : 1;
+  }
+  function validAdditions(value) {
+    if (value === undefined) return true; // Orders saved before menu additions remain readable.
+    if (!Array.isArray(value) || value.length > 100) return false;
+    const seen = new Set(); let pending = 0;
+    return value.every(addition => {
+      if (!addition || typeof addition.id !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(addition.id) || seen.has(addition.id)
+        || !["applied", "pending", "approved", "rejected", "expired"].includes(addition.status) || !Number.isSafeInteger(addition.total) || addition.total < 1
+        || !Array.isArray(addition.items) || !addition.items.length || addition.items.length > 20) return false;
+      seen.add(addition.id); if (addition.status === "pending" && ++pending > 1) return false;
+      let total = 0;
+      for (const item of addition.items) {
+        if (!item || typeof item.name !== "string" || !item.name.trim() || !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 1000000
+          || !Number.isSafeInteger(item.price) || item.price < 1 || !Number.isSafeInteger(item.subtotal) || item.subtotal !== item.price * item.quantity) return false;
+        total += item.subtotal;
+      }
+      return Number.isSafeInteger(total) && total === addition.total;
+    });
+  }
   function blockLegacyForCurrent(raw) {
     const identity = safeOrderUrl(raw?.trackingUrl, "/track/");
     if (!identity) return;
@@ -91,10 +119,19 @@
     if (Number.isSafeInteger(order.queueNumber) && order.queueNumber > 0) lines.push(`No. Antrian: *A${String(order.queueNumber).padStart(3, "0")}*${queueDate(order.queueDate) ? ` (${order.queueDate} WIB)` : ""}`);
     if (["OVO", "ShopeePay", "DANA", "Transfer Bank"].includes(order.paymentMethod)) lines.push(`Pembayaran: ${order.paymentMethod}`);
     lines.push("");
-    for (const item of (Array.isArray(order.items) ? order.items : []).slice(0, 50)) {
+    for (const item of (Array.isArray(order.items) ? order.items : []).slice(0, 100)) {
       if (text(item?.name) && Number.isSafeInteger(item.quantity) && item.quantity > 0) lines.push(`${text(item.name)} × ${item.quantity}`);
     }
-    lines.push("", `*TOTAL PESANAN: ${amount(order.total)}*`, "Data pemesan dan alamat sudah diisi pada pesanan ini.", `Lacak status: ${window.location.origin}/track/?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`, "", "Mohon periksa pesanan dan konfirmasi pembayaran serta ongkirnya ya kak.");
+    lines.push("", `*TOTAL PESANAN: ${amount(order.total)}*`);
+    const pending = Array.isArray(order.additions) ? order.additions.filter(item => item?.status === "pending") : [];
+    for (const addition of pending) {
+      lines.push("", "*PERMINTAAN TAMBAHAN — MENUNGGU PERSETUJUAN ADMIN*");
+      for (const item of (Array.isArray(addition.items) ? addition.items : []).slice(0, 20)) {
+        if (text(item?.name) && Number.isSafeInteger(item.quantity) && item.quantity > 0) lines.push(`${text(item.name)} × ${item.quantity}`);
+      }
+      if (Number.isSafeInteger(addition.total) && addition.total > 0) lines.push(`Subtotal tambahan: ${amount(addition.total)} (belum masuk total pesanan dan belum perlu dibayar)`);
+    }
+    lines.push("", "Data pemesan dan alamat sudah diisi pada pesanan ini.", `Lacak status: ${window.location.origin}/track/?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`, "", "Mohon periksa pesanan dan konfirmasi pembayaran serta ongkirnya ya kak.");
     return `https://api.whatsapp.com/send?phone=6285175391181&text=${encodeURIComponent(lines.join("\n"))}`;
   }
   function loadWhatsAppOrder() {
@@ -139,10 +176,29 @@
   }
   function getWhatsAppUrl({ id, token, order } = {}) {
     if (!orderId(id) || !tokenValue(token)) return null;
-    if (order && (order.id !== id || !activeStatuses.includes(order.status) || !Number.isSafeInteger(order.total) || order.total < 1)) return null;
+    if (order && (order.id !== id || !activeStatuses.includes(order.status) || !Number.isSafeInteger(order.total) || order.total < 1 || !validAdditions(order.additions))) return null;
+    if (order) syncOrder({ id, token, order });
     loadWhatsAppOrder();
     if (sameOrder(whatsappOrder, { id, token }) && fresh(whatsappOrder.savedAt)) return safeWhatsApp(whatsappOrder.url) || (order ? fallbackWhatsApp(id, token, order) : null);
     return order ? fallbackWhatsApp(id, token, order) : null;
   }
-  window.DapoerOrderRecovery = Object.freeze({ remember, getCurrent, getLegacyReference, recoverLegacy, forget, getWhatsAppUrl, safeOrderUrl, safeWhatsApp, currentKey: CURRENT_KEY });
+  function syncOrder({ id, token, order } = {}) {
+    if (!orderId(id) || !tokenValue(token) || order?.id !== id || !activeStatuses.includes(order.status) || !Number.isSafeInteger(order.total) || order.total < 1 || !validAdditions(order.additions)) return null;
+    const previous = getCurrent();
+    if (sameOrder(previous, { id, token })) {
+      const record = validatedOrder({ ...previous, total: order.total, queueNumber: order.queueNumber, queueDate: order.queueDate });
+      if (record && JSON.stringify(record) !== JSON.stringify(previous)) {
+        currentOrder = record;
+        try { localStorage.setItem(CURRENT_KEY, JSON.stringify(record)); volatileCurrent = false; } catch { volatileCurrent = true; }
+      }
+    }
+    // Original checkout messages include the old total. Once an addition exists,
+    // always build WhatsApp from the verified current order, including pending requests.
+    if ((Array.isArray(order.additions) && order.additions.length) || (sameOrder(previous, { id, token }) && previous.total !== order.total)) {
+      if (sameOrder(whatsappOrder, { id, token })) whatsappOrder = null;
+      try { if (sameOrder(read(sessionStorage, WHATSAPP_KEY), { id, token })) sessionStorage.removeItem(WHATSAPP_KEY); } catch {}
+    }
+    return sameOrder(currentOrder, { id, token }) ? { ...currentOrder } : null;
+  }
+  window.DapoerOrderRecovery = Object.freeze({ remember, getCurrent, getLegacyReference, recoverLegacy, forget, getWhatsAppUrl, syncOrder, validAdditions, compareUpdatedAt, safeOrderUrl, safeWhatsApp, currentKey: CURRENT_KEY });
 }());
